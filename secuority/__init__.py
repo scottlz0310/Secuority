@@ -2,7 +2,7 @@
 Secuority CLI - Python project security and quality configuration tool.
 """
 
-from .cli.main import SecuorityCLI
+# CLI import removed to avoid circular imports
 from .core.engine import CoreEngine
 from .models.exceptions import (
     ConfigurationError,
@@ -45,7 +45,7 @@ __all__ = [
     "ProjectAnalysisError",
     "ProjectAnalyzerInterface",
     "ProjectState",
-    "SecuorityCLI",
+
     "SecuorityError",
     "TemplateError",
     "TemplateManagerInterface",

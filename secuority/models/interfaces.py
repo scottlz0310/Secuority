@@ -1,10 +1,11 @@
 """Core interfaces that define system boundaries for Secuority."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
+import re
 
 
 class ChangeType(Enum):
@@ -14,18 +15,135 @@ class ChangeType(Enum):
     MERGE = "merge"
 
 
+class DependencyManager(Enum):
+    """Supported dependency managers."""
+    POETRY = "poetry"
+    PDM = "pdm"
+    SETUPTOOLS_SCM = "setuptools-scm"
+    PIP = "pip"
+    PIPENV = "pipenv"
+    CONDA = "conda"
+
+
+class SecurityTool(Enum):
+    """Supported security tools."""
+    BANDIT = "bandit"
+    SAFETY = "safety"
+    GITLEAKS = "gitleaks"
+    SEMGREP = "semgrep"
+
+
+class QualityTool(Enum):
+    """Supported code quality tools."""
+    RUFF = "ruff"
+    MYPY = "mypy"
+    BLACK = "black"
+    ISORT = "isort"
+    FLAKE8 = "flake8"
+    PYLINT = "pylint"
+
+
+def validate_project_path(path: Path) -> bool:
+    """Validate that a path exists and is a directory."""
+    return path.exists() and path.is_dir()
+
+
+def validate_file_path(path: Path) -> bool:
+    """Validate that a path exists and is a file."""
+    return path.exists() and path.is_file()
+
+
+def validate_package_name(name: str) -> bool:
+    """Validate Python package name format."""
+    if not name or not isinstance(name, str):
+        return False
+    # Python package names should match PEP 508 naming convention
+    pattern = r'^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])$'
+    return bool(re.match(pattern, name, re.IGNORECASE))
+
+
+def validate_version_string(version: str) -> bool:
+    """Validate version string format (PEP 440)."""
+    if not version or not isinstance(version, str):
+        return False
+    # Simplified PEP 440 version pattern
+    pattern = (r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*'
+               r'((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?'
+               r'(\.dev(0|[1-9][0-9]*))?$')
+    return bool(re.match(pattern, version))
+
+
+def validate_tool_config(config: Dict[str, Any]) -> bool:
+    """Validate tool configuration dictionary."""
+    if not isinstance(config, dict):
+        return False
+    # Basic validation - ensure it's a dictionary with string keys
+    return all(isinstance(key, str) for key in config.keys())
+
+
 @dataclass
-class ProjectState:
-    """Represents the current state of a Python project."""
-    project_path: Path
-    has_pyproject_toml: bool
-    has_requirements_txt: bool
-    has_setup_py: bool
-    has_gitignore: bool
-    dependency_manager: Optional[str]  # poetry, pdm, setuptools-scm
-    current_tools: Dict[str, Any]
-    security_tools: Dict[str, bool]
-    ci_workflows: List[str]
+class Package:
+    """Represents a Python package dependency."""
+    name: str
+    version: Optional[str] = None
+    extras: List[str] = field(default_factory=list)
+    markers: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate package data after initialization."""
+        if not validate_package_name(self.name):
+            raise ValueError(f"Invalid package name: {self.name}")
+        if self.version and not validate_version_string(self.version):
+            raise ValueError(f"Invalid version string: {self.version}")
+
+
+@dataclass
+class DependencyAnalysis:
+    """Analysis of project dependencies."""
+    requirements_packages: List[Package] = field(default_factory=list)
+    pyproject_dependencies: List[Package] = field(default_factory=list)
+    extras_found: List[str] = field(default_factory=list)
+    migration_needed: bool = False
+    conflicts: List[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Validate dependency analysis data."""
+        if not isinstance(self.requirements_packages, list):
+            raise ValueError("requirements_packages must be a list")
+        if not isinstance(self.pyproject_dependencies, list):
+            raise ValueError("pyproject_dependencies must be a list")
+
+
+@dataclass
+class ToolConfig:
+    """Configuration for a development tool."""
+    name: str
+    config: Dict[str, Any]
+    enabled: bool = True
+    version: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate tool configuration."""
+        if not self.name:
+            raise ValueError("Tool name cannot be empty")
+        if not validate_tool_config(self.config):
+            raise ValueError("Invalid tool configuration")
+
+
+@dataclass
+class Workflow:
+    """Represents a CI/CD workflow."""
+    name: str
+    file_path: Path
+    triggers: List[str] = field(default_factory=list)
+    jobs: List[str] = field(default_factory=list)
+    has_security_checks: bool = False
+    has_quality_checks: bool = False
+
+    def __post_init__(self) -> None:
+        """Validate workflow data."""
+        if not self.name:
+            raise ValueError("Workflow name cannot be empty")
 
 
 @dataclass
@@ -50,9 +168,9 @@ class ApplyResult:
 
 class ProjectAnalyzerInterface(ABC):
     """Interface for project analysis functionality."""
-    
+
     @abstractmethod
-    def analyze_project(self, project_path: Path) -> ProjectState:
+    def analyze_project(self, project_path: Path) -> 'ProjectState':
         """Analyze a Python project and return its current state."""
 
     @abstractmethod
@@ -70,7 +188,7 @@ class ProjectAnalyzerInterface(ABC):
 
 class TemplateManagerInterface(ABC):
     """Interface for template management functionality."""
-    
+
     @abstractmethod
     def load_templates(self) -> Dict[str, str]:
         """Load configuration templates."""
@@ -90,7 +208,7 @@ class TemplateManagerInterface(ABC):
 
 class ConfigurationApplierInterface(ABC):
     """Interface for applying configuration changes."""
-    
+
     @abstractmethod
     def apply_changes(
         self, changes: List[ConfigChange], dry_run: bool = False
@@ -110,7 +228,7 @@ class ConfigurationApplierInterface(ABC):
 
 class GitHubClientInterface(ABC):
     """Interface for GitHub API integration."""
-    
+
     @abstractmethod
     def check_push_protection(self, repo: str) -> bool:
         """Check if GitHub Push Protection is enabled for the repository."""
@@ -128,9 +246,81 @@ class GitHubClientInterface(ABC):
         """Check repository security settings."""
 
 
+@dataclass
+class ProjectState:
+    """Represents the current state of a Python project."""
+    project_path: Path
+    has_pyproject_toml: bool = False
+    has_requirements_txt: bool = False
+    has_setup_py: bool = False
+    has_gitignore: bool = False
+    has_pre_commit_config: bool = False
+    dependency_manager: Optional[DependencyManager] = None
+    current_tools: Dict[str, ToolConfig] = field(default_factory=dict)
+    security_tools: Dict[SecurityTool, bool] = field(default_factory=dict)
+    quality_tools: Dict[QualityTool, bool] = field(default_factory=dict)
+    ci_workflows: List[Workflow] = field(default_factory=list)
+    dependency_analysis: Optional[DependencyAnalysis] = None
+    python_version: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate project state data."""
+        if not validate_project_path(self.project_path):
+            raise ValueError(f"Invalid project path: {self.project_path}")
+
+    def validate(self) -> bool:
+        """Validate the entire project state."""
+        try:
+            # Validate project path
+            if not validate_project_path(self.project_path):
+                return False
+
+            # Validate tool configurations
+            for tool_config in self.current_tools.values():
+                if not isinstance(tool_config, ToolConfig):
+                    return False
+
+            # Validate workflows
+            for workflow in self.ci_workflows:
+                if not isinstance(workflow, Workflow):
+                    return False
+
+            # Validate dependency analysis if present
+            if self.dependency_analysis and not isinstance(self.dependency_analysis, DependencyAnalysis):
+                return False
+
+            return True
+        except Exception:
+            return False
+
+    def has_modern_config(self) -> bool:
+        """Check if project uses modern configuration (pyproject.toml)."""
+        return self.has_pyproject_toml and not self.has_requirements_txt
+
+    def needs_migration(self) -> bool:
+        """Check if project needs migration to modern configuration."""
+        return self.has_requirements_txt and not self.has_pyproject_toml
+
+    def get_missing_security_tools(self) -> List[SecurityTool]:
+        """Get list of missing security tools."""
+        return [tool for tool, enabled in self.security_tools.items() if not enabled]
+
+    def get_missing_quality_tools(self) -> List[QualityTool]:
+        """Get list of missing quality tools."""
+        return [tool for tool, enabled in self.quality_tools.items() if not enabled]
+
+    def has_ci_security_checks(self) -> bool:
+        """Check if CI workflows include security checks."""
+        return any(workflow.has_security_checks for workflow in self.ci_workflows)
+
+    def has_ci_quality_checks(self) -> bool:
+        """Check if CI workflows include quality checks."""
+        return any(workflow.has_quality_checks for workflow in self.ci_workflows)
+
+
 class CLIInterface(ABC):
     """Interface for CLI command implementations."""
-    
+
     @abstractmethod
     def check(self, project_path: Path, verbose: bool = False) -> None:
         """Execute the check command to analyze project configuration."""
