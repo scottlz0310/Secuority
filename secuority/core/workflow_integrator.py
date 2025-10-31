@@ -65,15 +65,15 @@ class WorkflowIntegrator:
                         },
                         {
                             "name": "Install dependencies",
-                            "run": ("python -m pip install --upgrade pip\n" "pip install bandit[toml] safety gitleaks"),
+                            "run": ("python -m pip install --upgrade pip\npip install bandit[toml] safety gitleaks"),
                         },
                         {
                             "name": "Run Bandit security linter",
-                            "run": ("bandit -r . -f json -o bandit-report.json || true\n" "bandit -r . -f txt"),
+                            "run": ("bandit -r . -f json -o bandit-report.json || true\nbandit -r . -f txt"),
                         },
                         {
                             "name": "Run Safety dependency vulnerability scanner",
-                            "run": ("safety check --json --output safety-report.json || true\n" "safety check"),
+                            "run": ("safety check --json --output safety-report.json || true\nsafety check"),
                         },
                         {
                             "name": "Run Gitleaks secret scanner",
@@ -219,7 +219,7 @@ class WorkflowIntegrator:
                         },
                         {
                             "name": "Install pre-commit",
-                            "run": ("python -m pip install --upgrade pip\n" "pip install pre-commit"),
+                            "run": ("python -m pip install --upgrade pip\npip install pre-commit"),
                         },
                         {"name": "Run pre-commit hooks", "run": "pre-commit run --all-files"},
                     ],
@@ -236,11 +236,11 @@ class WorkflowIntegrator:
                         },
                         {
                             "name": "Install documentation dependencies",
-                            "run": ("python -m pip install --upgrade pip\n" "pip install sphinx sphinx-rtd-theme"),
+                            "run": ("python -m pip install --upgrade pip\npip install sphinx sphinx-rtd-theme"),
                         },
                         {
                             "name": "Build documentation",
-                            "run": ('if [ -d "docs" ]; then\n' "  cd docs\n" "  make html\n" "fi"),
+                            "run": ('if [ -d "docs" ]; then\n  cd docs\n  make html\nfi'),
                         },
                         {
                             "name": "Deploy to GitHub Pages",
@@ -281,7 +281,10 @@ class WorkflowIntegrator:
         )
 
     def generate_workflows(
-        self, project_path: Path, workflows: list[str] | None = None, python_versions: list[str] | None = None,
+        self,
+        project_path: Path,
+        workflows: list[str] | None = None,
+        python_versions: list[str] | None = None,
     ) -> list[ConfigChange]:
         """Generate multiple CI/CD workflows.
 

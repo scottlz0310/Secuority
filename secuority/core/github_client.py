@@ -42,24 +42,26 @@ class GitHubClient:
             GitHubAPIError: If API request fails
         """
         url = urljoin(self.BASE_URL, endpoint)
-        request = Request(url, headers=self.headers)
+        # S310: Safe - URL is constructed from BASE_URL constant (https://api.github.com)
+        request = Request(url, headers=self.headers)  # noqa: S310
 
         try:
-            with urlopen(request) as response:
+            # S310: Safe - Opening GitHub API endpoint with validated HTTPS URL
+            with urlopen(request) as response:  # noqa: S310
                 return json.loads(response.read().decode("utf-8"))
         except HTTPError as e:
             if e.code == 401:
-                raise GitHubAPIError("GitHub API authentication failed. Check GITHUB_PERSONAL_ACCESS_TOKEN.")
+                raise GitHubAPIError("GitHub API authentication failed. Check GITHUB_PERSONAL_ACCESS_TOKEN.") from None
             elif e.code == 403:
-                raise GitHubAPIError("GitHub API rate limit exceeded or insufficient permissions.")
+                raise GitHubAPIError("GitHub API rate limit exceeded or insufficient permissions.") from None
             elif e.code == 404:
-                raise GitHubAPIError("Repository not found or not accessible.")
+                raise GitHubAPIError("Repository not found or not accessible.") from None
             else:
-                raise GitHubAPIError(f"GitHub API request failed: {e.code} {e.reason}")
+                raise GitHubAPIError(f"GitHub API request failed: {e.code} {e.reason}") from None
         except URLError as e:
-            raise GitHubAPIError(f"Network error accessing GitHub API: {e.reason}")
+            raise GitHubAPIError(f"Network error accessing GitHub API: {e.reason}") from None
         except json.JSONDecodeError as e:
-            raise GitHubAPIError(f"Invalid JSON response from GitHub API: {e}")
+            raise GitHubAPIError(f"Invalid JSON response from GitHub API: {e}") from None
 
     def check_push_protection(self, owner: str, repo: str) -> bool:
         """Check if push protection is enabled for the repository.

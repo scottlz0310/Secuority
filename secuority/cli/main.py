@@ -41,14 +41,14 @@ def _get_core_engine() -> CoreEngine:
 
 @app.command()
 def check(
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed analysis information"),
-    project_path: Path | None = typer.Option(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed analysis information"),  # noqa: B008
+    project_path: Path | None = typer.Option(  # noqa: B008
         None,
         "--project-path",
         "-p",
         help="Path to the project directory",
     ),
-    structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
+    structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),  # noqa: B008
 ) -> None:
     """Analyze project configuration and show recommendations."""
     # Configure logging based on CLI options
@@ -267,7 +267,9 @@ def check(
         # Count Python files for verbose output
         python_files_count = len(list(project_path.glob("**/*.py")))
         logger.debug(
-            "Project statistics", python_files=python_files_count, total_files=len(list(project_path.glob("**/*"))),
+            "Project statistics",
+            python_files=python_files_count,
+            total_files=len(list(project_path.glob("**/*"))),
         )
 
         if not structured_output:
@@ -353,28 +355,28 @@ def check(
         logger.exception("Project analysis failed", error=str(e), project_path=str(project_path))
         if not structured_output:
             console.print(f"[red]Error:[/red] Failed to analyze project: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     except Exception as e:
         logger.exception("Unexpected error during analysis", error=str(e), project_path=str(project_path))
         if not structured_output:
             console.print(f"[red]Error:[/red] Unexpected error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
 def apply(
-    dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Show changes without applying them"),
-    force: bool = typer.Option(False, "--force", "-f", help="Apply changes without confirmation"),
-    project_path: Path | None = typer.Option(
+    dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Show changes without applying them"),  # noqa: B008
+    force: bool = typer.Option(False, "--force", "-f", help="Apply changes without confirmation"),  # noqa: B008
+    project_path: Path | None = typer.Option(  # noqa: B008
         None,
         "--project-path",
         "-p",
         help="Path to the project directory",
     ),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
-    structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
-    security_only: bool = typer.Option(False, "--security-only", help="Apply only security-related configurations"),
-    templates_only: bool = typer.Option(False, "--templates-only", help="Apply only template-based configurations"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),  # noqa: B008
+    structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),  # noqa: B008
+    security_only: bool = typer.Option(False, "--security-only", help="Apply only security-related configurations"),  # noqa: B008
+    templates_only: bool = typer.Option(False, "--templates-only", help="Apply only template-based configurations"),  # noqa: B008
 ) -> None:
     """Apply configuration changes to the project."""
     # Configure logging
@@ -431,7 +433,8 @@ def apply(
             if not project_state.has_pyproject_toml and "pyproject.toml.template" in templates:
                 try:
                     change = core_engine.applier.merge_file_configurations(
-                        project_path / "pyproject.toml", templates["pyproject.toml.template"],
+                        project_path / "pyproject.toml",
+                        templates["pyproject.toml.template"],
                     )
                     changes.append(change)
                     logger.debug("Added pyproject.toml template change")
@@ -442,7 +445,8 @@ def apply(
             if not project_state.has_gitignore and ".gitignore.template" in templates:
                 try:
                     change = core_engine.applier.merge_file_configurations(
-                        project_path / ".gitignore", templates[".gitignore.template"],
+                        project_path / ".gitignore",
+                        templates[".gitignore.template"],
                     )
                     changes.append(change)
                     logger.debug("Added .gitignore template change")
@@ -453,7 +457,8 @@ def apply(
             if not project_state.has_pre_commit_config and ".pre-commit-config.yaml.template" in templates:
                 try:
                     change = core_engine.applier.merge_file_configurations(
-                        project_path / ".pre-commit-config.yaml", templates[".pre-commit-config.yaml.template"],
+                        project_path / ".pre-commit-config.yaml",
+                        templates[".pre-commit-config.yaml.template"],
                     )
                     changes.append(change)
                     logger.debug("Added pre-commit template change")
@@ -467,7 +472,8 @@ def apply(
                 if not workflow_path.exists():
                     try:
                         change = core_engine.applier.merge_file_configurations(
-                            workflow_path, templates[workflow_template],
+                            workflow_path,
+                            templates[workflow_template],
                         )
                         changes.append(change)
                         logger.debug("Added workflow template change", workflow=workflow_template)
@@ -482,7 +488,8 @@ def apply(
             if missing_security_tools:
                 try:
                     security_changes = core_engine.applier.get_security_integration_changes(
-                        project_path, missing_security_tools,
+                        project_path,
+                        missing_security_tools,
                     )
                     changes.extend(security_changes)
                     logger.debug(
@@ -492,7 +499,9 @@ def apply(
                     )
                 except Exception as e:
                     logger.warning(
-                        "Failed to generate security integration changes", tools=missing_security_tools, error=str(e),
+                        "Failed to generate security integration changes",
+                        tools=missing_security_tools,
+                        error=str(e),
                     )
 
         # Add quality tools integration if needed
@@ -503,7 +512,8 @@ def apply(
             if missing_quality_tools:
                 try:
                     quality_changes = core_engine.applier.get_quality_integration_changes(
-                        project_path, missing_quality_tools,
+                        project_path,
+                        missing_quality_tools,
                     )
                     changes.extend(quality_changes)
                     logger.debug(
@@ -513,14 +523,17 @@ def apply(
                     )
                 except Exception as e:
                     logger.warning(
-                        "Failed to generate quality integration changes", tools=missing_quality_tools, error=str(e),
+                        "Failed to generate quality integration changes",
+                        tools=missing_quality_tools,
+                        error=str(e),
                     )
 
         # Handle dependency migration if needed
         if apply_templates and project_state.dependency_analysis and project_state.dependency_analysis.migration_needed:
             try:
                 migration_change = core_engine.applier.get_dependency_migration_change(
-                    project_path, project_state.dependency_analysis,
+                    project_path,
+                    project_state.dependency_analysis,
                 )
                 if migration_change:
                     changes.append(migration_change)
@@ -532,7 +545,8 @@ def apply(
         if apply_templates and not project_state.ci_workflows:
             try:
                 workflow_changes = core_engine.applier.get_workflow_integration_changes(
-                    project_path, ["security", "quality"],
+                    project_path,
+                    ["security", "quality"],
                 )
                 changes.extend(workflow_changes)
                 logger.debug("Added CI/CD workflow changes", count=len(workflow_changes))
@@ -592,7 +606,7 @@ def apply(
             else:
                 # In structured mode, require force flag for non-interactive operation
                 logger.error("Interactive confirmation required - use --force flag for non-interactive operation")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
         # Check for conflicts before applying
         conflicted_changes = [c for c in changes if c.has_conflicts()]
@@ -692,10 +706,13 @@ def apply(
                     console.print("\n[bold]Applied changes:[/bold]")
                     for change in result.successful_changes:
                         action_color = {"CREATE": "[green]", "UPDATE": "[yellow]", "MERGE": "[blue]"}.get(
-                            change.change_type.value, "[white]",
+                            change.change_type.value,
+                            "[white]",
                         )
+                        color_end = action_color.split("[")[1]
                         console.print(
-                            f"  • {action_color}{change.change_type.value}[/{action_color.split('[')[1]}] {change.file_path.name}: {change.description}",
+                            f"  • {action_color}{change.change_type.value}[/{color_end}] "
+                            f"{change.file_path.name}: {change.description}",
                         )
                 else:
                     # Show summary of file types changed
@@ -764,14 +781,16 @@ def apply(
         logger.exception("Configuration application failed", error=str(e), project_path=str(project_path))
         if not structured_output:
             console.print(f"[red]Error:[/red] Failed to apply configurations: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     except Exception as e:
         logger.exception(
-            "Unexpected error during configuration application", error=str(e), project_path=str(project_path),
+            "Unexpected error during configuration application",
+            error=str(e),
+            project_path=str(project_path),
         )
         if not structured_output:
             console.print(f"[red]Error:[/red] Unexpected error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 # Template subcommands
@@ -802,7 +821,7 @@ def template_list(
                 console.print(f"[red]Error:[/red] {e}")
                 console.print("[dim]Run 'secuority init' to initialize templates.[/dim]")
             logger.error("Failed to load templates", error=str(e))
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         if not structured_output:
             console.print("\n[bold blue]Available Templates[/bold blue]\n")
@@ -858,7 +877,7 @@ def template_list(
         logger.exception("Failed to list templates", error=str(e))
         if not structured_output:
             console.print(f"[red]Error:[/red] Failed to list templates: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @template_app.command("update")
@@ -891,7 +910,9 @@ def template_update(
             history = core_engine.template_manager.get_template_history()
 
             logger.log_operation(
-                operation="template_update", status="success", details={"templates_updated": True, "source": "remote"},
+                operation="template_update",
+                status="success",
+                details={"templates_updated": True, "source": "remote"},
             )
 
             if not structured_output:
@@ -908,7 +929,9 @@ def template_update(
                 console.print("[dim]All templates are now up to date.[/dim]")
         else:
             logger.log_operation(
-                operation="template_update", status="failed", details={"error": "Update returned false"},
+                operation="template_update",
+                status="failed",
+                details={"error": "Update returned false"},
             )
 
             if not structured_output:
@@ -919,12 +942,12 @@ def template_update(
         logger.exception("Template update failed", error=str(e))
         if not structured_output:
             console.print(f"[red]Error:[/red] Failed to update templates: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except Exception as e:
         logger.exception("Unexpected error during template update", error=str(e))
         if not structured_output:
             console.print(f"[red]Error:[/red] Unexpected error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command()
@@ -1010,12 +1033,12 @@ def init(
         logger.exception("Secuority initialization failed", error=str(e))
         if not structured_output:
             console.print(f"[red]Error:[/red] Failed to initialize Secuority: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except Exception as e:
         logger.exception("Unexpected error during initialization", error=str(e))
         if not structured_output:
             console.print(f"[red]Error:[/red] Unexpected error: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 def main() -> None:

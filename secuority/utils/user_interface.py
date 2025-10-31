@@ -26,9 +26,9 @@ class UserApprovalInterface:
         Returns:
             True if user approves the change
         """
-        self.console.print(f"\n{'='*60}")
+        self.console.print(f"\n{'=' * 60}")
         self.console.print(f"Configuration Change: {change.file_path}")
-        self.console.print(f"{'='*60}")
+        self.console.print(f"{'=' * 60}")
         self.console.print(f"Description: {change.description}")
         self.console.print(f"Change Type: {change.change_type.value.title()}")
 
@@ -93,9 +93,9 @@ class UserApprovalInterface:
         """
         approvals = {}
 
-        self.console.print(f"\n{'='*60}")
+        self.console.print(f"\n{'=' * 60}")
         self.console.print("Configuration Changes Summary")
-        self.console.print(f"{'='*60}")
+        self.console.print(f"{'=' * 60}")
         self.console.print(f"Total changes: {len(changes)}")
 
         # Show summary of all changes
@@ -103,7 +103,7 @@ class UserApprovalInterface:
             status = "⚠️ HAS CONFLICTS" if change.has_conflicts() else "✓ Ready"
             self.console.print(f"{i:2}. {change.file_path} ({change.change_type.value}) - {status}")
 
-        self.console.print(f"\n{'='*60}")
+        self.console.print(f"\n{'=' * 60}")
 
         # Ask for batch decision
         while True:
@@ -141,9 +141,9 @@ class UserApprovalInterface:
         Returns:
             List of resolved conflicts
         """
-        self.console.print(f"\n{'='*60}")
+        self.console.print(f"\n{'=' * 60}")
         self.console.print(f"Configuration Conflicts ({len(conflicts)} found)")
-        self.console.print(f"{'='*60}")
+        self.console.print(f"{'=' * 60}")
 
         resolved_conflicts = []
 
@@ -160,7 +160,9 @@ class UserApprovalInterface:
 
             # Show diff
             diff = self.diff_generator.generate_conflict_diff(
-                str(conflict.existing_value), str(conflict.template_value), conflict.section,
+                str(conflict.existing_value),
+                str(conflict.template_value),
+                conflict.section,
             )
 
             if diff.strip():
@@ -197,9 +199,9 @@ class UserApprovalInterface:
 
     def _show_full_content(self, change: ConfigChange) -> None:
         """Show full content of a configuration change."""
-        self.console.print(f"\n{'='*60}")
+        self.console.print(f"\n{'=' * 60}")
         self.console.print(f"Full Content: {change.file_path}")
-        self.console.print(f"{'='*60}")
+        self.console.print(f"{'=' * 60}")
 
         if change.old_content is not None:
             self.console.print("=== ORIGINAL CONTENT ===")
@@ -209,7 +211,7 @@ class UserApprovalInterface:
             self.console.print("=== NEW FILE CONTENT ===")
 
         self.console.print(change.new_content)
-        self.console.print(f"{'='*60}")
+        self.console.print(f"{'=' * 60}")
 
     def show_apply_summary(
         self,
@@ -224,9 +226,9 @@ class UserApprovalInterface:
             rejected_changes: Changes that were rejected
             conflicted_changes: Changes with unresolved conflicts
         """
-        self.console.print(f"\n{'='*60}")
+        self.console.print(f"\n{'=' * 60}")
         self.console.print("Application Summary")
-        self.console.print(f"{'='*60}")
+        self.console.print(f"{'=' * 60}")
 
         if approved_changes:
             self.console.print(f"✅ Changes to be applied ({len(approved_changes)}):")
@@ -244,7 +246,7 @@ class UserApprovalInterface:
             for change in conflicted_changes:
                 self.console.print(f"  • {change.file_path} ({len(change.conflicts)} conflicts)")
 
-        self.console.print(f"{'='*60}")
+        self.console.print(f"{'=' * 60}")
 
     def confirm_final_application(self, approved_changes: list[ConfigChange]) -> bool:
         """Get final confirmation before applying changes.
@@ -282,9 +284,9 @@ class UserApprovalInterface:
         Args:
             changes: Changes that would be applied
         """
-        self.console.print(f"\n{'='*60}")
+        self.console.print(f"\n{'=' * 60}")
         self.console.print("Dry Run Results")
-        self.console.print(f"{'='*60}")
+        self.console.print(f"{'=' * 60}")
 
         if not changes:
             self.console.print("No changes would be applied.")
@@ -311,5 +313,5 @@ class UserApprovalInterface:
                 lines = len(change.new_content.splitlines())
                 self.console.print(f"   New file: {lines} lines")
 
-        self.console.print(f"\n{'='*60}")
+        self.console.print(f"\n{'=' * 60}")
         self.console.print("This was a dry run - no files were modified.")

@@ -340,7 +340,8 @@ class TemplateManager(TemplateManagerInterface):
                 zip_path = temp_path / "templates.zip"
 
                 # Download the archive
-                urllib.request.urlretrieve(url, str(zip_path))
+                # S310: Safe - URL is validated GitHub archive URL (https://github.com/.../archive/*.zip)
+                urllib.request.urlretrieve(url, str(zip_path))  # noqa: S310
 
                 # Extract the archive
                 with zipfile.ZipFile(zip_path, "r") as zip_ref:
@@ -566,8 +567,11 @@ class TemplateManager(TemplateManagerInterface):
                     if templates_path.exists():
                         shutil.rmtree(templates_path)
                     shutil.move(str(current_backup), str(templates_path))
-                except Exception:
-                    pass  # Best effort restore
+                except Exception as restore_error:
+                    # Best effort restore - log but don't fail
+                    from ..utils.logger import warning
+
+                    warning(f"Could not restore backup after failed restore: {restore_error}")
 
             msg = f"Failed to restore from backup: {e}"
             raise TemplateError(msg) from e

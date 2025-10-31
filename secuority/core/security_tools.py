@@ -29,7 +29,9 @@ class SecurityToolsIntegrator:
         pass
 
     def integrate_bandit_config(
-        self, project_path: Path, existing_config: dict[str, Any] | None = None,
+        self,
+        project_path: Path,
+        existing_config: dict[str, Any] | None = None,
     ) -> ConfigChange:
         """Integrate Bandit security linter configuration into pyproject.toml.
 
@@ -101,7 +103,9 @@ class SecurityToolsIntegrator:
         )
 
     def integrate_safety_config(
-        self, project_path: Path, existing_config: dict[str, Any] | None = None,
+        self,
+        project_path: Path,
+        existing_config: dict[str, Any] | None = None,
     ) -> ConfigChange:
         """Integrate Safety dependency vulnerability scanner configuration.
 
@@ -203,8 +207,12 @@ class SecurityToolsIntegrator:
                 if change.new_content:
                     try:
                         existing_config = tomllib.loads(change.new_content)
-                    except Exception:
-                        pass  # Continue with original config if parsing fails
+                    except Exception as parse_error:
+                        # Continue with original config if parsing fails
+                        # This is expected during incremental config building
+                        from ..utils.logger import debug
+
+                        debug(f"Could not parse intermediate config after bandit: {parse_error}")
             elif tool == "safety":
                 change = self.integrate_safety_config(project_path, existing_config.copy())
                 changes.append(change)
@@ -212,8 +220,12 @@ class SecurityToolsIntegrator:
                 if change.new_content:
                     try:
                         existing_config = tomllib.loads(change.new_content)
-                    except Exception:
-                        pass  # Continue with original config if parsing fails
+                    except Exception as parse_error:
+                        # Continue with original config if parsing fails
+                        # This is expected during incremental config building
+                        from ..utils.logger import debug
+
+                        debug(f"Could not parse intermediate config after safety: {parse_error}")
 
         return changes
 

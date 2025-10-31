@@ -22,7 +22,9 @@ class PreCommitIntegrator:
         pass
 
     def integrate_gitleaks_hook(
-        self, project_path: Path, existing_config: dict[str, Any] | None = None,
+        self,
+        project_path: Path,
+        existing_config: dict[str, Any] | None = None,
     ) -> ConfigChange:
         """Integrate gitleaks hook into .pre-commit-config.yaml.
 
@@ -333,7 +335,10 @@ class PreCommitIntegrator:
             )
 
     def _merge_precommit_configs(
-        self, existing: dict[str, Any], template: dict[str, Any], file_path: Path,
+        self,
+        existing: dict[str, Any],
+        template: dict[str, Any],
+        file_path: Path,
     ) -> tuple[dict[str, Any], list[Conflict]]:
         """Merge existing and template pre-commit configurations.
 
@@ -397,7 +402,10 @@ class PreCommitIntegrator:
         return merged, conflicts
 
     def _merge_repo_hooks(
-        self, existing_repo: dict[str, Any], template_repo: dict[str, Any], file_path: Path,
+        self,
+        existing_repo: dict[str, Any],
+        template_repo: dict[str, Any],
+        file_path: Path,
     ) -> list[Conflict]:
         """Merge hooks within a repository configuration.
 

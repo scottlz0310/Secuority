@@ -50,7 +50,10 @@ class ConfigurationMerger:
         self.diff_generator = DiffGenerator()
 
     def merge_toml_configs(
-        self, existing: dict[str, Any], template: dict[str, Any], file_path: Path,
+        self,
+        existing: dict[str, Any],
+        template: dict[str, Any],
+        file_path: Path,
     ) -> tuple[dict[str, Any], list[Conflict]]:
         """Merge TOML configurations with conflict detection."""
         merged = existing.copy()
@@ -63,7 +66,9 @@ class ConfigurationMerger:
             elif isinstance(template_config, dict) and isinstance(existing[section], dict):
                 # Both are dictionaries, merge recursively
                 merged_section, section_conflicts = self._merge_dict_section(
-                    existing[section], template_config, f"{section}",
+                    existing[section],
+                    template_config,
+                    f"{section}",
                 )
                 merged[section] = merged_section
 
@@ -87,7 +92,10 @@ class ConfigurationMerger:
         return merged, conflicts
 
     def _merge_dict_section(
-        self, existing: dict[str, Any], template: dict[str, Any], section_path: str,
+        self,
+        existing: dict[str, Any],
+        template: dict[str, Any],
+        section_path: str,
     ) -> tuple[dict[str, Any], list[Conflict]]:
         """Recursively merge dictionary sections with conflict detection."""
         merged = existing.copy()
@@ -102,7 +110,9 @@ class ConfigurationMerger:
             elif isinstance(template_value, dict) and isinstance(existing[key], dict):
                 # Both are dictionaries, merge recursively
                 merged_subsection, subsection_conflicts = self._merge_dict_section(
-                    existing[key], template_value, full_path,
+                    existing[key],
+                    template_value,
+                    full_path,
                 )
                 merged[key] = merged_subsection
                 conflicts.extend(subsection_conflicts)
@@ -123,14 +133,20 @@ class ConfigurationMerger:
         return merged, conflicts
 
     def merge_yaml_configs(
-        self, existing: dict[str, Any], template: dict[str, Any], file_path: Path,
+        self,
+        existing: dict[str, Any],
+        template: dict[str, Any],
+        file_path: Path,
     ) -> tuple[dict[str, Any], list[Conflict]]:
         """Merge YAML configurations with conflict detection."""
         # YAML merging is similar to TOML
         return self.merge_toml_configs(existing, template, file_path)
 
     def merge_text_configs(
-        self, existing_content: str, template_content: str, file_path: Path,
+        self,
+        existing_content: str,
+        template_content: str,
+        file_path: Path,
     ) -> tuple[str, list[Conflict]]:
         """Merge text-based configurations like .gitignore."""
         existing_lines = set(existing_content.strip().splitlines())
@@ -263,7 +279,9 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         if not file_path.exists():
             # File doesn't exist, create it
             return ConfigChange.create_file_change(
-                file_path=file_path, content=processed_content, description=f"Create {file_path.name} from template",
+                file_path=file_path,
+                content=processed_content,
+                description=f"Create {file_path.name} from template",
             )
 
         # Read existing content
@@ -291,7 +309,10 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         )
 
     def _merge_toml_file(
-        self, existing_content: str, template_content: str, file_path: Path,
+        self,
+        existing_content: str,
+        template_content: str,
+        file_path: Path,
     ) -> tuple[str, list[Conflict]]:
         """Merge TOML file contents."""
         if tomllib is None:
@@ -407,9 +428,10 @@ class ConfigurationApplier(ConfigurationApplierInterface):
                     },
                 )
 
-            except Exception:
+            except Exception as parse_error:
                 # If parsing fails, use defaults
-                pass
+                # Silently ignore parsing errors as we have fallback defaults
+                _ = parse_error  # Acknowledge the exception
 
         return project_info
 
@@ -423,7 +445,10 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             raise ConfigurationError(f"Failed to format TOML content: {e}") from e
 
     def _merge_yaml_file(
-        self, existing_content: str, template_content: str, file_path: Path,
+        self,
+        existing_content: str,
+        template_content: str,
+        file_path: Path,
     ) -> tuple[str, list[Conflict]]:
         """Merge YAML file contents."""
         try:
@@ -442,7 +467,10 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         return merged_content, conflicts
 
     def apply_changes_interactively(
-        self, changes: list[ConfigChange], dry_run: bool = False, batch_mode: bool = False,
+        self,
+        changes: list[ConfigChange],
+        dry_run: bool = False,
+        batch_mode: bool = False,
     ) -> ApplyResult:
         """Apply configuration changes with user interaction."""
         if dry_run:
@@ -508,7 +536,10 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             return ApplyResult(dry_run=False)
 
     def apply_security_tools_integration(
-        self, project_path: Path, tools: list[str] | None = None, dry_run: bool = False,
+        self,
+        project_path: Path,
+        tools: list[str] | None = None,
+        dry_run: bool = False,
     ) -> ApplyResult:
         """Apply security tools integration to the project.
 
@@ -530,7 +561,9 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         return self.apply_changes(changes, dry_run=dry_run)
 
     def get_security_integration_changes(
-        self, project_path: Path, tools: list[str] | None = None,
+        self,
+        project_path: Path,
+        tools: list[str] | None = None,
     ) -> list[ConfigChange]:
         """Get security tools integration changes without applying them.
 
@@ -696,7 +729,9 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         return changes
 
     def get_dependency_migration_change(
-        self, project_path: Path, dependency_analysis: "DependencyAnalysis",
+        self,
+        project_path: Path,
+        dependency_analysis: "DependencyAnalysis",
     ) -> ConfigChange | None:
         """Get dependency migration change from requirements.txt to pyproject.toml.
 
@@ -765,7 +800,10 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             raise ConfigurationError(f"Failed to generate dependency migration: {e}") from e
 
     def apply_precommit_security_hooks(
-        self, project_path: Path, hooks: list[str] | None = None, dry_run: bool = False,
+        self,
+        project_path: Path,
+        hooks: list[str] | None = None,
+        dry_run: bool = False,
     ) -> ApplyResult:
         """Apply pre-commit security hooks to the project.
 
@@ -787,7 +825,10 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         return self.apply_changes([change], dry_run=dry_run)
 
     def merge_precommit_with_template(
-        self, project_path: Path, template_content: str, dry_run: bool = False,
+        self,
+        project_path: Path,
+        template_content: str,
+        dry_run: bool = False,
     ) -> ApplyResult:
         """Merge existing pre-commit configuration with template.
 
@@ -806,7 +847,9 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         return self.apply_changes([change], dry_run=dry_run)
 
     def get_precommit_integration_changes(
-        self, project_path: Path, hooks: list[str] | None = None,
+        self,
+        project_path: Path,
+        hooks: list[str] | None = None,
     ) -> list[ConfigChange]:
         """Get pre-commit security hooks integration changes without applying them.
 
@@ -851,7 +894,10 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         return self.apply_changes(changes, dry_run=dry_run)
 
     def get_workflow_integration_changes(
-        self, project_path: Path, workflows: list[str] | None = None, python_versions: list[str] | None = None,
+        self,
+        project_path: Path,
+        workflows: list[str] | None = None,
+        python_versions: list[str] | None = None,
     ) -> list[ConfigChange]:
         """Get CI/CD workflow integration changes without applying them.
 

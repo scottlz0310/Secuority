@@ -208,7 +208,8 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         # Check for conflicts (same package with different versions)
         analysis.conflicts = self._find_dependency_conflicts(
-            analysis.requirements_packages, analysis.pyproject_dependencies,
+            analysis.requirements_packages,
+            analysis.pyproject_dependencies,
         )
 
         return analysis
@@ -305,7 +306,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         return Package(name=name, version=version, extras=extras, markers=markers)
 
     def _find_dependency_conflicts(
-        self, requirements_packages: list[Package], pyproject_packages: list[Package],
+        self,
+        requirements_packages: list[Package],
+        pyproject_packages: list[Package],
     ) -> list[str]:
         """Find conflicts between requirements.txt and pyproject.toml dependencies."""
         conflicts = []
@@ -320,7 +323,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 pyproject_version = pyproject_packages_map[name]
                 if req_version and pyproject_version and req_version != pyproject_version:
                     conflicts.append(
-                        f"{name}: requirements.txt has {req_version}, " f"pyproject.toml has {pyproject_version}",
+                        f"{name}: requirements.txt has {req_version}, pyproject.toml has {pyproject_version}",
                     )
 
         return conflicts
@@ -348,7 +351,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         for filename, tool_name in standalone_configs.items():
             if filename in config_files:
                 tools[tool_name] = ToolConfig(
-                    name=tool_name, config={"config_file": str(config_files[filename])}, enabled=True,
+                    name=tool_name,
+                    config={"config_file": str(config_files[filename])},
+                    enabled=True,
                 )
 
         return tools

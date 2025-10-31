@@ -42,7 +42,12 @@ class DiffGenerator:
             new_label = f"b/{file_path.name}"
 
         diff = difflib.unified_diff(
-            old_lines, new_lines, fromfile=old_label, tofile=new_label, n=self.context_lines, lineterm="",
+            old_lines,
+            new_lines,
+            fromfile=old_label,
+            tofile=new_label,
+            n=self.context_lines,
+            lineterm="",
         )
 
         return "".join(diff)
@@ -65,7 +70,12 @@ class DiffGenerator:
         # but extract just the text content
         differ = difflib.HtmlDiff(wrapcolumn=width // 2)
         _ = differ.make_table(
-            old_lines, new_lines, fromdesc="Original", todesc="Modified", context=True, numlines=self.context_lines,
+            old_lines,
+            new_lines,
+            fromdesc="Original",
+            todesc="Modified",
+            context=True,
+            numlines=self.context_lines,
         )
 
         # For now, return unified diff as side-by-side is complex in text

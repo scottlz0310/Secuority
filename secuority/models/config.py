@@ -140,7 +140,11 @@ class ConfigChange:
         new_lines = self.new_content.splitlines(keepends=True)
 
         diff = difflib.unified_diff(
-            old_lines, new_lines, fromfile=f"a/{self.file_path.name}", tofile=f"b/{self.file_path.name}", lineterm="",
+            old_lines,
+            new_lines,
+            fromfile=f"a/{self.file_path.name}",
+            tofile=f"b/{self.file_path.name}",
+            lineterm="",
         )
 
         return "".join(diff)
@@ -178,7 +182,11 @@ class ConfigChange:
 
     @classmethod
     def create_file_change(
-        cls, file_path: Path, content: str, description: str, metadata: dict[str, Any] | None = None,
+        cls,
+        file_path: Path,
+        content: str,
+        description: str,
+        metadata: dict[str, Any] | None = None,
     ) -> "ConfigChange":
         """Create a ConfigChange for creating a new file."""
         return cls(

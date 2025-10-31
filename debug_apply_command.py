@@ -49,7 +49,8 @@ def debug_apply_command():
     if project_state.has_pyproject_toml and "pyproject.toml.template" in templates:
         try:
             change = core_engine.applier.merge_file_configurations(
-                project_path / "pyproject.toml", templates["pyproject.toml.template"],
+                project_path / "pyproject.toml",
+                templates["pyproject.toml.template"],
             )
 
             print(f"   変更タイプ: {change.change_type}")

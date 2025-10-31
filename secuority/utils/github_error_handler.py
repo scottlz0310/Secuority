@@ -110,7 +110,7 @@ class GitHubErrorHandler:
                 "Continuing with local analysis only."
             )
         else:
-            return f"⚠️  GitHub API error during {operation_name}: {error}. " "Continuing with local analysis only."
+            return f"⚠️  GitHub API error during {operation_name}: {error}. Continuing with local analysis only."
 
     def _log_and_warn(self, message: str) -> None:
         """Log error and display warning if configured.
@@ -193,7 +193,11 @@ def with_github_error_handling(
         def wrapper(*args, **kwargs) -> T | Any:
             handler = GitHubErrorHandler(continue_on_error, show_warnings)
             return handler.handle_api_call(
-                func, *args, fallback_value=fallback_value, operation_name=operation_name, **kwargs,
+                func,
+                *args,
+                fallback_value=fallback_value,
+                operation_name=operation_name,
+                **kwargs,
             )
 
         return wrapper
