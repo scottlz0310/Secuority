@@ -199,7 +199,17 @@ class FileOperations:
 
             # Check if parent directory is writable (for new files)
             parent = file_path.parent
-            return parent.exists() and os.access(parent, os.W_OK)
+            if parent.exists():
+                return os.access(parent, os.W_OK)
+
+            # If parent doesn't exist, find the first existing ancestor
+            # and check if we can write to it (to create the directory chain)
+            current = parent
+            while not current.exists() and current != current.parent:
+                current = current.parent
+
+            # Check if we have write access to the existing ancestor
+            return current.exists() and os.access(current, os.W_OK)
 
         except OSError:
             return False
