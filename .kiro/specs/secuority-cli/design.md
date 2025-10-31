@@ -15,12 +15,12 @@ graph TB
     Core --> Template[Template Manager]
     Core --> Applier[Configuration Applier]
     Core --> GitHub[GitHub Integration]
-    
+
     Analyzer --> FileSystem[File System]
     Template --> ConfigDir[Config Directory]
     Applier --> FileSystem
     GitHub --> GitHubAPI[GitHub API]
-    
+
     subgraph "設定ファイル"
         PyProject[pyproject.toml]
         Requirements[requirements.txt]
@@ -28,7 +28,7 @@ graph TB
         PreCommit[.pre-commit-config.yaml]
         Workflows[.github/workflows/]
     end
-    
+
     Analyzer --> PyProject
     Analyzer --> Requirements
     Analyzer --> GitIgnore
@@ -83,7 +83,7 @@ secuority/
 class SecuorityCLI:
     def __init__(self):
         self.core_engine = CoreEngine()
-    
+
     def check(self, verbose: bool = False) -> None
     def apply(self, dry_run: bool = False, force: bool = False) -> None
     def template_list() -> None
@@ -134,7 +134,7 @@ class TemplateManager:
 class GitHubClient:
     def __init__(self, token: Optional[str] = None):
         self.token = token or os.getenv('GITHUB_PERSONAL_ACCESS_TOKEN')
-    
+
     def check_push_protection(self, repo: str) -> bool
     def get_dependabot_config(self, repo: str) -> Dict
     def list_workflows(self, repo: str) -> List[Workflow]
@@ -157,7 +157,7 @@ class ProjectState:
     current_tools: Dict[str, ToolConfig]
     security_tools: Dict[str, bool]
     ci_workflows: List[Workflow]
-    
+
 @dataclass
 class DependencyAnalysis:
     requirements_packages: List[Package]
@@ -178,7 +178,7 @@ class ConfigChange:
     new_content: str
     description: str
     requires_backup: bool
-    
+
 @dataclass
 class ApplyResult:
     successful_changes: List[ConfigChange]
@@ -280,12 +280,12 @@ version: "1.0"
 templates:
   source: "github:secuority/templates"
   last_update: "2024-01-15T10:30:00Z"
-  
+
 preferences:
   auto_backup: true
   confirm_changes: true
   github_integration: true
-  
+
 tool_preferences:
   ruff:
     line_length: 120

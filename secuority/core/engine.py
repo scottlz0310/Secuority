@@ -1,7 +1,6 @@
 """Core engine that coordinates all Secuority components."""
 
 from pathlib import Path
-from typing import Optional
 
 from ..models.interfaces import (
     ApplyResult,
@@ -18,13 +17,13 @@ class CoreEngine:
     Core engine that coordinates project analysis, template management,
     configuration application, and GitHub integration.
     """
-    
+
     def __init__(
         self,
-        analyzer: Optional[ProjectAnalyzerInterface] = None,
-        template_manager: Optional[TemplateManagerInterface] = None,
-        applier: Optional[ConfigurationApplierInterface] = None,
-        github_client: Optional[GitHubClientInterface] = None,
+        analyzer: ProjectAnalyzerInterface | None = None,
+        template_manager: TemplateManagerInterface | None = None,
+        applier: ConfigurationApplierInterface | None = None,
+        github_client: GitHubClientInterface | None = None,
     ):
         """Initialize the core engine with component implementations."""
         self._analyzer = analyzer
@@ -54,7 +53,7 @@ class CoreEngine:
         return self._applier
 
     @property
-    def github_client(self) -> Optional[GitHubClientInterface]:
+    def github_client(self) -> GitHubClientInterface | None:
         """Get the GitHub client instance (optional)."""
         return self._github_client
 
@@ -67,9 +66,7 @@ class CoreEngine:
         # This will be implemented in later tasks
         return []
 
-    def apply_configurations(
-        self, project_path: Path, dry_run: bool = False
-    ) -> ApplyResult:
+    def apply_configurations(self, project_path: Path, dry_run: bool = False) -> ApplyResult:
         """Apply recommended configurations to the project."""
         # This will be implemented in later tasks
         project_state = self.analyze_project(project_path)

@@ -139,7 +139,7 @@ secuority check [OPTIONS]
 Secuority Analysis Report
 Project: /home/user/my-project
 
-                         Configuration Files                         
+                         Configuration Files
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ File                    ┃  Status   ┃ Notes                       ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩

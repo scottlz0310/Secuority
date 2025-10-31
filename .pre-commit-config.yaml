@@ -46,7 +46,7 @@ repos:
     rev: v1.13.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-all]
+        additional_dependencies: [types-requests, types-pyyaml, types-toml]
         args: [--ignore-missing-imports, --strict]
 
   # Security linting with bandit

@@ -15,8 +15,8 @@ from .models.exceptions import (
 )
 from .models.interfaces import (
     ApplyResult,
-    CLIInterface,
     ChangeType,
+    CLIInterface,
     ConfigChange,
     ConfigurationApplierInterface,
     GitHubClientInterface,
@@ -27,9 +27,7 @@ from .models.interfaces import (
 
 __version__ = "0.1.0"
 __author__ = "Secuority Team"
-__description__ = (
-    "Automate and standardize Python project security and quality configurations"
-)
+__description__ = "Automate and standardize Python project security and quality configurations"
 
 __all__ = [
     "ApplyResult",
@@ -45,7 +43,6 @@ __all__ = [
     "ProjectAnalysisError",
     "ProjectAnalyzerInterface",
     "ProjectState",
-
     "SecuorityError",
     "TemplateError",
     "TemplateManagerInterface",

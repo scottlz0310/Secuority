@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -18,6 +18,7 @@ from rich.logging import RichHandler
 
 class LogLevel(Enum):
     """Log level enumeration."""
+
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -44,9 +45,7 @@ class StructuredFormatter(logging.Formatter):
         if record.exc_info:
             exc_type = record.exc_info[0].__name__ if record.exc_info[0] else None
             exc_message = str(record.exc_info[1]) if record.exc_info[1] else None
-            exc_traceback = (
-                self.formatException(record.exc_info) if record.exc_info else None
-            )
+            exc_traceback = self.formatException(record.exc_info) if record.exc_info else None
             log_entry["exception"] = {
                 "type": exc_type,
                 "message": exc_message,
@@ -56,10 +55,29 @@ class StructuredFormatter(logging.Formatter):
         # Add extra fields from the log record
         extra_fields = {}
         reserved_fields = {
-            'name', 'msg', 'args', 'levelname', 'levelno', 'pathname', 'filename',
-            'module', 'exc_info', 'exc_text', 'stack_info', 'lineno', 'funcName',
-            'created', 'msecs', 'relativeCreated', 'thread', 'threadName',
-            'processName', 'process', 'getMessage', 'message', 'taskName'
+            "name",
+            "msg",
+            "args",
+            "levelname",
+            "levelno",
+            "pathname",
+            "filename",
+            "module",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "lineno",
+            "funcName",
+            "created",
+            "msecs",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "processName",
+            "process",
+            "getMessage",
+            "message",
+            "taskName",
         }
 
         for key, value in record.__dict__.items():
@@ -85,10 +103,10 @@ class SecuorityLogger:
 
     def configure(
         self,
-        level: Union[str, LogLevel] = LogLevel.INFO,
+        level: str | LogLevel = LogLevel.INFO,
         verbose: bool = False,
         structured_output: bool = False,
-        log_file: Optional[Path] = None,
+        log_file: Path | None = None,
     ) -> None:
         """Configure the logging system.
 
@@ -136,7 +154,7 @@ class SecuorityLogger:
                 logging.Formatter(
                     fmt="%(message)s",
                     datefmt="[%X]",
-                )
+                ),
             )
 
         console_handler.setLevel(log_level)
@@ -175,11 +193,12 @@ class SecuorityLogger:
     def exception(self, message: str, **kwargs: Any) -> None:
         """Log exception with traceback."""
         self.logger.exception(message, extra=kwargs)
+
     def log_operation(
         self,
         operation: str,
         status: str,
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
         level: LogLevel = LogLevel.INFO,
     ) -> None:
         """Log a structured operation result.
@@ -208,8 +227,8 @@ class SecuorityLogger:
         self,
         file_path: str,
         analysis_type: str,
-        result: Dict[str, Any],
-        recommendations: Optional[list] = None,
+        result: dict[str, Any],
+        recommendations: list | None = None,
     ) -> None:
         """Log analysis results in a structured format.
 
@@ -240,7 +259,7 @@ class SecuorityLogger:
         change_type: str,
         description: str,
         success: bool = True,
-        backup_path: Optional[str] = None,
+        backup_path: str | None = None,
     ) -> None:
         """Log configuration changes.
 
@@ -273,9 +292,9 @@ class SecuorityLogger:
         self,
         endpoint: str,
         method: str,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         success: bool = True,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ) -> None:
         """Log GitHub API calls.
 
@@ -315,7 +334,7 @@ class SecuorityLogger:
 
 
 # Global logger instance
-_logger_instance: Optional[SecuorityLogger] = None
+_logger_instance: SecuorityLogger | None = None
 
 
 def get_logger(name: str = "secuority") -> SecuorityLogger:
@@ -334,10 +353,10 @@ def get_logger(name: str = "secuority") -> SecuorityLogger:
 
 
 def configure_logging(
-    level: Union[str, LogLevel] = LogLevel.INFO,
+    level: str | LogLevel = LogLevel.INFO,
     verbose: bool = False,
     structured_output: bool = False,
-    log_file: Optional[Path] = None,
+    log_file: Path | None = None,
 ) -> None:
     """Configure the global logging system.
 

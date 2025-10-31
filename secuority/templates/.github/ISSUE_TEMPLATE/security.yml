@@ -9,7 +9,7 @@ body:
     attributes:
       value: |
         ⚠️ **Please do not report security vulnerabilities through public GitHub issues.**
-        
+
         If you believe you have found a security vulnerability, please report it via our security policy.
         We will investigate all legitimate reports and do our best to quickly fix the problem.
 

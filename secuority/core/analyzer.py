@@ -3,10 +3,9 @@
 import re
 import tomllib
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
+from typing import Any
 
-from ..models.exceptions import ProjectAnalysisError, GitHubAPIError
+from ..models.exceptions import GitHubAPIError, ProjectAnalysisError
 from ..models.interfaces import (
     DependencyAnalysis,
     DependencyManager,
@@ -64,13 +63,13 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return project_state
 
-    def detect_configuration_files(self, project_path: Path) -> Dict[str, Path]:
+    def detect_configuration_files(self, project_path: Path) -> dict[str, Path]:
         """Detect existing configuration files in the project."""
         if not validate_project_path(project_path):
             raise ProjectAnalysisError(f"Invalid project path: {project_path}")
 
         config_files = {}
-        
+
         # Standard Python configuration files
         standard_files = [
             "pyproject.toml",
@@ -113,13 +112,13 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return config_files
 
-    def analyze_dependencies(self, project_path: Path) -> Dict[str, Any]:
+    def analyze_dependencies(self, project_path: Path) -> dict[str, Any]:
         """Analyze project dependencies and their configuration."""
         if not validate_project_path(project_path):
             raise ProjectAnalysisError(f"Invalid project path: {project_path}")
 
         dependency_analysis = self._analyze_dependencies_internal(project_path)
-        
+
         return {
             "requirements_packages": [
                 {
@@ -144,7 +143,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             "conflicts": dependency_analysis.conflicts,
         }
 
-    def check_security_tools(self, project_path: Path) -> Dict[str, bool]:
+    def check_security_tools(self, project_path: Path) -> dict[str, bool]:
         """Check which security tools are configured in the project."""
         if not validate_project_path(project_path):
             raise ProjectAnalysisError(f"Invalid project path: {project_path}")
@@ -152,7 +151,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         config_files = self.detect_configuration_files(project_path)
         return self._check_security_tools(project_path, config_files)
 
-    def _detect_dependency_manager(self, project_path: Path) -> Optional[DependencyManager]:
+    def _detect_dependency_manager(self, project_path: Path) -> DependencyManager | None:
         """Detect the dependency manager used by the project."""
         # Check for Poetry
         if (project_path / "poetry.lock").exists():
@@ -205,23 +204,19 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             analysis.extras_found = extras
 
         # Determine if migration is needed
-        analysis.migration_needed = (
-            bool(analysis.requirements_packages) and
-            not bool(analysis.pyproject_dependencies)
-        )
+        analysis.migration_needed = bool(analysis.requirements_packages) and not bool(analysis.pyproject_dependencies)
 
         # Check for conflicts (same package with different versions)
         analysis.conflicts = self._find_dependency_conflicts(
-            analysis.requirements_packages,
-            analysis.pyproject_dependencies
+            analysis.requirements_packages, analysis.pyproject_dependencies,
         )
 
         return analysis
 
-    def _parse_requirements_txt(self, requirements_path: Path) -> List[Package]:
+    def _parse_requirements_txt(self, requirements_path: Path) -> list[Package]:
         """Parse requirements.txt file and extract packages."""
         packages = []
-        
+
         try:
             with open(requirements_path, encoding="utf-8") as f:
                 lines = f.readlines()
@@ -241,7 +236,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return packages
 
-    def _parse_pyproject_dependencies(self, pyproject_path: Path) -> tuple[List[Package], List[str]]:
+    def _parse_pyproject_dependencies(self, pyproject_path: Path) -> tuple[list[Package], list[str]]:
         """Parse pyproject.toml dependencies and return packages and extras."""
         packages = []
         extras = []
@@ -273,7 +268,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return packages, extras
 
-    def _parse_package_spec(self, spec: str) -> Optional[Package]:
+    def _parse_package_spec(self, spec: str) -> Package | None:
         """Parse a package specification string into a Package object."""
         # Remove inline comments
         spec = spec.split("#")[0].strip()
@@ -284,7 +279,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         # Handles: package, package==1.0, package>=1.0, package[extra], etc.
         pattern = r"^([a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]|[a-zA-Z0-9])(\[[^\]]+\])?(.*?)(?:;(.*))?$"
         match = re.match(pattern, spec)
-        
+
         if not match:
             return None
 
@@ -307,21 +302,14 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             if version_match:
                 version = version_match.group(1)
 
-        return Package(
-            name=name,
-            version=version,
-            extras=extras,
-            markers=markers
-        )
+        return Package(name=name, version=version, extras=extras, markers=markers)
 
     def _find_dependency_conflicts(
-        self, 
-        requirements_packages: List[Package], 
-        pyproject_packages: List[Package]
-    ) -> List[str]:
+        self, requirements_packages: list[Package], pyproject_packages: list[Package],
+    ) -> list[str]:
         """Find conflicts between requirements.txt and pyproject.toml dependencies."""
         conflicts = []
-        
+
         # Create a mapping of package names to versions
         req_packages = {pkg.name.lower(): pkg.version for pkg in requirements_packages}
         pyproject_packages_map = {pkg.name.lower(): pkg.version for pkg in pyproject_packages}
@@ -332,17 +320,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 pyproject_version = pyproject_packages_map[name]
                 if req_version and pyproject_version and req_version != pyproject_version:
                     conflicts.append(
-                        f"{name}: requirements.txt has {req_version}, "
-                        f"pyproject.toml has {pyproject_version}"
+                        f"{name}: requirements.txt has {req_version}, " f"pyproject.toml has {pyproject_version}",
                     )
 
         return conflicts
 
-    def _detect_configured_tools(
-        self, 
-        project_path: Path, 
-        config_files: Dict[str, Path]
-    ) -> Dict[str, ToolConfig]:
+    def _detect_configured_tools(self, project_path: Path, config_files: dict[str, Path]) -> dict[str, ToolConfig]:
         """Detect configured development tools."""
         tools = {}
 
@@ -365,14 +348,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         for filename, tool_name in standalone_configs.items():
             if filename in config_files:
                 tools[tool_name] = ToolConfig(
-                    name=tool_name,
-                    config={"config_file": str(config_files[filename])},
-                    enabled=True
+                    name=tool_name, config={"config_file": str(config_files[filename])}, enabled=True,
                 )
 
         return tools
 
-    def _parse_pyproject_tools(self, pyproject_path: Path) -> Dict[str, ToolConfig]:
+    def _parse_pyproject_tools(self, pyproject_path: Path) -> dict[str, ToolConfig]:
         """Parse tool configurations from pyproject.toml."""
         tools = {}
 
@@ -385,17 +366,22 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
             # Common tools that might be configured in pyproject.toml
             tool_names = [
-                "ruff", "mypy", "black", "isort", "flake8", "pylint",
-                "bandit", "safety", "pytest", "coverage", "tox"
+                "ruff",
+                "mypy",
+                "black",
+                "isort",
+                "flake8",
+                "pylint",
+                "bandit",
+                "safety",
+                "pytest",
+                "coverage",
+                "tox",
             ]
 
             for tool_name in tool_names:
                 if tool_name in data["tool"]:
-                    tools[tool_name] = ToolConfig(
-                        name=tool_name,
-                        config=data["tool"][tool_name],
-                        enabled=True
-                    )
+                    tools[tool_name] = ToolConfig(name=tool_name, config=data["tool"][tool_name], enabled=True)
 
         except (tomllib.TOMLDecodeError, OSError):
             # If we can't parse the file, just return empty dict
@@ -403,11 +389,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return tools
 
-    def _check_security_tools(
-        self, 
-        project_path: Path, 
-        config_files: Dict[str, Path]
-    ) -> Dict[SecurityTool, bool]:
+    def _check_security_tools(self, project_path: Path, config_files: dict[str, Path]) -> dict[SecurityTool, bool]:
         """Check which security tools are configured."""
         security_tools = {tool: False for tool in SecurityTool}
 
@@ -440,11 +422,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return security_tools
 
-    def _check_quality_tools(
-        self, 
-        project_path: Path, 
-        config_files: Dict[str, Path]
-    ) -> Dict[QualityTool, bool]:
+    def _check_quality_tools(self, project_path: Path, config_files: dict[str, Path]) -> dict[QualityTool, bool]:
         """Check which quality tools are configured."""
         quality_tools = {tool: False for tool in QualityTool}
 
@@ -473,7 +451,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                             "flake8": QualityTool.FLAKE8,
                             "pylint": QualityTool.PYLINT,
                         }
-                        
+
                         for tool_name, tool_enum in tool_mapping.items():
                             if tool_name in data["tool"]:
                                 quality_tools[tool_enum] = True
@@ -486,9 +464,10 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         """Check if gitleaks is configured in pre-commit config."""
         try:
             import yaml  # type: ignore
+
             with open(precommit_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
-                
+
             if not isinstance(data, dict) or "repos" not in data:
                 return False
 
@@ -497,17 +476,17 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                     repo_url = repo["repo"]
                     if "gitleaks" in repo_url.lower():
                         return True
-                        
+
         except (ImportError, OSError, yaml.YAMLError):
             # If yaml is not available or file can't be parsed, return False
             pass
 
         return False
 
-    def _detect_ci_workflows(self, project_path: Path) -> List[Workflow]:
+    def _detect_ci_workflows(self, project_path: Path) -> list[Workflow]:
         """Detect CI/CD workflows in the project."""
         workflows = []
-        
+
         # Check for GitHub Actions workflows
         github_workflows_dir = project_path / ".github" / "workflows"
         if github_workflows_dir.exists() and github_workflows_dir.is_dir():
@@ -515,7 +494,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 workflow = self._parse_github_workflow(workflow_file)
                 if workflow:
                     workflows.append(workflow)
-            
+
             for workflow_file in github_workflows_dir.glob("*.yaml"):
                 workflow = self._parse_github_workflow(workflow_file)
                 if workflow:
@@ -523,10 +502,11 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return workflows
 
-    def _parse_github_workflow(self, workflow_path: Path) -> Optional[Workflow]:
+    def _parse_github_workflow(self, workflow_path: Path) -> Workflow | None:
         """Parse a GitHub Actions workflow file."""
         try:
             import yaml  # type: ignore
+
             with open(workflow_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
@@ -534,7 +514,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 return None
 
             name = data.get("name", workflow_path.stem)
-            
+
             # Extract triggers
             triggers = []
             if "on" in data:
@@ -553,13 +533,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
             # Check for security and quality checks (simplified)
             workflow_content = workflow_path.read_text(encoding="utf-8").lower()
-            has_security_checks = any(
-                tool in workflow_content 
-                for tool in ["bandit", "safety", "gitleaks", "semgrep"]
-            )
+            has_security_checks = any(tool in workflow_content for tool in ["bandit", "safety", "gitleaks", "semgrep"])
             has_quality_checks = any(
-                tool in workflow_content 
-                for tool in ["ruff", "mypy", "black", "flake8", "pylint", "pytest"]
+                tool in workflow_content for tool in ["ruff", "mypy", "black", "flake8", "pylint", "pytest"]
             )
 
             return Workflow(
@@ -568,27 +544,23 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 triggers=triggers,
                 jobs=jobs,
                 has_security_checks=has_security_checks,
-                has_quality_checks=has_quality_checks
+                has_quality_checks=has_quality_checks,
             )
 
         except (ImportError, OSError, yaml.YAMLError):
             return None
 
-    def _detect_python_version(
-        self, 
-        project_path: Path, 
-        config_files: Dict[str, Path]
-    ) -> Optional[str]:
+    def _detect_python_version(self, project_path: Path, config_files: dict[str, Path]) -> str | None:
         """Detect the Python version requirement for the project."""
         # Check pyproject.toml first
         if "pyproject.toml" in config_files:
             try:
                 with open(config_files["pyproject.toml"], "rb") as f:
                     data = tomllib.load(f)
-                    
+
                 if "project" in data and "requires-python" in data["project"]:
                     return data["project"]["requires-python"]
-                    
+
             except (tomllib.TOMLDecodeError, OSError):
                 pass
 
@@ -605,12 +577,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return None
 
-    def analyze_github_repository(self, project_path: Path) -> Dict[str, Any]:
+    def analyze_github_repository(self, project_path: Path) -> dict[str, Any]:
         """Analyze GitHub repository settings and configuration.
-        
+
         Args:
             project_path: Path to the project directory
-            
+
         Returns:
             Dictionary containing GitHub repository analysis results
         """
@@ -620,36 +592,33 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         # Try to detect GitHub repository from git remote
         repo_info = self._detect_github_repository(project_path)
         if not repo_info:
-            return {
-                "is_github_repo": False,
-                "error": "Not a GitHub repository or no remote origin found"
-            }
+            return {"is_github_repo": False, "error": "Not a GitHub repository or no remote origin found"}
 
         owner, repo = repo_info
         github_client = GitHubClient()
-        
+
         if not github_client.is_authenticated():
             return {
                 "is_github_repo": True,
                 "owner": owner,
                 "repo": repo,
                 "authenticated": False,
-                "error": "GitHub token not available or invalid"
+                "error": "GitHub token not available or invalid",
             }
 
         try:
             # Get security settings
             security_settings = github_client.check_security_settings(owner, repo)
-            
+
             # Get push protection status
             push_protection = github_client.check_push_protection(owner, repo)
-            
+
             # Get Dependabot configuration
             dependabot_config = github_client.get_dependabot_config(owner, repo)
-            
+
             # Get workflows
             workflows = github_client.list_workflows(owner, repo)
-            
+
             return {
                 "is_github_repo": True,
                 "owner": owner,
@@ -659,9 +628,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 "push_protection": push_protection,
                 "dependabot": dependabot_config,
                 "workflows": workflows,
-                "analysis_successful": True
+                "analysis_successful": True,
             }
-            
+
         except GitHubAPIError as e:
             return {
                 "is_github_repo": True,
@@ -669,15 +638,15 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 "repo": repo,
                 "authenticated": True,
                 "error": str(e),
-                "analysis_successful": False
+                "analysis_successful": False,
             }
 
-    def check_github_workflows(self, project_path: Path) -> Dict[str, Any]:
+    def check_github_workflows(self, project_path: Path) -> dict[str, Any]:
         """Check GitHub Actions workflows for security and quality checks.
-        
+
         Args:
             project_path: Path to the project directory
-            
+
         Returns:
             Dictionary containing workflow analysis results
         """
@@ -686,15 +655,15 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         # First check local workflows
         local_workflows = self._detect_ci_workflows(project_path)
-        
+
         # Try to get remote workflows via GitHub API
         repo_info = self._detect_github_repository(project_path)
         remote_workflows = []
-        
+
         if repo_info:
             owner, repo = repo_info
             github_client = GitHubClient()
-            
+
             if github_client.is_authenticated():
                 try:
                     remote_workflows = github_client.list_workflows(owner, repo)
@@ -703,15 +672,11 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                     pass
 
         # Analyze workflow coverage
-        has_security_workflow = any(
-            wf.has_security_checks for wf in local_workflows
-        ) or any(
+        has_security_workflow = any(wf.has_security_checks for wf in local_workflows) or any(
             self._workflow_has_security_checks(wf) for wf in remote_workflows
         )
-        
-        has_quality_workflow = any(
-            wf.has_quality_checks for wf in local_workflows
-        ) or any(
+
+        has_quality_workflow = any(wf.has_quality_checks for wf in local_workflows) or any(
             self._workflow_has_quality_checks(wf) for wf in remote_workflows
         )
 
@@ -723,7 +688,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                     "triggers": wf.triggers,
                     "jobs": wf.jobs,
                     "has_security_checks": wf.has_security_checks,
-                    "has_quality_checks": wf.has_quality_checks
+                    "has_quality_checks": wf.has_quality_checks,
                 }
                 for wf in local_workflows
             ],
@@ -733,23 +698,21 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                     "path": wf.get("path", ""),
                     "state": wf.get("state", ""),
                     "created_at": wf.get("created_at", ""),
-                    "updated_at": wf.get("updated_at", "")
+                    "updated_at": wf.get("updated_at", ""),
                 }
                 for wf in remote_workflows
             ],
             "has_security_workflow": has_security_workflow,
             "has_quality_workflow": has_quality_workflow,
-            "workflow_recommendations": self._get_workflow_recommendations(
-                has_security_workflow, has_quality_workflow
-            )
+            "workflow_recommendations": self._get_workflow_recommendations(has_security_workflow, has_quality_workflow),
         }
 
-    def _detect_github_repository(self, project_path: Path) -> Optional[tuple[str, str]]:
+    def _detect_github_repository(self, project_path: Path) -> tuple[str, str] | None:
         """Detect GitHub repository owner and name from git remote.
-        
+
         Args:
             project_path: Path to the project directory
-            
+
         Returns:
             Tuple of (owner, repo) if GitHub repository detected, None otherwise
         """
@@ -769,8 +732,8 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             # Look for GitHub remote origin URL
             # Matches both HTTPS and SSH formats
             patterns = [
-                r'url = https://github\.com/([^/]+)/([^/\s]+?)(?:\.git)?(?:\s|$)',
-                r'url = git@github\.com:([^/]+)/([^/\s]+?)(?:\.git)?(?:\s|$)'
+                r"url = https://github\.com/([^/]+)/([^/\s]+?)(?:\.git)?(?:\s|$)",
+                r"url = git@github\.com:([^/]+)/([^/\s]+?)(?:\.git)?(?:\s|$)",
             ]
 
             for pattern in patterns:
@@ -785,79 +748,80 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return None
 
-    def _workflow_has_security_checks(self, workflow: Dict[str, Any]) -> bool:
+    def _workflow_has_security_checks(self, workflow: dict[str, Any]) -> bool:
         """Check if a remote workflow has security checks.
-        
+
         Args:
             workflow: Workflow dictionary from GitHub API
-            
+
         Returns:
             True if workflow likely contains security checks
         """
         workflow_name = workflow.get("name", "").lower()
         workflow_path = workflow.get("path", "").lower()
-        
-        security_keywords = [
-            "security", "bandit", "safety", "gitleaks", "semgrep", 
-            "snyk", "codeql", "dependabot", "vulnerability"
-        ]
-        
-        return any(
-            keyword in workflow_name or keyword in workflow_path
-            for keyword in security_keywords
-        )
 
-    def _workflow_has_quality_checks(self, workflow: Dict[str, Any]) -> bool:
+        security_keywords = [
+            "security",
+            "bandit",
+            "safety",
+            "gitleaks",
+            "semgrep",
+            "snyk",
+            "codeql",
+            "dependabot",
+            "vulnerability",
+        ]
+
+        return any(keyword in workflow_name or keyword in workflow_path for keyword in security_keywords)
+
+    def _workflow_has_quality_checks(self, workflow: dict[str, Any]) -> bool:
         """Check if a remote workflow has quality checks.
-        
+
         Args:
             workflow: Workflow dictionary from GitHub API
-            
+
         Returns:
             True if workflow likely contains quality checks
         """
         workflow_name = workflow.get("name", "").lower()
         workflow_path = workflow.get("path", "").lower()
-        
-        quality_keywords = [
-            "test", "lint", "quality", "ruff", "mypy", "black", 
-            "flake8", "pylint", "pytest", "coverage", "ci", "check"
-        ]
-        
-        return any(
-            keyword in workflow_name or keyword in workflow_path
-            for keyword in quality_keywords
-        )
 
-    def _get_workflow_recommendations(
-        self, 
-        has_security: bool, 
-        has_quality: bool
-    ) -> List[str]:
+        quality_keywords = [
+            "test",
+            "lint",
+            "quality",
+            "ruff",
+            "mypy",
+            "black",
+            "flake8",
+            "pylint",
+            "pytest",
+            "coverage",
+            "ci",
+            "check",
+        ]
+
+        return any(keyword in workflow_name or keyword in workflow_path for keyword in quality_keywords)
+
+    def _get_workflow_recommendations(self, has_security: bool, has_quality: bool) -> list[str]:
         """Get workflow recommendations based on current setup.
-        
+
         Args:
             has_security: Whether security workflows are present
             has_quality: Whether quality workflows are present
-            
+
         Returns:
             List of recommendation strings
         """
         recommendations = []
-        
+
         if not has_security:
-            recommendations.append(
-                "Add security workflow with Bandit, Safety, and gitleaks checks"
-            )
-        
+            recommendations.append("Add security workflow with Bandit, Safety, and gitleaks checks")
+
         if not has_quality:
-            recommendations.append(
-                "Add quality workflow with linting, type checking, and testing"
-            )
-        
+            recommendations.append("Add quality workflow with linting, type checking, and testing")
+
         if not has_security and not has_quality:
-            recommendations.append(
-                "Consider using GitHub's security features like Dependabot and CodeQL"
-            )
-        
+            recommendations.append("Consider using GitHub's security features like Dependabot and CodeQL")
+
         return recommendations

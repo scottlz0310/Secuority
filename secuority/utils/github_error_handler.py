@@ -1,47 +1,48 @@
 """Error handling utilities for GitHub API operations."""
 
 import logging
-from typing import Any, Callable, Dict, Optional, TypeVar, Union
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from ..models.exceptions import GitHubAPIError
 
 # Type variable for return type of wrapped functions
-T = TypeVar('T')
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
 
 class GitHubErrorHandler:
     """Handles GitHub API errors gracefully with warnings and continuation logic."""
-    
+
     def __init__(self, continue_on_error: bool = True, show_warnings: bool = True):
         """Initialize error handler.
-        
+
         Args:
             continue_on_error: Whether to continue execution after API errors
             show_warnings: Whether to display warnings for API errors
         """
         self.continue_on_error = continue_on_error
         self.show_warnings = show_warnings
-        self.errors_encountered: List[Dict[str, Any]] = []
-    
+        self.errors_encountered: List[dict[str, Any]] = []
+
     def handle_api_call(
-        self, 
-        func: Callable[..., T], 
-        *args, 
-        fallback_value: Optional[T] = None,
+        self,
+        func: Callable[..., T],
+        *args,
+        fallback_value: T | None = None,
         operation_name: str = "GitHub API operation",
-        **kwargs
-    ) -> Union[T, None]:
+        **kwargs,
+    ) -> T | None:
         """Execute a GitHub API call with error handling.
-        
+
         Args:
             func: Function to execute
             *args: Arguments to pass to function
             fallback_value: Value to return if operation fails
             operation_name: Name of operation for error messages
             **kwargs: Keyword arguments to pass to function
-            
+
         Returns:
             Function result or fallback value if error occurred
         """
@@ -55,37 +56,33 @@ class GitHubErrorHandler:
             error_msg = f"Unexpected error during {operation_name}: {e}"
             self._log_and_warn(error_msg)
             return fallback_value
-    
+
     def _handle_github_error(self, error: GitHubAPIError, operation_name: str) -> None:
         """Handle a GitHub API error.
-        
+
         Args:
             error: The GitHub API error
             operation_name: Name of the operation that failed
         """
-        error_info = {
-            "operation": operation_name,
-            "error": str(error),
-            "type": "github_api_error"
-        }
+        error_info = {"operation": operation_name, "error": str(error), "type": "github_api_error"}
         self.errors_encountered.append(error_info)
-        
+
         # Create user-friendly error message
         user_message = self._create_user_friendly_message(error, operation_name)
         self._log_and_warn(user_message)
-    
+
     def _create_user_friendly_message(self, error: GitHubAPIError, operation_name: str) -> str:
         """Create a user-friendly error message.
-        
+
         Args:
             error: The GitHub API error
             operation_name: Name of the operation that failed
-            
+
         Returns:
             User-friendly error message
         """
         error_str = str(error).lower()
-        
+
         if "authentication failed" in error_str or "401" in error_str:
             return (
                 f"⚠️  GitHub API authentication failed during {operation_name}. "
@@ -110,56 +107,44 @@ class GitHubErrorHandler:
                 "Continuing with local analysis only."
             )
         else:
-            return (
-                f"⚠️  GitHub API error during {operation_name}: {error}. "
-                "Continuing with local analysis only."
-            )
-    
+            return f"⚠️  GitHub API error during {operation_name}: {error}. " "Continuing with local analysis only."
+
     def _log_and_warn(self, message: str) -> None:
         """Log error and display warning if configured.
-        
+
         Args:
             message: Message to log and display
         """
         logger.warning(message)
-        
+
         if self.show_warnings:
             print(message)
-    
-    def get_error_summary(self) -> Dict[str, Any]:
+
+    def get_error_summary(self) -> dict[str, Any]:
         """Get summary of all errors encountered.
-        
+
         Returns:
             Dictionary containing error summary
         """
         return {
             "total_errors": len(self.errors_encountered),
             "errors": self.errors_encountered,
-            "has_auth_errors": any(
-                "authentication" in err["error"].lower() 
-                for err in self.errors_encountered
-            ),
-            "has_rate_limit_errors": any(
-                "rate limit" in err["error"].lower() 
-                for err in self.errors_encountered
-            ),
-            "has_network_errors": any(
-                "network" in err["error"].lower() 
-                for err in self.errors_encountered
-            )
+            "has_auth_errors": any("authentication" in err["error"].lower() for err in self.errors_encountered),
+            "has_rate_limit_errors": any("rate limit" in err["error"].lower() for err in self.errors_encountered),
+            "has_network_errors": any("network" in err["error"].lower() for err in self.errors_encountered),
         }
-    
+
     def print_setup_instructions(self) -> None:
         """Print instructions for setting up GitHub integration."""
         if not self.errors_encountered:
             return
-        
+
         error_summary = self.get_error_summary()
-        
-        print("\n" + "="*60)
+
+        print("\n" + "=" * 60)
         print("GitHub Integration Setup Instructions")
-        print("="*60)
-        
+        print("=" * 60)
+
         if error_summary["has_auth_errors"]:
             print("\n🔑 Authentication Issues:")
             print("   To enable GitHub integration, you need a personal access token.")
@@ -167,49 +152,49 @@ class GitHubErrorHandler:
             print("   2. Generate a new token with 'repo' scope")
             print("   3. Set the GITHUB_PERSONAL_ACCESS_TOKEN environment variable:")
             print("      export GITHUB_PERSONAL_ACCESS_TOKEN=your_token_here")
-        
+
         if error_summary["has_rate_limit_errors"]:
             print("\n⏱️  Rate Limit Issues:")
             print("   GitHub API rate limits have been exceeded.")
             print("   - Wait for the rate limit to reset")
             print("   - Use authentication to get higher rate limits")
-        
+
         if error_summary["has_network_errors"]:
             print("\n🌐 Network Issues:")
             print("   Network connectivity problems detected.")
             print("   - Check your internet connection")
             print("   - Verify GitHub.com is accessible")
-        
+
         print("\n💡 Alternative:")
         print("   Secuority can still analyze your project locally without GitHub integration.")
         print("   GitHub features provide additional security insights but are not required.")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
 
 def with_github_error_handling(
     continue_on_error: bool = True,
     show_warnings: bool = True,
     fallback_value: Any = None,
-    operation_name: str = "GitHub operation"
+    operation_name: str = "GitHub operation",
 ):
     """Decorator for GitHub API operations with error handling.
-    
+
     Args:
         continue_on_error: Whether to continue execution after errors
         show_warnings: Whether to show warning messages
         fallback_value: Value to return if operation fails
         operation_name: Name of operation for error messages
     """
-    def decorator(func: Callable[..., T]) -> Callable[..., Union[T, Any]]:
-        def wrapper(*args, **kwargs) -> Union[T, Any]:
+
+    def decorator(func: Callable[..., T]) -> Callable[..., T | Any]:
+        def wrapper(*args, **kwargs) -> T | Any:
             handler = GitHubErrorHandler(continue_on_error, show_warnings)
             return handler.handle_api_call(
-                func, *args, 
-                fallback_value=fallback_value,
-                operation_name=operation_name,
-                **kwargs
+                func, *args, fallback_value=fallback_value, operation_name=operation_name, **kwargs,
             )
+
         return wrapper
+
     return decorator
 
 
@@ -217,13 +202,13 @@ def with_github_error_handling(
 def safe_github_call(
     func: Callable[..., T],
     *args,
-    fallback_value: Optional[T] = None,
+    fallback_value: T | None = None,
     operation_name: str = "GitHub API call",
     show_warnings: bool = True,
-    **kwargs
-) -> Union[T, None]:
+    **kwargs,
+) -> T | None:
     """Safely execute a GitHub API call with error handling.
-    
+
     Args:
         func: Function to execute
         *args: Arguments to pass to function
@@ -231,14 +216,9 @@ def safe_github_call(
         operation_name: Name of operation for error messages
         show_warnings: Whether to show warning messages
         **kwargs: Keyword arguments to pass to function
-        
+
     Returns:
         Function result or fallback value if error occurred
     """
     handler = GitHubErrorHandler(continue_on_error=True, show_warnings=show_warnings)
-    return handler.handle_api_call(
-        func, *args,
-        fallback_value=fallback_value,
-        operation_name=operation_name,
-        **kwargs
-    )
+    return handler.handle_api_call(func, *args, fallback_value=fallback_value, operation_name=operation_name, **kwargs)

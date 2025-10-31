@@ -33,9 +33,9 @@ Fixes #(issue number)
 
 <!-- Provide details about your test configuration -->
 
-- **Python version(s)**: 
-- **Operating System**: 
-- **Dependencies**: 
+- **Python version(s)**:
+- **Operating System**:
+- **Dependencies**:
 
 ## 📋 Checklist
 

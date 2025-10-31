@@ -10,7 +10,7 @@ import urllib.request
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     import yaml  # type: ignore
@@ -23,15 +23,15 @@ from ..models.interfaces import TemplateManagerInterface
 
 class TemplateManager(TemplateManagerInterface):
     """Manages configuration templates for Secuority."""
-    
+
     def __init__(self) -> None:
         """Initialize the template manager."""
-        self._template_dir: Optional[Path] = None
-        self._templates_cache: Dict[str, str] = {}
-    
+        self._template_dir: Path | None = None
+        self._templates_cache: dict[str, str] = {}
+
     def get_template_directory(self) -> Path:
         """Get the directory where templates are stored.
-        
+
         Priority:
         1. SECUORITY_TEMPLATES_DIR environment variable
         2. OS-appropriate config directory
@@ -43,7 +43,7 @@ class TemplateManager(TemplateManagerInterface):
             return self._template_dir
 
         # Check environment variable first
-        env_dir = os.getenv('SECUORITY_TEMPLATES_DIR')
+        env_dir = os.getenv("SECUORITY_TEMPLATES_DIR")
         if env_dir:
             self._template_dir = Path(env_dir).expanduser().resolve()
             return self._template_dir
@@ -51,33 +51,33 @@ class TemplateManager(TemplateManagerInterface):
         # Use OS-appropriate config directory
         self._template_dir = self._get_os_config_directory()
         return self._template_dir
-    
+
     def _get_os_config_directory(self) -> Path:
         """Get OS-appropriate configuration directory."""
         system = platform.system().lower()
 
-        if system == 'windows':
+        if system == "windows":
             # Use %APPDATA%\secuority on Windows
-            appdata = os.getenv('APPDATA')
+            appdata = os.getenv("APPDATA")
             if appdata:
-                return Path(appdata) / 'secuority'
+                return Path(appdata) / "secuority"
             else:
                 # Fallback to user home
-                return Path.home() / 'AppData' / 'Roaming' / 'secuority'
+                return Path.home() / "AppData" / "Roaming" / "secuority"
 
-        elif system == 'darwin':
+        elif system == "darwin":
             # Use ~/Library/Application Support/secuority on macOS
-            return Path.home() / 'Library' / 'Application Support' / 'secuority'
+            return Path.home() / "Library" / "Application Support" / "secuority"
 
         else:
             # Use ~/.config/secuority on Linux and other Unix-like systems
-            xdg_config = os.getenv('XDG_CONFIG_HOME')
+            xdg_config = os.getenv("XDG_CONFIG_HOME")
             if xdg_config:
-                return Path(xdg_config) / 'secuority'
+                return Path(xdg_config) / "secuority"
             else:
-                return Path.home() / '.config' / 'secuority'
-    
-    def load_templates(self) -> Dict[str, str]:
+                return Path.home() / ".config" / "secuority"
+
+    def load_templates(self) -> dict[str, str]:
         """Load configuration templates from the template directory.
 
         Returns:
@@ -87,7 +87,7 @@ class TemplateManager(TemplateManagerInterface):
             TemplateError: If templates cannot be loaded
         """
         template_dir = self.get_template_directory()
-        templates_path = template_dir / 'templates'
+        templates_path = template_dir / "templates"
 
         if not templates_path.exists():
             msg = f"Templates directory not found: {templates_path}"
@@ -96,28 +96,24 @@ class TemplateManager(TemplateManagerInterface):
         templates = {}
 
         # Load template files
-        template_files = [
-            'pyproject.toml.template',
-            '.gitignore.template',
-            '.pre-commit-config.yaml.template'
-        ]
+        template_files = ["pyproject.toml.template", ".gitignore.template", ".pre-commit-config.yaml.template"]
 
         for template_file in template_files:
             template_path = templates_path / template_file
             if template_path.exists():
                 try:
-                    with open(template_path, encoding='utf-8') as f:
+                    with open(template_path, encoding="utf-8") as f:
                         templates[template_file] = f.read()
                 except OSError as e:
                     msg = f"Failed to read template {template_file}: {e}"
                     raise TemplateError(msg) from e
 
         # Load workflow templates
-        workflows_dir = templates_path / 'workflows'
+        workflows_dir = templates_path / "workflows"
         if workflows_dir.exists():
-            for workflow_file in workflows_dir.glob('*.yml'):
+            for workflow_file in workflows_dir.glob("*.yml"):
                 try:
-                    with open(workflow_file, encoding='utf-8') as f:
+                    with open(workflow_file, encoding="utf-8") as f:
                         templates[f"workflows/{workflow_file.name}"] = f.read()
                 except OSError as e:
                     msg = f"Failed to read workflow template {workflow_file.name}: {e}"
@@ -125,8 +121,8 @@ class TemplateManager(TemplateManagerInterface):
 
         self._templates_cache = templates
         return templates
-    
-    def get_template(self, template_name: str) -> Optional[str]:
+
+    def get_template(self, template_name: str) -> str | None:
         """Get a specific template by name.
 
         Args:
@@ -139,7 +135,7 @@ class TemplateManager(TemplateManagerInterface):
             self.load_templates()
 
         return self._templates_cache.get(template_name)
-    
+
     def initialize_templates(self) -> None:
         """Initialize template directory with default templates.
 
@@ -149,8 +145,8 @@ class TemplateManager(TemplateManagerInterface):
             TemplateError: If initialization fails
         """
         template_dir = self.get_template_directory()
-        templates_path = template_dir / 'templates'
-        workflows_path = templates_path / 'workflows'
+        templates_path = template_dir / "templates"
+        workflows_path = templates_path / "workflows"
 
         try:
             # Create directory structure
@@ -161,114 +157,96 @@ class TemplateManager(TemplateManagerInterface):
             self._copy_default_templates(templates_path)
 
             # Create config.yaml if it doesn't exist
-            config_path = template_dir / 'config.yaml'
+            config_path = template_dir / "config.yaml"
             if not config_path.exists():
                 self._create_default_config(config_path)
 
             # Create version.json if it doesn't exist
-            version_path = template_dir / 'version.json'
+            version_path = template_dir / "version.json"
             if not version_path.exists():
                 self._create_version_file(version_path)
 
         except OSError as e:
             msg = f"Failed to initialize template directory: {e}"
             raise TemplateError(msg) from e
-    
+
     def _create_default_config(self, config_path: Path) -> None:
         """Create default config.yaml file."""
         default_config = {
-            'version': '1.0',
-            'templates': {
-                'source': 'github:secuority/templates',
-                'last_update': None
+            "version": "1.0",
+            "templates": {"source": "github:secuority/templates", "last_update": None},
+            "preferences": {"auto_backup": True, "confirm_changes": True, "github_integration": True},
+            "tool_preferences": {
+                "ruff": {"line_length": 120, "target_version": "py313"},
+                "mypy": {"strict": True},
+                "bandit": {"skip_tests": True},
             },
-            'preferences': {
-                'auto_backup': True,
-                'confirm_changes': True,
-                'github_integration': True
-            },
-            'tool_preferences': {
-                'ruff': {
-                    'line_length': 120,
-                    'target_version': 'py313'
-                },
-                'mypy': {
-                    'strict': True
-                },
-                'bandit': {
-                    'skip_tests': True
-                }
-            }
         }
 
         if yaml is not None:
-            with open(config_path, 'w', encoding='utf-8') as f:
+            with open(config_path, "w", encoding="utf-8") as f:
                 yaml.dump(default_config, f, default_flow_style=False, indent=2)
         else:
             # Fallback to JSON if yaml is not available
-            with open(config_path.with_suffix('.json'), 'w', encoding='utf-8') as f:
+            with open(config_path.with_suffix(".json"), "w", encoding="utf-8") as f:
                 json.dump(default_config, f, indent=2)
-    
+
     def _create_version_file(self, version_path: Path) -> None:
         """Create version.json file."""
         version_data = {
-            'version': '1.0.0',
-            'created': datetime.now().isoformat(),
-            'last_update': None,
-            'templates_version': '1.0.0'
+            "version": "1.0.0",
+            "created": datetime.now().isoformat(),
+            "last_update": None,
+            "templates_version": "1.0.0",
         }
 
-        with open(version_path, 'w', encoding='utf-8') as f:
+        with open(version_path, "w", encoding="utf-8") as f:
             json.dump(version_data, f, indent=2)
-    
+
     def _copy_default_templates(self, templates_path: Path) -> None:
         """Copy default templates from package to user directory.
-        
+
         Args:
             templates_path: Path to user templates directory
-            
+
         Raises:
             TemplateError: If copying fails
         """
         try:
             # Get the path to the package templates directory
-            package_templates_path = Path(__file__).parent.parent / 'templates'
-            
+            package_templates_path = Path(__file__).parent.parent / "templates"
+
             if not package_templates_path.exists():
                 msg = f"Package templates directory not found: {package_templates_path}"
                 raise TemplateError(msg)
-            
+
             # Template files to copy
-            template_files = [
-                'pyproject.toml.template',
-                '.gitignore.template', 
-                '.pre-commit-config.yaml.template'
-            ]
-            
+            template_files = ["pyproject.toml.template", ".gitignore.template", ".pre-commit-config.yaml.template"]
+
             # Copy template files
             for template_file in template_files:
                 source_path = package_templates_path / template_file
                 dest_path = templates_path / template_file
-                
+
                 if source_path.exists() and not dest_path.exists():
                     shutil.copy2(source_path, dest_path)
-            
+
             # Copy workflow templates
-            workflows_source = package_templates_path / 'workflows'
-            workflows_dest = templates_path / 'workflows'
-            
+            workflows_source = package_templates_path / "workflows"
+            workflows_dest = templates_path / "workflows"
+
             if workflows_source.exists():
                 workflows_dest.mkdir(exist_ok=True)
-                
-                for workflow_file in workflows_source.glob('*.yml'):
+
+                for workflow_file in workflows_source.glob("*.yml"):
                     dest_workflow = workflows_dest / workflow_file.name
                     if not dest_workflow.exists():
                         shutil.copy2(workflow_file, dest_workflow)
-            
+
         except OSError as e:
             msg = f"Failed to copy default templates: {e}"
             raise TemplateError(msg) from e
-    
+
     def update_templates(self) -> bool:
         """Update templates from remote source.
 
@@ -283,13 +261,11 @@ class TemplateManager(TemplateManagerInterface):
         """
         try:
             config = self.get_config()
-            source = config.get('templates', {}).get(
-                'source', 'github:secuority/templates'
-            )
+            source = config.get("templates", {}).get("source", "github:secuority/templates")
 
-            if source.startswith('github:'):
+            if source.startswith("github:"):
                 return self._update_from_github(source)
-            elif source.startswith('http'):
+            elif source.startswith("http"):
                 return self._update_from_url(source)
             else:
                 msg = f"Unsupported template source: {source}"
@@ -298,7 +274,7 @@ class TemplateManager(TemplateManagerInterface):
         except Exception as e:
             msg = f"Failed to update templates: {e}"
             raise TemplateError(msg) from e
-    
+
     def _update_from_github(self, source: str) -> bool:
         """Update templates from GitHub repository.
 
@@ -311,20 +287,20 @@ class TemplateManager(TemplateManagerInterface):
         """
         try:
             # Parse GitHub source
-            github_part = source.replace('github:', '')
-            if '@' in github_part:
-                repo, branch = github_part.split('@', 1)
+            github_part = source.replace("github:", "")
+            if "@" in github_part:
+                repo, branch = github_part.split("@", 1)
             else:
-                repo, branch = github_part, 'main'
+                repo, branch = github_part, "main"
 
             # Download templates from GitHub
             url = f"https://github.com/{repo}/archive/{branch}.zip"
-            return self._download_and_extract_templates(url, repo.split('/')[-1])
+            return self._download_and_extract_templates(url, repo.split("/")[-1])
 
         except Exception as e:
             msg = f"Failed to update from GitHub: {e}"
             raise TemplateError(msg) from e
-    
+
     def _update_from_url(self, url: str) -> bool:
         """Update templates from direct URL.
 
@@ -335,11 +311,11 @@ class TemplateManager(TemplateManagerInterface):
             True if successful, False otherwise
         """
         try:
-            return self._download_and_extract_templates(url, 'templates')
+            return self._download_and_extract_templates(url, "templates")
         except Exception as e:
             msg = f"Failed to update from URL: {e}"
             raise TemplateError(msg) from e
-    
+
     def _download_and_extract_templates(self, url: str, repo_name: str) -> bool:
         """Download and extract templates from URL.
 
@@ -351,7 +327,7 @@ class TemplateManager(TemplateManagerInterface):
             True if successful, False otherwise
         """
         template_dir = self.get_template_directory()
-        templates_path = template_dir / 'templates'
+        templates_path = template_dir / "templates"
 
         # Create backup of existing templates
         backup_path = None
@@ -361,19 +337,17 @@ class TemplateManager(TemplateManagerInterface):
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
-                zip_path = temp_path / 'templates.zip'
+                zip_path = temp_path / "templates.zip"
 
                 # Download the archive
                 urllib.request.urlretrieve(url, str(zip_path))
 
                 # Extract the archive
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                with zipfile.ZipFile(zip_path, "r") as zip_ref:
                     zip_ref.extractall(temp_path)
 
                 # Find the templates directory in the extracted content
-                extracted_templates = self._find_templates_directory(
-                    temp_path, repo_name
-                )
+                extracted_templates = self._find_templates_directory(temp_path, repo_name)
 
                 if extracted_templates:
                     # Remove old templates and copy new ones
@@ -403,10 +377,8 @@ class TemplateManager(TemplateManagerInterface):
 
             msg = f"Failed to download and extract templates: {e}"
             raise TemplateError(msg) from e
-    
-    def _find_templates_directory(
-        self, base_path: Path, repo_name: str
-    ) -> Optional[Path]:
+
+    def _find_templates_directory(self, base_path: Path, repo_name: str) -> Path | None:
         """Find the templates directory in extracted content.
 
         Args:
@@ -433,14 +405,12 @@ class TemplateManager(TemplateManagerInterface):
         for path in possible_paths:
             if path.exists() and path.is_dir():
                 # Verify it contains template files
-                template_files = (
-                    list(path.glob("*.template")) + list(path.glob("*.yml"))
-                )
+                template_files = list(path.glob("*.template")) + list(path.glob("*.yml"))
                 if template_files:
                     return path
 
         return None
-    
+
     def _create_templates_backup(self) -> Path:
         """Create a backup of existing templates.
 
@@ -448,96 +418,96 @@ class TemplateManager(TemplateManagerInterface):
             Path to backup directory
         """
         template_dir = self.get_template_directory()
-        templates_path = template_dir / 'templates'
+        templates_path = template_dir / "templates"
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = template_dir / f"templates_backup_{timestamp}"
 
         shutil.copytree(templates_path, backup_path)
         return backup_path
-    
+
     def _update_version_info(self) -> None:
         """Update version information after successful template update."""
         template_dir = self.get_template_directory()
-        version_path = template_dir / 'version.json'
+        version_path = template_dir / "version.json"
 
         version_data = {
-            'version': '1.0.0',
-            'created': datetime.now().isoformat(),
-            'last_update': datetime.now().isoformat(),
-            'templates_version': '1.0.0'
+            "version": "1.0.0",
+            "created": datetime.now().isoformat(),
+            "last_update": datetime.now().isoformat(),
+            "templates_version": "1.0.0",
         }
 
         if version_path.exists():
             try:
-                with open(version_path, encoding='utf-8') as f:
+                with open(version_path, encoding="utf-8") as f:
                     existing_data = json.load(f)
                 version_data.update(existing_data)
-                version_data['last_update'] = datetime.now().isoformat()
+                version_data["last_update"] = datetime.now().isoformat()
             except (OSError, json.JSONDecodeError):
                 pass  # Use default version_data
 
-        with open(version_path, 'w', encoding='utf-8') as f:
+        with open(version_path, "w", encoding="utf-8") as f:
             json.dump(version_data, f, indent=2)
 
         # Also update config.yaml if yaml is available
         if yaml is not None:
-            config_path = template_dir / 'config.yaml'
+            config_path = template_dir / "config.yaml"
             if config_path.exists():
                 try:
-                    with open(config_path, encoding='utf-8') as f:
+                    with open(config_path, encoding="utf-8") as f:
                         config_data = yaml.safe_load(f)
 
-                    if 'templates' not in config_data:
-                        config_data['templates'] = {}
+                    if "templates" not in config_data:
+                        config_data["templates"] = {}
 
-                    config_data['templates']['last_update'] = (
-                        datetime.now().isoformat()
-                    )
+                    config_data["templates"]["last_update"] = datetime.now().isoformat()
 
-                    with open(config_path, 'w', encoding='utf-8') as f:
-                        yaml.dump(
-                            config_data, f, default_flow_style=False, indent=2
-                        )
+                    with open(config_path, "w", encoding="utf-8") as f:
+                        yaml.dump(config_data, f, default_flow_style=False, indent=2)
                 except (OSError, yaml.YAMLError):
                     pass  # Ignore config update errors
-    
-    def get_template_history(self) -> List[Dict[str, str]]:
+
+    def get_template_history(self) -> list[dict[str, str]]:
         """Get template update history.
 
         Returns:
             List of update history entries
         """
         template_dir = self.get_template_directory()
-        version_path = template_dir / 'version.json'
+        version_path = template_dir / "version.json"
 
         if not version_path.exists():
             return []
 
         try:
-            with open(version_path, encoding='utf-8') as f:
+            with open(version_path, encoding="utf-8") as f:
                 version_data = json.load(f)
 
             history = []
-            if 'created' in version_data:
-                history.append({
-                    'action': 'created',
-                    'timestamp': version_data['created'],
-                    'version': version_data.get('version', 'unknown')
-                })
+            if "created" in version_data:
+                history.append(
+                    {
+                        "action": "created",
+                        "timestamp": version_data["created"],
+                        "version": version_data.get("version", "unknown"),
+                    },
+                )
 
-            if 'last_update' in version_data and version_data['last_update']:
-                history.append({
-                    'action': 'updated',
-                    'timestamp': version_data['last_update'],
-                    'version': version_data.get('templates_version', 'unknown')
-                })
+            if "last_update" in version_data and version_data["last_update"]:
+                history.append(
+                    {
+                        "action": "updated",
+                        "timestamp": version_data["last_update"],
+                        "version": version_data.get("templates_version", "unknown"),
+                    },
+                )
 
             return history
 
         except (OSError, json.JSONDecodeError):
             return []
-    
-    def list_available_backups(self) -> List[Path]:
+
+    def list_available_backups(self) -> list[Path]:
         """List available template backups.
 
         Returns:
@@ -551,7 +521,7 @@ class TemplateManager(TemplateManagerInterface):
                 backups.append(path)
 
         return sorted(backups, reverse=True)  # Most recent first
-    
+
     def restore_from_backup(self, backup_path: Path) -> bool:
         """Restore templates from a backup.
 
@@ -569,7 +539,7 @@ class TemplateManager(TemplateManagerInterface):
             raise TemplateError(msg)
 
         template_dir = self.get_template_directory()
-        templates_path = template_dir / 'templates'
+        templates_path = template_dir / "templates"
 
         current_backup = None
         try:
@@ -601,7 +571,7 @@ class TemplateManager(TemplateManagerInterface):
 
             msg = f"Failed to restore from backup: {e}"
             raise TemplateError(msg) from e
-    
+
     def template_exists(self, template_name: str) -> bool:
         """Check if a template exists.
 
@@ -612,12 +582,12 @@ class TemplateManager(TemplateManagerInterface):
             True if template exists, False otherwise
         """
         template_dir = self.get_template_directory()
-        templates_path = template_dir / 'templates'
+        templates_path = template_dir / "templates"
         template_path = templates_path / template_name
 
         return template_path.exists()
-    
-    def get_config(self) -> Dict[str, Any]:
+
+    def get_config(self) -> dict[str, Any]:
         """Get configuration from config.yaml.
 
         Returns:
@@ -627,20 +597,20 @@ class TemplateManager(TemplateManagerInterface):
             TemplateError: If config cannot be loaded
         """
         template_dir = self.get_template_directory()
-        config_path = template_dir / 'config.yaml'
-        json_config_path = template_dir / 'config.json'
+        config_path = template_dir / "config.yaml"
+        json_config_path = template_dir / "config.json"
 
         # Try YAML first, then JSON fallback
         if config_path.exists() and yaml is not None:
             try:
-                with open(config_path, encoding='utf-8') as f:
+                with open(config_path, encoding="utf-8") as f:
                     return yaml.safe_load(f)
             except (OSError, yaml.YAMLError) as e:
                 msg = f"Failed to load configuration: {e}"
                 raise TemplateError(msg) from e
         elif json_config_path.exists():
             try:
-                with open(json_config_path, encoding='utf-8') as f:
+                with open(json_config_path, encoding="utf-8") as f:
                     return json.load(f)
             except (OSError, json.JSONDecodeError) as e:
                 msg = f"Failed to load configuration: {e}"

@@ -5,12 +5,12 @@ name: Security Checks
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   schedule:
     # Run security checks daily at 2 AM UTC
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
 
 permissions:
   contents: read
@@ -25,162 +25,162 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Fetch full history for better secret detection
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch full history for better secret detection
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        version: "latest"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
 
-    - name: Set up Python ${{ matrix.python-version }}
-      run: uv python install ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
 
-    - name: Install security tools
-      run: |
-        uv pip install bandit[toml] safety
+      - name: Install security tools
+        run: |
+          uv pip install bandit[toml] safety
 
-    - name: Install project dependencies
-      run: |
-        if [ -f "pyproject.toml" ]; then
-          # Check if dependency-groups are defined
-          if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data else 1)" 2>/dev/null; then
-            uv sync --group dev --group test
-          else
-            # Fallback to extras if dependency-groups not found
-            uv sync --extra dev --extra test
+      - name: Install project dependencies
+        run: |
+          if [ -f "pyproject.toml" ]; then
+            # Check if dependency-groups are defined
+            if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data else 1)" 2>/dev/null; then
+              uv sync --group dev --group test
+            else
+              # Fallback to extras if dependency-groups not found
+              uv sync --extra dev --extra test
+            fi
+          elif [ -f "requirements.txt" ]; then
+            uv pip install -r requirements.txt
           fi
-        elif [ -f "requirements.txt" ]; then
-          uv pip install -r requirements.txt
-        fi
 
-    - name: Run Bandit security linter
-      run: |
-        uv run bandit -r . -f json -o bandit-report.json || true
-        uv run bandit -r . -f txt
+      - name: Run Bandit security linter
+        run: |
+          uv run bandit -r . -f json -o bandit-report.json || true
+          uv run bandit -r . -f txt
 
-    - name: Run Safety dependency vulnerability scanner
-      run: |
-        uv run safety check --json --output safety-report.json || true
-        uv run safety check
+      - name: Run Safety dependency vulnerability scanner
+        run: |
+          uv run safety check --json --output safety-report.json || true
+          uv run safety check
 
-    - name: Run Gitleaks secret scanner
-      uses: gitleaks/gitleaks-action@v2
-      env:
-        GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
-        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+      - name: Run Gitleaks secret scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
-    - name: Upload security reports to SARIF
-      if: always()
-      run: |
-        # Convert Bandit report to SARIF format if available
-        if [ -f "bandit-report.json" ]; then
-          uv pip install sarif-om
-          uv run python -c "
-          import json
-          import sys
-          from sarif_om import SarifLog, Run, Tool, Result, Location, PhysicalLocation, ArtifactLocation, Message
-          
-          try:
-              with open('bandit-report.json', 'r') as f:
-                  bandit_data = json.load(f)
-              
-              sarif_log = SarifLog(
-                  version='2.1.0',
-                  runs=[
-                      Run(
-                          tool=Tool(driver={'name': 'Bandit', 'version': '1.7.10'}),
-                          results=[
-                              Result(
-                                  rule_id=result['test_id'],
-                                  message=Message(text=result['issue_text']),
-                                  level='error' if result['issue_severity'] == 'HIGH' else 'warning',
-                                  locations=[
-                                      Location(
-                                          physical_location=PhysicalLocation(
-                                              artifact_location=ArtifactLocation(uri=result['filename']),
-                                              region={'startLine': result['line_number']}
-                                          )
-                                      )
-                                  ]
-                              ) for result in bandit_data.get('results', [])
-                          ]
-                      )
-                  ]
-              )
-              
-              with open('bandit.sarif', 'w') as f:
-                  json.dump(sarif_log.to_dict(), f, indent=2)
-          except Exception as e:
-              print(f'Failed to convert Bandit report to SARIF: {e}')
-          "
-        fi
+      - name: Upload security reports to SARIF
+        if: always()
+        run: |
+          # Convert Bandit report to SARIF format if available
+          if [ -f "bandit-report.json" ]; then
+            uv pip install sarif-om
+            uv run python -c "
+            import json
+            import sys
+            from sarif_om import SarifLog, Run, Tool, Result, Location, PhysicalLocation, ArtifactLocation, Message
 
-    - name: Upload SARIF file
-      if: always() && github.event_name != 'pull_request'
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: bandit.sarif
-        category: bandit
+            try:
+                with open('bandit-report.json', 'r') as f:
+                    bandit_data = json.load(f)
 
-    - name: Upload security reports
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: security-reports-${{ matrix.python-version }}
-        path: |
-          bandit-report.json
-          safety-report.json
-          bandit.sarif
+                sarif_log = SarifLog(
+                    version='2.1.0',
+                    runs=[
+                        Run(
+                            tool=Tool(driver={'name': 'Bandit', 'version': '1.7.10'}),
+                            results=[
+                                Result(
+                                    rule_id=result['test_id'],
+                                    message=Message(text=result['issue_text']),
+                                    level='error' if result['issue_severity'] == 'HIGH' else 'warning',
+                                    locations=[
+                                        Location(
+                                            physical_location=PhysicalLocation(
+                                                artifact_location=ArtifactLocation(uri=result['filename']),
+                                                region={'startLine': result['line_number']}
+                                            )
+                                        )
+                                    ]
+                                ) for result in bandit_data.get('results', [])
+                            ]
+                        )
+                    ]
+                )
 
-    - name: Comment PR with security results
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          let comment = '## 🔒 Security Scan Results\n\n';
-          
-          try {
-            const banditReport = JSON.parse(fs.readFileSync('bandit-report.json', 'utf8'));
-            const highIssues = banditReport.metrics._totals.SEVERITY.HIGH || 0;
-            const mediumIssues = banditReport.metrics._totals.SEVERITY.MEDIUM || 0;
-            const lowIssues = banditReport.metrics._totals.SEVERITY.LOW || 0;
-            
-            comment += `### 🛡️ Bandit Security Linter\n`;
-            comment += `- **High severity issues**: ${highIssues} ${highIssues > 0 ? '❌' : '✅'}\n`;
-            comment += `- **Medium severity issues**: ${mediumIssues} ${mediumIssues > 0 ? '⚠️' : '✅'}\n`;
-            comment += `- **Low severity issues**: ${lowIssues} ${lowIssues > 0 ? '⚠️' : '✅'}\n\n`;
-            
-            if (highIssues > 0 || mediumIssues > 0) {
-              comment += `⚠️ **Action Required**: Please review and fix security issues before merging.\n\n`;
+                with open('bandit.sarif', 'w') as f:
+                    json.dump(sarif_log.to_dict(), f, indent=2)
+            except Exception as e:
+                print(f'Failed to convert Bandit report to SARIF: {e}')
+            "
+          fi
+
+      - name: Upload SARIF file
+        if: always() && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: bandit.sarif
+          category: bandit
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports-${{ matrix.python-version }}
+          path: |
+            bandit-report.json
+            safety-report.json
+            bandit.sarif
+
+      - name: Comment PR with security results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## 🔒 Security Scan Results\n\n';
+
+            try {
+              const banditReport = JSON.parse(fs.readFileSync('bandit-report.json', 'utf8'));
+              const highIssues = banditReport.metrics._totals.SEVERITY.HIGH || 0;
+              const mediumIssues = banditReport.metrics._totals.SEVERITY.MEDIUM || 0;
+              const lowIssues = banditReport.metrics._totals.SEVERITY.LOW || 0;
+
+              comment += `### 🛡️ Bandit Security Linter\n`;
+              comment += `- **High severity issues**: ${highIssues} ${highIssues > 0 ? '❌' : '✅'}\n`;
+              comment += `- **Medium severity issues**: ${mediumIssues} ${mediumIssues > 0 ? '⚠️' : '✅'}\n`;
+              comment += `- **Low severity issues**: ${lowIssues} ${lowIssues > 0 ? '⚠️' : '✅'}\n\n`;
+
+              if (highIssues > 0 || mediumIssues > 0) {
+                comment += `⚠️ **Action Required**: Please review and fix security issues before merging.\n\n`;
+              }
+            } catch (e) {
+              comment += '### 🛡️ Bandit Security Linter\n❓ Report not available\n\n';
             }
-          } catch (e) {
-            comment += '### 🛡️ Bandit Security Linter\n❓ Report not available\n\n';
-          }
-          
-          try {
-            const safetyReport = JSON.parse(fs.readFileSync('safety-report.json', 'utf8'));
-            const vulnCount = safetyReport.vulnerabilities?.length || 0;
-            comment += `### 🔍 Safety Dependency Scanner\n`;
-            comment += `- **Vulnerabilities found**: ${vulnCount} ${vulnCount > 0 ? '❌' : '✅'}\n\n`;
-            
-            if (vulnCount > 0) {
-              comment += `⚠️ **Action Required**: Please update vulnerable dependencies before merging.\n\n`;
+
+            try {
+              const safetyReport = JSON.parse(fs.readFileSync('safety-report.json', 'utf8'));
+              const vulnCount = safetyReport.vulnerabilities?.length || 0;
+              comment += `### 🔍 Safety Dependency Scanner\n`;
+              comment += `- **Vulnerabilities found**: ${vulnCount} ${vulnCount > 0 ? '❌' : '✅'}\n\n`;
+
+              if (vulnCount > 0) {
+                comment += `⚠️ **Action Required**: Please update vulnerable dependencies before merging.\n\n`;
+              }
+            } catch (e) {
+              comment += '### 🔍 Safety Dependency Scanner\n❓ Report not available\n\n';
             }
-          } catch (e) {
-            comment += '### 🔍 Safety Dependency Scanner\n❓ Report not available\n\n';
-          }
-          
-          comment += `---\n*Security scan completed for Python ${{ matrix.python-version }}*`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
+
+            comment += `---\n*Security scan completed for Python ${{ matrix.python-version }}*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
 
   dependency-review:
     runs-on: ubuntu-latest
@@ -204,21 +204,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'python' ]
+        language: ["python"]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-      with:
-        languages: ${{ matrix.language }}
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
-      with:
-        category: "/language:${{matrix.language}}"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"

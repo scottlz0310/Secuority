@@ -1,15 +1,16 @@
 """Core interfaces that define system boundaries for Secuority."""
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
-import re
+from typing import Any
 
 
 class ChangeType(Enum):
     """Types of configuration changes."""
+
     CREATE = "create"
     UPDATE = "update"
     MERGE = "merge"
@@ -17,6 +18,7 @@ class ChangeType(Enum):
 
 class DependencyManager(Enum):
     """Supported dependency managers."""
+
     POETRY = "poetry"
     PDM = "pdm"
     SETUPTOOLS_SCM = "setuptools-scm"
@@ -27,6 +29,7 @@ class DependencyManager(Enum):
 
 class SecurityTool(Enum):
     """Supported security tools."""
+
     BANDIT = "bandit"
     SAFETY = "safety"
     GITLEAKS = "gitleaks"
@@ -35,6 +38,7 @@ class SecurityTool(Enum):
 
 class QualityTool(Enum):
     """Supported code quality tools."""
+
     RUFF = "ruff"
     MYPY = "mypy"
     BLACK = "black"
@@ -58,7 +62,7 @@ def validate_package_name(name: str) -> bool:
     if not name or not isinstance(name, str):
         return False
     # Python package names should match PEP 508 naming convention
-    pattern = r'^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])$'
+    pattern = r"^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])$"
     return bool(re.match(pattern, name, re.IGNORECASE))
 
 
@@ -67,13 +71,15 @@ def validate_version_string(version: str) -> bool:
     if not version or not isinstance(version, str):
         return False
     # Simplified PEP 440 version pattern
-    pattern = (r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*'
-               r'((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?'
-               r'(\.dev(0|[1-9][0-9]*))?$')
+    pattern = (
+        r"^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*"
+        r"((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?"
+        r"(\.dev(0|[1-9][0-9]*))?$"
+    )
     return bool(re.match(pattern, version))
 
 
-def validate_tool_config(config: Dict[str, Any]) -> bool:
+def validate_tool_config(config: dict[str, Any]) -> bool:
     """Validate tool configuration dictionary."""
     if not isinstance(config, dict):
         return False
@@ -84,10 +90,11 @@ def validate_tool_config(config: Dict[str, Any]) -> bool:
 @dataclass
 class Package:
     """Represents a Python package dependency."""
+
     name: str
-    version: Optional[str] = None
-    extras: List[str] = field(default_factory=list)
-    markers: Optional[str] = None
+    version: str | None = None
+    extras: list[str] = field(default_factory=list)
+    markers: str | None = None
 
     def __post_init__(self) -> None:
         """Validate package data after initialization."""
@@ -100,11 +107,12 @@ class Package:
 @dataclass
 class DependencyAnalysis:
     """Analysis of project dependencies."""
-    requirements_packages: List[Package] = field(default_factory=list)
-    pyproject_dependencies: List[Package] = field(default_factory=list)
-    extras_found: List[str] = field(default_factory=list)
+
+    requirements_packages: list[Package] = field(default_factory=list)
+    pyproject_dependencies: list[Package] = field(default_factory=list)
+    extras_found: list[str] = field(default_factory=list)
     migration_needed: bool = False
-    conflicts: List[str] = field(default_factory=list)
+    conflicts: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Validate dependency analysis data."""
@@ -117,10 +125,11 @@ class DependencyAnalysis:
 @dataclass
 class ToolConfig:
     """Configuration for a development tool."""
+
     name: str
-    config: Dict[str, Any]
+    config: dict[str, Any]
     enabled: bool = True
-    version: Optional[str] = None
+    version: str | None = None
 
     def __post_init__(self) -> None:
         """Validate tool configuration."""
@@ -133,10 +142,11 @@ class ToolConfig:
 @dataclass
 class Workflow:
     """Represents a CI/CD workflow."""
+
     name: str
     file_path: Path
-    triggers: List[str] = field(default_factory=list)
-    jobs: List[str] = field(default_factory=list)
+    triggers: list[str] = field(default_factory=list)
+    jobs: list[str] = field(default_factory=list)
     has_security_checks: bool = False
     has_quality_checks: bool = False
 
@@ -149,9 +159,10 @@ class Workflow:
 @dataclass
 class ConfigChange:
     """Represents a configuration change to be applied."""
+
     file_path: Path
     change_type: ChangeType
-    old_content: Optional[str]
+    old_content: str | None
     new_content: str
     description: str
     requires_backup: bool
@@ -160,29 +171,30 @@ class ConfigChange:
 @dataclass
 class ApplyResult:
     """Result of applying configuration changes."""
-    successful_changes: List[ConfigChange]
-    failed_changes: List[tuple]  # (ConfigChange, Exception)
-    conflicts: List[str]
-    backups_created: List[Path]
+
+    successful_changes: list[ConfigChange]
+    failed_changes: list[tuple]  # (ConfigChange, Exception)
+    conflicts: list[str]
+    backups_created: list[Path]
 
 
 class ProjectAnalyzerInterface(ABC):
     """Interface for project analysis functionality."""
 
     @abstractmethod
-    def analyze_project(self, project_path: Path) -> 'ProjectState':
+    def analyze_project(self, project_path: Path) -> "ProjectState":
         """Analyze a Python project and return its current state."""
 
     @abstractmethod
-    def detect_configuration_files(self, project_path: Path) -> Dict[str, Path]:
+    def detect_configuration_files(self, project_path: Path) -> dict[str, Path]:
         """Detect existing configuration files in the project."""
 
     @abstractmethod
-    def analyze_dependencies(self, project_path: Path) -> Dict[str, Any]:
+    def analyze_dependencies(self, project_path: Path) -> dict[str, Any]:
         """Analyze project dependencies and their configuration."""
 
     @abstractmethod
-    def check_security_tools(self, project_path: Path) -> Dict[str, bool]:
+    def check_security_tools(self, project_path: Path) -> dict[str, bool]:
         """Check which security tools are configured in the project."""
 
 
@@ -190,7 +202,7 @@ class TemplateManagerInterface(ABC):
     """Interface for template management functionality."""
 
     @abstractmethod
-    def load_templates(self) -> Dict[str, str]:
+    def load_templates(self) -> dict[str, str]:
         """Load configuration templates."""
 
     @abstractmethod
@@ -210,9 +222,7 @@ class ConfigurationApplierInterface(ABC):
     """Interface for applying configuration changes."""
 
     @abstractmethod
-    def apply_changes(
-        self, changes: List[ConfigChange], dry_run: bool = False
-    ) -> ApplyResult:
+    def apply_changes(self, changes: list[ConfigChange], dry_run: bool = False) -> ApplyResult:
         """Apply configuration changes to the project."""
 
     @abstractmethod
@@ -220,9 +230,7 @@ class ConfigurationApplierInterface(ABC):
         """Create a backup of the specified file."""
 
     @abstractmethod
-    def merge_configurations(
-        self, existing: Dict[str, Any], template: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def merge_configurations(self, existing: dict[str, Any], template: dict[str, Any]) -> dict[str, Any]:
         """Merge existing configuration with template configuration."""
 
 
@@ -234,34 +242,35 @@ class GitHubClientInterface(ABC):
         """Check if GitHub Push Protection is enabled for the repository."""
 
     @abstractmethod
-    def get_dependabot_config(self, repo: str) -> Dict[str, Any]:
+    def get_dependabot_config(self, repo: str) -> dict[str, Any]:
         """Get Dependabot configuration for the repository."""
 
     @abstractmethod
-    def list_workflows(self, repo: str) -> List[str]:
+    def list_workflows(self, repo: str) -> list[str]:
         """List GitHub Actions workflows in the repository."""
 
     @abstractmethod
-    def check_security_settings(self, repo: str) -> Dict[str, Any]:
+    def check_security_settings(self, repo: str) -> dict[str, Any]:
         """Check repository security settings."""
 
 
 @dataclass
 class ProjectState:
     """Represents the current state of a Python project."""
+
     project_path: Path
     has_pyproject_toml: bool = False
     has_requirements_txt: bool = False
     has_setup_py: bool = False
     has_gitignore: bool = False
     has_pre_commit_config: bool = False
-    dependency_manager: Optional[DependencyManager] = None
-    current_tools: Dict[str, ToolConfig] = field(default_factory=dict)
-    security_tools: Dict[SecurityTool, bool] = field(default_factory=dict)
-    quality_tools: Dict[QualityTool, bool] = field(default_factory=dict)
-    ci_workflows: List[Workflow] = field(default_factory=list)
-    dependency_analysis: Optional[DependencyAnalysis] = None
-    python_version: Optional[str] = None
+    dependency_manager: DependencyManager | None = None
+    current_tools: dict[str, ToolConfig] = field(default_factory=dict)
+    security_tools: dict[SecurityTool, bool] = field(default_factory=dict)
+    quality_tools: dict[QualityTool, bool] = field(default_factory=dict)
+    ci_workflows: list[Workflow] = field(default_factory=list)
+    dependency_analysis: DependencyAnalysis | None = None
+    python_version: str | None = None
 
     def __post_init__(self) -> None:
         """Validate project state data."""
@@ -301,11 +310,11 @@ class ProjectState:
         """Check if project needs migration to modern configuration."""
         return self.has_requirements_txt and not self.has_pyproject_toml
 
-    def get_missing_security_tools(self) -> List[SecurityTool]:
+    def get_missing_security_tools(self) -> list[SecurityTool]:
         """Get list of missing security tools."""
         return [tool for tool, enabled in self.security_tools.items() if not enabled]
 
-    def get_missing_quality_tools(self) -> List[QualityTool]:
+    def get_missing_quality_tools(self) -> list[QualityTool]:
         """Get list of missing quality tools."""
         return [tool for tool, enabled in self.quality_tools.items() if not enabled]
 
@@ -326,9 +335,7 @@ class CLIInterface(ABC):
         """Execute the check command to analyze project configuration."""
 
     @abstractmethod
-    def apply(
-        self, project_path: Path, dry_run: bool = False, force: bool = False
-    ) -> None:
+    def apply(self, project_path: Path, dry_run: bool = False, force: bool = False) -> None:
         """Execute the apply command to apply configuration changes."""
 
     @abstractmethod

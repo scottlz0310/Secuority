@@ -27,7 +27,7 @@ Thank you for your interest in contributing to this project! 🎉
    ```bash
    # Create virtual environment and install dependencies
    uv sync --group dev --group test
-   
+
    # Activate the virtual environment
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
@@ -41,11 +41,11 @@ Thank you for your interest in contributing to this project! 🎉
    ```bash
    # Run tests
    uv run pytest
-   
+
    # Run linting
    uv run ruff check .
    uv run ruff format --check .
-   
+
    # Run type checking
    uv run mypy .
    ```
@@ -110,27 +110,27 @@ We use the following tools for code quality:
 from typing import List, Optional
 
 def process_data(
-    items: List[str], 
+    items: List[str],
     filter_empty: bool = True
 ) -> Optional[List[str]]:
     """Process a list of string items.
-    
+
     Args:
         items: List of strings to process
         filter_empty: Whether to filter out empty strings
-        
+
     Returns:
         Processed list of strings, or None if input is empty
-        
+
     Raises:
         ValueError: If items contains non-string elements
     """
     if not items:
         return None
-        
+
     if filter_empty:
         items = [item for item in items if item.strip()]
-        
+
     return [item.strip().lower() for item in items]
 ```
 
@@ -169,20 +169,20 @@ class TestProcessData:
     def test_process_data_with_valid_input(self):
         # Arrange
         items = ["  Hello  ", "World", ""]
-        
+
         # Act
         result = process_data(items, filter_empty=True)
-        
+
         # Assert
         assert result == ["hello", "world"]
-    
+
     def test_process_data_with_empty_list(self):
         # Arrange
         items = []
-        
+
         # Act
         result = process_data(items)
-        
+
         # Assert
         assert result is None
 ```
@@ -196,14 +196,14 @@ We use Google-style docstrings:
 ```python
 def example_function(param1: str, param2: int = 0) -> bool:
     """Example function with Google-style docstring.
-    
+
     Args:
         param1: The first parameter
         param2: The second parameter (default: 0)
-        
+
     Returns:
         True if successful, False otherwise
-        
+
     Raises:
         ValueError: If param1 is empty
         TypeError: If param2 is not an integer
