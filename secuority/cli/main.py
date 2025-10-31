@@ -83,11 +83,11 @@ def check(
         
         # Display configuration files status
         config_files_info = [
-            ("pyproject.toml", project_state.has_pyproject_toml, "Modern Python configuration"),
-            ("requirements.txt", project_state.has_requirements_txt, "Legacy dependency format"),
-            ("setup.py", project_state.has_setup_py, "Legacy setup configuration"),
-            (".gitignore", project_state.has_gitignore, "Git ignore patterns"),
-            (".pre-commit-config.yaml", project_state.has_pre_commit_config, "Pre-commit hooks"),
+            ("pyproject.toml", project_state.has_pyproject_toml, "Modern Python configuration", True),
+            ("requirements.txt", project_state.has_requirements_txt, "Legacy format (consider migration)", False),
+            ("setup.py", project_state.has_setup_py, "Legacy format (consider migration)", False),
+            (".gitignore", project_state.has_gitignore, "Git ignore patterns", True),
+            (".pre-commit-config.yaml", project_state.has_pre_commit_config, "Pre-commit hooks", True),
         ]
         
         if not structured_output:
@@ -96,19 +96,28 @@ def check(
             config_table.add_column("Status", justify="center")
             config_table.add_column("Notes", style="dim")
             
-            for filename, exists, note in config_files_info:
-                status = "[green]✓ Found[/green]" if exists else "[red]✗ Missing[/red]"
+            for filename, exists, note, is_recommended in config_files_info:
+                if is_recommended:
+                    # For recommended files (pyproject.toml, .gitignore, .pre-commit-config.yaml)
+                    status = "[green]✓ Found[/green]" if exists else "[red]✗ Missing[/red]"
+                else:
+                    # For legacy files (requirements.txt, setup.py) - not having them is good
+                    if exists:
+                        status = "[yellow]⚠ Found[/yellow]"
+                    else:
+                        status = "[green]✓ Not used[/green]"
+                
                 config_table.add_row(filename, status, note)
             
             console.print(config_table)
             console.print()
         
         # Log analysis results
-        for filename, exists, note in config_files_info:
+        for filename, exists, note, is_recommended in config_files_info:
             logger.log_analysis_result(
                 file_path=str(project_path / filename),
                 analysis_type="file_existence",
-                result={"exists": exists, "description": note}
+                result={"exists": exists, "description": note, "is_recommended": is_recommended}
             )
         
         # Display dependency manager information
