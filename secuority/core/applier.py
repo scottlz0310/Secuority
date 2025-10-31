@@ -725,41 +725,21 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             modified = True
         
         if modified:
-            # Convert back to TOML
-            if tomli_w is None:
-                # Fallback to basic TOML generation
-                import json
-                try:
-                    lines = []
-                    for section, content in existing_data.items():
-                        if isinstance(content, dict):
-                            lines.append(f"[{section}]")
-                            for key, value in content.items():
-                                if isinstance(value, dict):
-                                    lines.append(f"[{section}.{key}]")
-                                    for subkey, subvalue in value.items():
-                                        lines.append(f"{subkey} = {json.dumps(subvalue)}")
-                                else:
-                                    lines.append(f"{key} = {json.dumps(value)}")
-                            lines.append("")
-                    new_content = "\n".join(lines)
-                except Exception as e:
-                    raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
-            else:
-                try:
-                    new_content = tomli_w.dumps(existing_data)
-                    
-                    change = ConfigChange.merge_file_change(
-                        file_path=pyproject_path,
-                        old_content=pyproject_path.read_text() if pyproject_path.exists() else "",
-                        new_content=new_content,
-                        description=f"Add quality tools configuration: {', '.join(tools)}",
-                        conflicts=[]
-                    )
-                    changes.append(change)
-                    
-                except Exception as e:
-                    raise ConfigurationError(f"Failed to generate quality tools configuration: {e}") from e
+            # Convert back to TOML using the existing format method
+            try:
+                new_content = self._format_toml_content(existing_data)
+                
+                change = ConfigChange.merge_file_change(
+                    file_path=pyproject_path,
+                    old_content=pyproject_path.read_text() if pyproject_path.exists() else "",
+                    new_content=new_content,
+                    description=f"Add quality tools configuration: {', '.join(tools)}",
+                    conflicts=[]
+                )
+                changes.append(change)
+                
+            except Exception as e:
+                raise ConfigurationError(f"Failed to generate quality tools configuration: {e}") from e
         
         return changes
     

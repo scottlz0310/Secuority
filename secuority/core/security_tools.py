@@ -261,31 +261,20 @@ class SecurityToolsIntegrator:
         Raises:
             ConfigurationError: If TOML generation fails
         """
-        if tomli_w is None:
-            # Fallback to basic TOML generation
-            import json
+        try:
+            import toml
+            return toml.dumps(config)
+        except ImportError:
+            pass
+        
+        if tomli_w is not None:
             try:
-                # Simple TOML-like format generation
-                lines = []
-                for section, content in config.items():
-                    if isinstance(content, dict):
-                        lines.append(f"[{section}]")
-                        for key, value in content.items():
-                            if isinstance(value, dict):
-                                lines.append(f"[{section}.{key}]")
-                                for subkey, subvalue in value.items():
-                                    lines.append(f"{subkey} = {json.dumps(subvalue)}")
-                            else:
-                                lines.append(f"{key} = {json.dumps(value)}")
-                        lines.append("")
-                return "\n".join(lines)
+                return tomli_w.dumps(config)
             except Exception as e:
                 raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
         
-        try:
-            return tomli_w.dumps(config)
-        except Exception as e:
-            raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
+        # If no TOML library is available, raise an error
+        raise ConfigurationError("No TOML library available for content generation")
     
     def check_security_tools_status(self, project_path: Path) -> Dict[str, bool]:
         """Check which security tools are already configured.
