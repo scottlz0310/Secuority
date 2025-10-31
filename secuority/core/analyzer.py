@@ -482,8 +482,11 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                     if "gitleaks" in repo_url.lower():
                         return True
 
-        except (ImportError, OSError, yaml.YAMLError):
-            # If yaml is not available or file can't be parsed, return False
+        except ImportError:
+            # If yaml is not available, return False
+            pass
+        except (OSError, Exception):
+            # If file can't be read or parsed, return False
             pass
 
         return False
