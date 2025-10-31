@@ -178,7 +178,7 @@ def check(
             try:
                 github_analysis = core_engine.analyzer.analyze_github_repository(project_path)
                 if github_analysis.get("analysis_successful"):
-                    if not github_analysis.get("push_protection", {}).get("enabled", False):
+                    if not github_analysis.get("push_protection", False):
                         recommendations.append("Enable GitHub Push Protection for secret scanning")
 
                     dependabot = github_analysis.get("dependabot", {})
@@ -196,8 +196,8 @@ def check(
                 github_table.add_column("Status", justify="center")
 
                 # Push Protection
-                push_protection = github_analysis.get("push_protection", {})
-                pp_status = "[green]✓ Enabled[/green]" if push_protection.get("enabled") else "[red]✗ Disabled[/red]"
+                push_protection = github_analysis.get("push_protection", False)
+                pp_status = "[green]✓ Enabled[/green]" if push_protection else "[red]✗ Disabled[/red]"
                 github_table.add_row("Push Protection", pp_status)
 
                 # Dependabot
