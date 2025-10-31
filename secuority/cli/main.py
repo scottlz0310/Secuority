@@ -702,8 +702,7 @@ def apply(
                 file_path=str(change.file_path),
                 change_type=change.change_type.value.lower(),
                 description=change.description,
-                success=False,
-                error=str(error)
+                success=False
             )
         
         # Show results

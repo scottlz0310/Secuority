@@ -20,6 +20,11 @@ except ImportError:
     tomli_w = None
 
 try:
+    import toml
+except ImportError:
+    toml = None
+
+try:
     import yaml  # type: ignore
 except ImportError:
     yaml = None
@@ -291,11 +296,14 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         template_content: str
     ) -> ConfigChange:
         """Merge configurations for a specific file."""
+        # Process template variables before merging
+        processed_content = self._process_template_variables(template_content, file_path)
+        
         if not file_path.exists():
             # File doesn't exist, create it
             return ConfigChange.create_file_change(
                 file_path=file_path,
-                content=template_content,
+                content=processed_content,
                 description=f"Create {file_path.name} from template"
             )
         
@@ -309,16 +317,16 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         # Determine merge strategy based on file type
         if file_path.suffix == '.toml':
             merged_content, conflicts = self._merge_toml_file(
-                existing_content, template_content, file_path
+                existing_content, processed_content, file_path
             )
         elif file_path.suffix in ['.yaml', '.yml']:
             merged_content, conflicts = self._merge_yaml_file(
-                existing_content, template_content, file_path
+                existing_content, processed_content, file_path
             )
         else:
             # Text-based merge for files like .gitignore
             merged_content, conflicts = self.merger.merge_text_configs(
-                existing_content, template_content, file_path
+                existing_content, processed_content, file_path
             )
         
         return ConfigChange.merge_file_change(
@@ -348,6 +356,115 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         merged_data, conflicts = self.merger.merge_toml_configs(
             existing_data, template_data, file_path
         )
+        
+        return self._format_toml_content(merged_data), conflicts
+    
+    def _process_template_variables(self, template_content: str, file_path: Path) -> str:
+        """Process template variables in content."""
+        import re
+        
+        # Extract project information from existing pyproject.toml if available
+        project_info = self._extract_project_info(file_path)
+        
+        # Define template variable mappings
+        # Resolve absolute path to get proper directory name
+        abs_path = file_path.resolve()
+        if file_path.name in ['pyproject.toml', '.gitignore', '.pre-commit-config.yaml']:
+            # For project root files, use the parent directory name
+            project_dir_name = abs_path.parent.name
+        else:
+            # For other files, use the project root directory name
+            project_dir_name = abs_path.parent.parent.name if abs_path.parent.name == 'workflows' else abs_path.parent.name
+        
+        project_name = project_info.get('name') or project_dir_name or 'my-project'
+        
+        variables = {
+            'project_name': project_name,
+            'project_version': project_info.get('version', '0.1.0'),
+            'project_description': project_info.get('description', f'A Python project: {project_name}'),
+            'project_license': project_info.get('license', 'MIT'),
+            'author_name': project_info.get('author_name', 'Your Name'),
+            'author_email': project_info.get('author_email', 'your.email@example.com'),
+            'project_homepage': project_info.get('homepage', f'https://github.com/yourusername/{project_name}'),
+            'project_repository': project_info.get('repository', f'https://github.com/yourusername/{project_name}'),
+            'project_issues': project_info.get('issues', f'https://github.com/yourusername/{project_name}/issues'),
+            'package_name': project_name.replace('-', '_'),
+        }
+        
+        # Process template variables with default values
+        def replace_variable(match):
+            var_expr = match.group(1).strip()
+            
+            # Handle default values: {{ var | default('value') }}
+            if '|' in var_expr:
+                var_name, default_part = var_expr.split('|', 1)
+                var_name = var_name.strip()
+                
+                # Extract default value
+                default_match = re.search(r"default\(['\"]([^'\"]*)['\"]", default_part)
+                default_value = default_match.group(1) if default_match else ''
+                
+                return variables.get(var_name, default_value)
+            else:
+                return variables.get(var_expr, '')
+        
+        # Replace template variables
+        processed_content = re.sub(r'\{\{\s*([^}]+)\s*\}\}', replace_variable, template_content)
+        
+        return processed_content
+    
+    def _extract_project_info(self, file_path: Path) -> dict:
+        """Extract project information from existing pyproject.toml."""
+        project_info = {}
+        
+        # If we're processing pyproject.toml, try to read existing values
+        if file_path.name == 'pyproject.toml' and file_path.exists():
+            try:
+                import toml
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    existing_data = toml.load(f)
+                
+                project_section = existing_data.get('project', {})
+                project_info.update({
+                    'name': project_section.get('name', ''),
+                    'version': project_section.get('version', ''),
+                    'description': project_section.get('description', ''),
+                })
+                
+                # Extract license
+                license_info = project_section.get('license', {})
+                if isinstance(license_info, dict):
+                    project_info['license'] = license_info.get('text', 'MIT')
+                elif isinstance(license_info, str):
+                    project_info['license'] = license_info
+                
+                # Extract author info
+                authors = project_section.get('authors', [])
+                if authors and isinstance(authors[0], dict):
+                    project_info['author_name'] = authors[0].get('name', '')
+                    project_info['author_email'] = authors[0].get('email', '')
+                
+                # Extract URLs
+                urls = project_section.get('urls', {})
+                project_info.update({
+                    'homepage': urls.get('Homepage', ''),
+                    'repository': urls.get('Repository', ''),
+                    'issues': urls.get('Issues', urls.get('Bug Tracker', '')),
+                })
+                
+            except Exception:
+                # If parsing fails, use defaults
+                pass
+        
+        return project_info
+    
+    def _format_toml_content(self, data: dict) -> str:
+        """Format TOML data as string."""
+        try:
+            import toml
+            return toml.dumps(data)
+        except Exception as e:
+            raise ConfigurationError(f"Failed to format TOML content: {e}") from e
         
         # Convert back to TOML
         if tomli_w is None:
