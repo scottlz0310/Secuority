@@ -92,7 +92,7 @@
 
 - [x] 6. GitHub統合機能の実装
 - [x] 6.1 GitHub APIクライアントの実装
-  - GITHUB_TOKEN環境変数からの認証
+  - GITHUB_PERSONAL_ACCESS_TOKEN環境変数からの認証
   - Push Protection状態確認
   - Dependabot設定取得
   - _要件: 6.3, 9.2, 9.3_
@@ -195,13 +195,13 @@
   - セキュリティと品質ツールの推奨事項表示
   - _要件: 1.1, 1.4, 1.5, 2.1, 3.1, 3.2_
 
-- [ ] 10.3 完全なapplyコマンド機能の実装
+- [-] 10.3 完全なapplyコマンド機能の実装
   - applyコマンドをConfigurationApplierに接続
   - 実際の設定変更の生成と適用
   - ユーザー確認と競合解決の処理
   - _要件: 7.1, 7.2, 7.3, 3.2, 3.3_
 
-- [ ] 10.4 不足しているテンプレートファイルの作成
+- [x] 10.4 不足しているテンプレートファイルの作成
   - Pythonパターンを含む.gitignore.templateの作成
   - セキュリティフックを含む.pre-commit-config.yaml.templateの作成
   - GitHub Actionsワークフローテンプレートの作成

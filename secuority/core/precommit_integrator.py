@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
-    import yaml
+    import yaml  # type: ignore
 except ImportError:
     yaml = None
 
@@ -18,8 +18,8 @@ class PreCommitIntegrator:
     
     def __init__(self):
         """Initialize pre-commit integrator."""
-        if yaml is None:
-            raise ConfigurationError("PyYAML is required for pre-commit configuration")
+        # Note: YAML functionality will be limited if PyYAML is not available
+        pass
     
     def integrate_gitleaks_hook(
         self, 

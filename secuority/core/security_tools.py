@@ -262,7 +262,25 @@ class SecurityToolsIntegrator:
             ConfigurationError: If TOML generation fails
         """
         if tomli_w is None:
-            raise ConfigurationError("TOML writing support not available")
+            # Fallback to basic TOML generation
+            import json
+            try:
+                # Simple TOML-like format generation
+                lines = []
+                for section, content in config.items():
+                    if isinstance(content, dict):
+                        lines.append(f"[{section}]")
+                        for key, value in content.items():
+                            if isinstance(value, dict):
+                                lines.append(f"[{section}.{key}]")
+                                for subkey, subvalue in value.items():
+                                    lines.append(f"{subkey} = {json.dumps(subvalue)}")
+                            else:
+                                lines.append(f"{key} = {json.dumps(value)}")
+                        lines.append("")
+                return "\n".join(lines)
+            except Exception as e:
+                raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
         
         try:
             return tomli_w.dumps(config)

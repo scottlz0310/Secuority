@@ -56,7 +56,7 @@ class GitHubIntegration:
                 analysis_result["warnings"] = []
             analysis_result["warnings"].append(
                 "GitHub API authentication not available. "
-                "Set GITHUB_TOKEN environment variable for full analysis."
+                "Set GITHUB_PERSONAL_ACCESS_TOKEN environment variable for full analysis."
             )
             if not self.continue_on_error:
                 return analysis_result
@@ -323,7 +323,7 @@ GitHub Integration Setup:
    - Select scopes: repo, security_events, read:org
 
 2. Set Environment Variable:
-   export GITHUB_TOKEN=your_token_here
+   export GITHUB_PERSONAL_ACCESS_TOKEN=your_token_here
 
 3. Verify Setup:
    secuority check --verbose

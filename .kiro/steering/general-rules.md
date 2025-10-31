@@ -2,7 +2,12 @@
 inclusion: always
 ---
 
-# 日本語で応答し、日本語でドキュメントを作成すること。
+# 一般的なルール
+
+- 日本語で応答し、日本語でドキュメントを作成すること。
+- uv を使用し、python / python3を直接使用しないこと。
+- dependency-groupを使用し、extrasで管理しないこと。
+- グローバル環境に依存関係をインストールするのは絶対禁止。
 
 <!------------------------------------------------------------------------------------
    Add rules to this file or a short description and have Kiro refine them for you.

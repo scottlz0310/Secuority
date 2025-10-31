@@ -170,6 +170,22 @@ def check(
             console.print(workflows_table)
             console.print()
         
+        # GitHub integration analysis (if available)
+        github_analysis = None
+        if core_engine.github_client:
+            try:
+                github_analysis = core_engine.analyzer.analyze_github_repository(project_path)
+                if github_analysis.get("analysis_successful"):
+                    if not github_analysis.get("push_protection", {}).get("enabled", False):
+                        recommendations.append("Enable GitHub Push Protection for secret scanning")
+                    
+                    dependabot = github_analysis.get("dependabot", {})
+                    if not dependabot.get("enabled", False):
+                        recommendations.append("Enable Dependabot for automated dependency updates")
+            except Exception as e:
+                logger.debug("GitHub analysis failed", error=str(e))
+                # Don't fail the entire check if GitHub analysis fails
+        
         # Display GitHub integration status
         if github_analysis and not structured_output:
             if github_analysis.get("analysis_successful"):
@@ -239,22 +255,6 @@ def check(
                 recommendations.append("Add security checks to CI/CD workflows")
             if not has_quality_workflow:
                 recommendations.append("Add quality checks to CI/CD workflows")
-        
-        # GitHub integration analysis (if available)
-        github_analysis = None
-        if core_engine.github_client:
-            try:
-                github_analysis = core_engine.analyzer.analyze_github_repository(project_path)
-                if github_analysis.get("analysis_successful"):
-                    if not github_analysis.get("push_protection", {}).get("enabled", False):
-                        recommendations.append("Enable GitHub Push Protection for secret scanning")
-                    
-                    dependabot = github_analysis.get("dependabot", {})
-                    if not dependabot.get("enabled", False):
-                        recommendations.append("Enable Dependabot for automated dependency updates")
-            except Exception as e:
-                logger.debug("GitHub analysis failed", error=str(e))
-                # Don't fail the entire check if GitHub analysis fails
         
         # Log recommendations
         if recommendations:
@@ -432,30 +432,46 @@ def apply(
             logger.warning("Templates not available", error=str(e))
             templates = {}
         
-        # Generate changes for missing files
-        if not project_state.has_pyproject_toml and "pyproject.toml.template" in templates:
-            change = core_engine.applier.merge_file_configurations(
-                project_path / "pyproject.toml",
-                templates["pyproject.toml.template"]
-            )
-            changes.append(change)
+        # Filter changes based on options
+        apply_security = not templates_only
+        apply_templates = not security_only
         
-        if not project_state.has_gitignore and ".gitignore.template" in templates:
-            change = core_engine.applier.merge_file_configurations(
-                project_path / ".gitignore",
-                templates[".gitignore.template"]
-            )
-            changes.append(change)
-        
-        if not project_state.has_pre_commit_config and ".pre-commit-config.yaml.template" in templates:
-            change = core_engine.applier.merge_file_configurations(
-                project_path / ".pre-commit-config.yaml",
-                templates[".pre-commit-config.yaml.template"]
-            )
-            changes.append(change)
+        # Generate changes for missing template files
+        if apply_templates:
+            if not project_state.has_pyproject_toml and "pyproject.toml.template" in templates:
+                change = core_engine.applier.merge_file_configurations(
+                    project_path / "pyproject.toml",
+                    templates["pyproject.toml.template"]
+                )
+                changes.append(change)
+            
+            if not project_state.has_gitignore and ".gitignore.template" in templates:
+                change = core_engine.applier.merge_file_configurations(
+                    project_path / ".gitignore",
+                    templates[".gitignore.template"]
+                )
+                changes.append(change)
+            
+            if not project_state.has_pre_commit_config and ".pre-commit-config.yaml.template" in templates:
+                change = core_engine.applier.merge_file_configurations(
+                    project_path / ".pre-commit-config.yaml",
+                    templates[".pre-commit-config.yaml.template"]
+                )
+                changes.append(change)
+            
+            # Add workflow templates if they exist
+            workflow_templates = [name for name in templates.keys() if name.startswith("workflows/")]
+            for workflow_template in workflow_templates:
+                workflow_path = project_path / ".github" / workflow_template
+                if not workflow_path.exists():
+                    change = core_engine.applier.merge_file_configurations(
+                        workflow_path,
+                        templates[workflow_template]
+                    )
+                    changes.append(change)
         
         # Add security tools integration if needed
-        if project_state.security_tools:
+        if apply_security and project_state.security_tools:
             missing_security_tools = [
                 tool.value for tool, configured in project_state.security_tools.items() 
                 if not configured
@@ -465,6 +481,36 @@ def apply(
                     project_path, missing_security_tools
                 )
                 changes.extend(security_changes)
+        
+        # Add quality tools integration if needed
+        if apply_templates and project_state.quality_tools:
+            missing_quality_tools = [
+                tool.value for tool, configured in project_state.quality_tools.items() 
+                if not configured
+            ]
+            if missing_quality_tools:
+                # Generate quality tools configuration changes
+                quality_changes = core_engine.applier.get_quality_integration_changes(
+                    project_path, missing_quality_tools
+                )
+                changes.extend(quality_changes)
+        
+        # Handle dependency migration if needed
+        if (apply_templates and 
+            project_state.dependency_analysis and 
+            project_state.dependency_analysis.migration_needed):
+            migration_change = core_engine.applier.get_dependency_migration_change(
+                project_path, project_state.dependency_analysis
+            )
+            if migration_change:
+                changes.append(migration_change)
+        
+        # Add CI/CD workflows if needed
+        if apply_templates and not project_state.ci_workflows:
+            workflow_changes = core_engine.applier.get_workflow_integration_changes(
+                project_path, ["security", "quality"]
+            )
+            changes.extend(workflow_changes)
         
         if not changes:
             if not structured_output:

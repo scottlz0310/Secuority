@@ -85,7 +85,7 @@ class GitHubAPIError(SecuorityError):
 class GitHubAuthenticationError(GitHubAPIError):
     """Exception raised when GitHub API authentication fails."""
     
-    def __init__(self, message: str = "GitHub API authentication failed. Please check your GITHUB_TOKEN.", **kwargs):
+    def __init__(self, message: str = "GitHub API authentication failed. Please check your GITHUB_PERSONAL_ACCESS_TOKEN.", **kwargs):
         super().__init__(message, **kwargs)
 
 

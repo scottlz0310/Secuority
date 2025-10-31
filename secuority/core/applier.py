@@ -33,7 +33,7 @@ from ..models.config import (
     ConflictResolution,
 )
 from ..models.exceptions import ConfigurationError, ValidationError
-from ..models.interfaces import ChangeType, ConfigurationApplierInterface
+from ..models.interfaces import ChangeType, ConfigurationApplierInterface, DependencyAnalysis
 from ..utils.diff import DiffGenerator
 from ..utils.file_ops import FileOperations
 from ..utils.user_interface import UserApprovalInterface
@@ -351,12 +351,29 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         
         # Convert back to TOML
         if tomli_w is None:
-            raise ConfigurationError("TOML writing support not available")
-        
-        try:
-            merged_content = tomli_w.dumps(merged_data)
-        except Exception as e:
-            raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
+            # Fallback to basic TOML generation
+            import json
+            try:
+                lines = []
+                for section, content in merged_data.items():
+                    if isinstance(content, dict):
+                        lines.append(f"[{section}]")
+                        for key, value in content.items():
+                            if isinstance(value, dict):
+                                lines.append(f"[{section}.{key}]")
+                                for subkey, subvalue in value.items():
+                                    lines.append(f"{subkey} = {json.dumps(subvalue)}")
+                            else:
+                                lines.append(f"{key} = {json.dumps(value)}")
+                        lines.append("")
+                merged_content = "\n".join(lines)
+            except Exception as e:
+                raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
+        else:
+            try:
+                merged_content = tomli_w.dumps(merged_data)
+            except Exception as e:
+                raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
         
         return merged_content, conflicts
     
@@ -499,6 +516,206 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             tools = ['bandit', 'safety']
         
         return self.security_integrator.integrate_security_tools(project_path, tools)
+    
+    def get_quality_integration_changes(
+        self,
+        project_path: Path,
+        tools: Optional[List[str]] = None
+    ) -> List[ConfigChange]:
+        """Get quality tools integration changes without applying them.
+        
+        Args:
+            project_path: Path to the project directory
+            tools: List of quality tools to integrate (default: ['ruff', 'mypy'])
+            
+        Returns:
+            List of ConfigChange objects for quality tools integration
+        """
+        if tools is None:
+            tools = ['ruff', 'mypy']
+        
+        changes = []
+        pyproject_path = project_path / "pyproject.toml"
+        
+        # Generate quality tools configuration for pyproject.toml
+        if pyproject_path.exists():
+            # Read existing pyproject.toml
+            try:
+                with open(pyproject_path, 'rb') as f:
+                    existing_data = tomllib.loads(f.read().decode('utf-8'))
+            except Exception:
+                existing_data = {}
+        else:
+            existing_data = {}
+        
+        # Add quality tools configuration
+        if 'tool' not in existing_data:
+            existing_data['tool'] = {}
+        
+        modified = False
+        
+        # Add Ruff configuration
+        if 'ruff' in tools and 'ruff' not in existing_data['tool']:
+            existing_data['tool']['ruff'] = {
+                'line-length': 88,
+                'target-version': 'py38',
+                'select': ['E', 'F', 'W', 'C90', 'I', 'N', 'UP', 'YTT', 'S', 'BLE', 'FBT', 'B', 'A', 'COM', 'C4', 'DTZ', 'T10', 'EM', 'EXE', 'ISC', 'ICN', 'G', 'INP', 'PIE', 'T20', 'PYI', 'PT', 'Q', 'RSE', 'RET', 'SLF', 'SIM', 'TID', 'TCH', 'ARG', 'PTH', 'ERA', 'PD', 'PGH', 'PL', 'TRY', 'NPY', 'RUF'],
+                'ignore': ['E501', 'S101'],
+                'fixable': ['ALL'],
+                'unfixable': [],
+                'exclude': [
+                    '.bzr',
+                    '.direnv',
+                    '.eggs',
+                    '.git',
+                    '.hg',
+                    '.mypy_cache',
+                    '.nox',
+                    '.pants.d',
+                    '.pytype',
+                    '.ruff_cache',
+                    '.svn',
+                    '.tox',
+                    '.venv',
+                    '__pypackages__',
+                    '_build',
+                    'buck-out',
+                    'build',
+                    'dist',
+                    'node_modules',
+                    'venv'
+                ]
+            }
+            modified = True
+        
+        # Add Mypy configuration
+        if 'mypy' in tools and 'mypy' not in existing_data['tool']:
+            existing_data['tool']['mypy'] = {
+                'python_version': '3.8',
+                'warn_return_any': True,
+                'warn_unused_configs': True,
+                'disallow_untyped_defs': True,
+                'disallow_incomplete_defs': True,
+                'check_untyped_defs': True,
+                'disallow_untyped_decorators': True,
+                'no_implicit_optional': True,
+                'warn_redundant_casts': True,
+                'warn_unused_ignores': True,
+                'warn_no_return': True,
+                'warn_unreachable': True,
+                'strict_equality': True
+            }
+            modified = True
+        
+        if modified:
+            # Convert back to TOML
+            if tomli_w is None:
+                # Fallback to basic TOML generation
+                import json
+                try:
+                    lines = []
+                    for section, content in existing_data.items():
+                        if isinstance(content, dict):
+                            lines.append(f"[{section}]")
+                            for key, value in content.items():
+                                if isinstance(value, dict):
+                                    lines.append(f"[{section}.{key}]")
+                                    for subkey, subvalue in value.items():
+                                        lines.append(f"{subkey} = {json.dumps(subvalue)}")
+                                else:
+                                    lines.append(f"{key} = {json.dumps(value)}")
+                            lines.append("")
+                    new_content = "\n".join(lines)
+                except Exception as e:
+                    raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
+            else:
+                try:
+                    new_content = tomli_w.dumps(existing_data)
+                
+                change = ConfigChange.merge_file_change(
+                    file_path=pyproject_path,
+                    old_content=pyproject_path.read_text() if pyproject_path.exists() else "",
+                    new_content=new_content,
+                    description=f"Add quality tools configuration: {', '.join(tools)}",
+                    conflicts=[]
+                )
+                changes.append(change)
+                
+            except Exception as e:
+                raise ConfigurationError(f"Failed to generate quality tools configuration: {e}") from e
+        
+        return changes
+    
+    def get_dependency_migration_change(
+        self,
+        project_path: Path,
+        dependency_analysis: 'DependencyAnalysis'
+    ) -> Optional[ConfigChange]:
+        """Get dependency migration change from requirements.txt to pyproject.toml.
+        
+        Args:
+            project_path: Path to the project directory
+            dependency_analysis: Analysis of current dependencies
+            
+        Returns:
+            ConfigChange for dependency migration, or None if not needed
+        """
+        if not dependency_analysis.migration_needed:
+            return None
+        
+        pyproject_path = project_path / "pyproject.toml"
+        requirements_path = project_path / "requirements.txt"
+        
+        if not requirements_path.exists():
+            return None
+        
+        # Read existing pyproject.toml or create new structure
+        if pyproject_path.exists():
+            try:
+                with open(pyproject_path, 'rb') as f:
+                    existing_data = tomllib.loads(f.read().decode('utf-8'))
+            except Exception:
+                existing_data = {}
+        else:
+            existing_data = {}
+        
+        # Ensure project section exists
+        if 'project' not in existing_data:
+            existing_data['project'] = {}
+        
+        # Convert requirements.txt packages to pyproject.toml format
+        dependencies = []
+        for package in dependency_analysis.requirements_packages:
+            dep_spec = package.name
+            if package.version:
+                dep_spec += f">={package.version}"
+            if package.extras:
+                dep_spec = f"{package.name}[{','.join(package.extras)}]"
+                if package.version:
+                    dep_spec += f">={package.version}"
+            if package.markers:
+                dep_spec += f"; {package.markers}"
+            dependencies.append(dep_spec)
+        
+        existing_data['project']['dependencies'] = dependencies
+        
+        # Convert back to TOML
+        if tomli_w is None:
+            raise ConfigurationError("TOML writing support not available")
+        
+        try:
+            new_content = tomli_w.dumps(existing_data)
+            
+            return ConfigChange.merge_file_change(
+                file_path=pyproject_path,
+                old_content=pyproject_path.read_text() if pyproject_path.exists() else "",
+                new_content=new_content,
+                description="Migrate dependencies from requirements.txt to pyproject.toml",
+                conflicts=[]
+            )
+            
+        except Exception as e:
+            raise ConfigurationError(f"Failed to generate dependency migration: {e}") from e
     
     def apply_precommit_security_hooks(
         self,

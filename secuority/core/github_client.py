@@ -22,9 +22,9 @@ class GitHubClient:
         """Initialize GitHub client with optional token.
         
         Args:
-            token: GitHub personal access token. If None, will try to get from GITHUB_TOKEN env var.
+            token: GitHub personal access token. If None, will try to get from GITHUB_PERSONAL_ACCESS_TOKEN env var.
         """
-        self.token = token or os.getenv('GITHUB_TOKEN')
+        self.token = token or os.getenv('GITHUB_PERSONAL_ACCESS_TOKEN')
         self.headers = {
             'Accept': 'application/vnd.github.v3+json',
             'User-Agent': 'Secuority-CLI/1.0'
@@ -52,7 +52,7 @@ class GitHubClient:
                 return json.loads(response.read().decode('utf-8'))
         except HTTPError as e:
             if e.code == 401:
-                raise GitHubAPIError("GitHub API authentication failed. Check GITHUB_TOKEN.")
+                raise GitHubAPIError("GitHub API authentication failed. Check GITHUB_PERSONAL_ACCESS_TOKEN.")
             elif e.code == 403:
                 raise GitHubAPIError("GitHub API rate limit exceeded or insufficient permissions.")
             elif e.code == 404:

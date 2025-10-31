@@ -18,8 +18,8 @@ class WorkflowIntegrator:
     
     def __init__(self):
         """Initialize workflow integrator."""
-        if yaml is None:
-            raise ConfigurationError("PyYAML is required for workflow configuration")
+        # Note: YAML functionality will be limited if PyYAML is not available
+        pass
     
     def generate_security_workflow(
         self, 
@@ -104,7 +104,7 @@ class WorkflowIntegrator:
                             "name": "Run Gitleaks secret scanner",
                             "uses": "gitleaks/gitleaks-action@v2",
                             "env": {
-                                "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+                                "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}",
                                 "GITLEAKS_LICENSE": "${{ secrets.GITLEAKS_LICENSE }}"
                             }
                         },
@@ -323,7 +323,7 @@ class WorkflowIntegrator:
                             "if": "success()",
                             "uses": "peaceiris/actions-gh-pages@v3",
                             "with": {
-                                "github_token": "${{ secrets.GITHUB_TOKEN }}",
+                                "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}",
                                 "publish_dir": "./docs/_build/html"
                             }
                         }

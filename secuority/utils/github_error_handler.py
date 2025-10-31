@@ -89,7 +89,7 @@ class GitHubErrorHandler:
         if "authentication failed" in error_str or "401" in error_str:
             return (
                 f"⚠️  GitHub API authentication failed during {operation_name}. "
-                "Please check your GITHUB_TOKEN environment variable. "
+                "Please check your GITHUB_PERSONAL_ACCESS_TOKEN environment variable. "
                 "Continuing with local analysis only."
             )
         elif "rate limit" in error_str or "403" in error_str:
@@ -165,8 +165,8 @@ class GitHubErrorHandler:
             print("   To enable GitHub integration, you need a personal access token.")
             print("   1. Go to https://github.com/settings/tokens")
             print("   2. Generate a new token with 'repo' scope")
-            print("   3. Set the GITHUB_TOKEN environment variable:")
-            print("      export GITHUB_TOKEN=your_token_here")
+            print("   3. Set the GITHUB_PERSONAL_ACCESS_TOKEN environment variable:")
+            print("      export GITHUB_PERSONAL_ACCESS_TOKEN=your_token_here")
         
         if error_summary["has_rate_limit_errors"]:
             print("\n⏱️  Rate Limit Issues:")

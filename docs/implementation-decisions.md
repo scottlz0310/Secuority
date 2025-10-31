@@ -10,7 +10,7 @@
 
 ## 2. GitHub 連携と認証
 
-- GitHub Push Protection/Dependabot の状態確認は `GITHUB_TOKEN` 環境変数 (読み取りスコープ) が利用可能な場合にのみ実施する。
+- GitHub Push Protection/Dependabot の状態確認は `GITHUB_PERSONAL_ACCESS_TOKEN` 環境変数 (読み取りスコープ) が利用可能な場合にのみ実施する。
 - トークンが見つからない場合はローカル情報のみで評価し、未実施の旨をレポートに残す。
 - API 呼び出しが失敗した際は CLI を失敗させず、警告として扱う。
 

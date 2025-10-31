@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -19,63 +23,88 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: ${{ matrix.python-version }}
+        version: "latest"
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install ruff mypy pytest pytest-cov
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f pyproject.toml ]; then pip install -e .[dev]; fi
+        # Install project dependencies
+        if [ -f "pyproject.toml" ]; then
+          # Check if dependency-groups are defined
+          if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data else 1)" 2>/dev/null; then
+            uv sync --group dev --group test --group lint
+          else
+            # Fallback to extras if dependency-groups not found
+            uv sync --extra dev --extra test
+          fi
+        elif [ -f "requirements.txt" ]; then
+          uv pip install -r requirements.txt
+          # Install common development tools
+          uv pip install ruff mypy pytest pytest-cov
+        else
+          # Install basic tools for projects without dependency files
+          uv pip install ruff mypy pytest pytest-cov
+        fi
 
     - name: Lint with Ruff
       run: |
         # Stop the build if there are Python syntax errors or undefined names
-        ruff check . --output-format=github --select=E9,F63,F7,F82 --show-source
+        uv run ruff check . --output-format=github --select=E9,F63,F7,F82 --show-source
         # Default set of ruff rules with GitHub Actions annotations
-        ruff check . --output-format=github
+        uv run ruff check . --output-format=github
 
     - name: Format check with Ruff
       run: |
-        ruff format --check .
+        uv run ruff format --check .
 
     - name: Type check with MyPy
       run: |
-        mypy . --show-error-codes --show-error-context
+        uv run mypy . --show-error-codes --show-error-context
 
     - name: Test with pytest
       run: |
-        pytest --cov=. --cov-report=xml --cov-report=term-missing
+        uv run pytest --cov=. --cov-report=xml --cov-report=term-missing
 
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   pre-commit:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: "3.11"
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install 3.11
 
     - name: Install pre-commit
       run: |
-        python -m pip install --upgrade pip
-        pip install pre-commit
+        uv pip install pre-commit
+
+    - name: Cache pre-commit hooks
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
     - name: Run pre-commit hooks
       run: |
-        pre-commit run --all-files
+        uv run pre-commit run --all-files
 
   docs:
     runs-on: ubuntu-latest
@@ -83,26 +112,48 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: "3.11"
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install 3.11
 
     - name: Install documentation dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install sphinx sphinx-rtd-theme
+        if [ -f "pyproject.toml" ]; then
+          # Check if dependency-groups are defined
+          if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data and 'docs' in data['dependency-groups'] else 1)" 2>/dev/null; then
+            uv sync --group docs
+          else
+            # Fallback to basic sphinx installation
+            uv pip install sphinx sphinx-rtd-theme
+          fi
+        else
+          uv pip install sphinx sphinx-rtd-theme
+        fi
 
     - name: Build documentation
       run: |
         if [ -d "docs" ]; then
           cd docs
-          make html
+          uv run make html
         fi
 
     - name: Deploy to GitHub Pages
       if: success()
-      uses: peaceiris/actions-gh-pages@v3
+      uses: peaceiris/actions-gh-pages@v4
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
         publish_dir: ./docs/_build/html
+
+  dependency-review:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, GPL-3.0

@@ -133,7 +133,7 @@ class TemplateManager:
 # core/github_client.py
 class GitHubClient:
     def __init__(self, token: Optional[str] = None):
-        self.token = token or os.getenv('GITHUB_TOKEN')
+        self.token = token or os.getenv('GITHUB_PERSONAL_ACCESS_TOKEN')
     
     def check_push_protection(self, repo: str) -> bool
     def get_dependabot_config(self, repo: str) -> Dict

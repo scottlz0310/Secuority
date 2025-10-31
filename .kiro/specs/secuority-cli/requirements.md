@@ -84,7 +84,7 @@ SecuorityはPythonプロジェクトのコード品質とセキュリティ設�
 
 1. Secuority_CLIはローカル機密検出のためにgitleaksを使用したpre-commitフックを設定しなければならない
 2. Secuority_CLIはCIレベルの機密検証のためにGitHub Actionsワークフローを作成しなければならない
-3. GITHUB_TOKENが利用可能な場合、Secuority_CLIはGitHub Push Protectionステータスを確認しなければならない
+3. GITHUB_PERSONAL_ACCESS_TOKENが利用可能な場合、Secuority_CLIはGitHub Push Protectionステータスを確認しなければならない
 4. GitHub API呼び出しが失敗した場合、Secuority_CLIは実行を継続し、失敗を警告として報告しなければならない
 5. Secuority_CLIはAPIアクセスが利用できない場合、GitHub Push Protectionの設定手順を提供しなければならない
 

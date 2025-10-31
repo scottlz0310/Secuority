@@ -485,7 +485,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
     def _check_gitleaks_in_precommit(self, precommit_path: Path) -> bool:
         """Check if gitleaks is configured in pre-commit config."""
         try:
-            import yaml
+            import yaml  # type: ignore
             with open(precommit_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
                 
@@ -526,7 +526,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
     def _parse_github_workflow(self, workflow_path: Path) -> Optional[Workflow]:
         """Parse a GitHub Actions workflow file."""
         try:
-            import yaml
+            import yaml  # type: ignore
             with open(workflow_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
