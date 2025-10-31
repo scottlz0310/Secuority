@@ -288,8 +288,8 @@ preferences:
   
 tool_preferences:
   ruff:
-    line_length: 88
-    target_version: "py38"
+    line_length: 120
+    target_version: "py313"
   mypy:
     strict: true
   bandit:

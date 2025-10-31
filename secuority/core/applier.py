@@ -674,8 +674,8 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         # Add Ruff configuration
         if 'ruff' in tools and 'ruff' not in existing_data['tool']:
             existing_data['tool']['ruff'] = {
-                'line-length': 88,
-                'target-version': 'py38',
+                'line-length': 120,
+                'target-version': 'py313',
                 'select': ['E', 'F', 'W', 'C90', 'I', 'N', 'UP', 'YTT', 'S', 'BLE', 'FBT', 'B', 'A', 'COM', 'C4', 'DTZ', 'T10', 'EM', 'EXE', 'ISC', 'ICN', 'G', 'INP', 'PIE', 'T20', 'PYI', 'PT', 'Q', 'RSE', 'RET', 'SLF', 'SIM', 'TID', 'TCH', 'ARG', 'PTH', 'ERA', 'PD', 'PGH', 'PL', 'TRY', 'NPY', 'RUF'],
                 'ignore': ['E501', 'S101'],
                 'fixable': ['ALL'],
@@ -708,7 +708,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         # Add Mypy configuration
         if 'mypy' in tools and 'mypy' not in existing_data['tool']:
             existing_data['tool']['mypy'] = {
-                'python_version': '3.8',
+                'python_version': '3.13',
                 'warn_return_any': True,
                 'warn_unused_configs': True,
                 'disallow_untyped_defs': True,

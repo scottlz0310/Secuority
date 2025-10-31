@@ -6,7 +6,7 @@ Thank you for your interest in contributing to this project! 🎉
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - [uv](https://docs.astral.sh/uv/) package manager
 - Git
 
@@ -101,7 +101,7 @@ We use the following tools for code quality:
 - Follow PEP 8 style guide
 - Use type hints for all functions and methods
 - Write docstrings for all public functions, classes, and modules
-- Keep line length to 88 characters (Black default)
+- Keep line length to 120 characters (modern standard)
 - Use meaningful variable and function names
 
 ### Example

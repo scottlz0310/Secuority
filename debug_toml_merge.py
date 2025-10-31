@@ -29,8 +29,8 @@ authors = [
 ]
 
 [tool.ruff]
-line-length = 88
-target-version = "py38"
+line-length = 120
+target-version = "py313"
 '''
     
     print("=== TOMLマージ処理テスト ===")

@@ -30,7 +30,7 @@ class WorkflowIntegrator:
         
         Args:
             project_path: Path to the project directory
-            python_versions: List of Python versions to test (default: ["3.8", "3.9", "3.10", "3.11", "3.12"])
+            python_versions: List of Python versions to test (default: ["3.10", "3.11", "3.12", "3.13", "3.14"])
             
         Returns:
             ConfigChange for security workflow creation
@@ -39,7 +39,7 @@ class WorkflowIntegrator:
             ConfigurationError: If workflow generation fails
         """
         if python_versions is None:
-            python_versions = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+            python_versions = ["3.10", "3.11", "3.12", "3.13", "3.14"]
         
         workflows_dir = project_path / ".github" / "workflows"
         security_workflow_path = workflows_dir / "security-check.yml"
@@ -176,7 +176,7 @@ class WorkflowIntegrator:
         
         Args:
             project_path: Path to the project directory
-            python_versions: List of Python versions to test (default: ["3.8", "3.9", "3.10", "3.11", "3.12"])
+            python_versions: List of Python versions to test (default: ["3.10", "3.11", "3.12", "3.13", "3.14"])
             
         Returns:
             ConfigChange for quality workflow creation
@@ -185,7 +185,7 @@ class WorkflowIntegrator:
             ConfigurationError: If workflow generation fails
         """
         if python_versions is None:
-            python_versions = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+            python_versions = ["3.10", "3.11", "3.12", "3.13", "3.14"]
         
         workflows_dir = project_path / ".github" / "workflows"
         quality_workflow_path = workflows_dir / "quality-check.yml"

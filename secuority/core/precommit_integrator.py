@@ -73,7 +73,7 @@ class PreCommitIntegrator:
         # Ensure basic pre-commit configuration is present
         if "default_language_version" not in existing_config:
             existing_config["default_language_version"] = {
-                "python": "python3.8"
+                "python": "python3.13"
             }
         
         if "fail_fast" not in existing_config:
@@ -338,7 +338,7 @@ class PreCommitIntegrator:
         """
         if "default_language_version" not in config:
             config["default_language_version"] = {
-                "python": "python3.8"
+                "python": "python3.13"
             }
         
         if "fail_fast" not in config:

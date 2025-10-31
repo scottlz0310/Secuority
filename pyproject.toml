@@ -7,10 +7,10 @@ name = "secuority"
 version = "0.1.0"
 description = "Automate and standardize Python project security and quality configurations"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "MIT"
 keywords = [ "security", "quality", "python", "automation", "configuration", "linting", "pre-commit", "ci-cd",]
-classifiers = [ "Development Status :: 3 - Alpha", "Intended Audience :: Developers", "Operating System :: OS Independent", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.8", "Programming Language :: Python :: 3.9", "Programming Language :: Python :: 3.10", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Topic :: Software Development :: Quality Assurance", "Topic :: Security", "Topic :: Software Development :: Libraries :: Python Modules", "Environment :: Console", "Typing :: Typed",]
+classifiers = [ "Development Status :: 3 - Alpha", "Intended Audience :: Developers", "Operating System :: OS Independent", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.10", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Topic :: Software Development :: Quality Assurance", "Topic :: Security", "Topic :: Software Development :: Libraries :: Python Modules", "Environment :: Console", "Typing :: Typed",]
 dependencies = [ "typer>=0.9.0", "rich>=13.0", "toml>=0.10.0", "pyyaml>=6.0", "requests>=2.28.0", "pathlib2>=2.3.0; python_version<'3.4'",]
 [[project.authors]]
 name = "Secuority Team"
@@ -41,11 +41,11 @@ zip-safe = false
 include-package-data = true
 
 [tool.ruff]
-line-length = 88
-target-version = "py38"
+line-length = 120
+target-version = "py313"
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
