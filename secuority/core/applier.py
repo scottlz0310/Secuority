@@ -631,18 +631,18 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             else:
                 try:
                     new_content = tomli_w.dumps(existing_data)
-                
-                change = ConfigChange.merge_file_change(
-                    file_path=pyproject_path,
-                    old_content=pyproject_path.read_text() if pyproject_path.exists() else "",
-                    new_content=new_content,
-                    description=f"Add quality tools configuration: {', '.join(tools)}",
-                    conflicts=[]
-                )
-                changes.append(change)
-                
-            except Exception as e:
-                raise ConfigurationError(f"Failed to generate quality tools configuration: {e}") from e
+                    
+                    change = ConfigChange.merge_file_change(
+                        file_path=pyproject_path,
+                        old_content=pyproject_path.read_text() if pyproject_path.exists() else "",
+                        new_content=new_content,
+                        description=f"Add quality tools configuration: {', '.join(tools)}",
+                        conflicts=[]
+                    )
+                    changes.append(change)
+                    
+                except Exception as e:
+                    raise ConfigurationError(f"Failed to generate quality tools configuration: {e}") from e
         
         return changes
     

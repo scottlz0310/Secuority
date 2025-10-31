@@ -436,39 +436,64 @@ def apply(
         apply_security = not templates_only
         apply_templates = not security_only
         
+        logger.debug("Generating configuration changes", 
+                    apply_security=apply_security, 
+                    apply_templates=apply_templates,
+                    templates_available=len(templates))
+        
         # Generate changes for missing template files
         if apply_templates:
+            # pyproject.toml template
             if not project_state.has_pyproject_toml and "pyproject.toml.template" in templates:
-                change = core_engine.applier.merge_file_configurations(
-                    project_path / "pyproject.toml",
-                    templates["pyproject.toml.template"]
-                )
-                changes.append(change)
+                try:
+                    change = core_engine.applier.merge_file_configurations(
+                        project_path / "pyproject.toml",
+                        templates["pyproject.toml.template"]
+                    )
+                    changes.append(change)
+                    logger.debug("Added pyproject.toml template change")
+                except Exception as e:
+                    logger.warning("Failed to generate pyproject.toml change", error=str(e))
             
+            # .gitignore template
             if not project_state.has_gitignore and ".gitignore.template" in templates:
-                change = core_engine.applier.merge_file_configurations(
-                    project_path / ".gitignore",
-                    templates[".gitignore.template"]
-                )
-                changes.append(change)
+                try:
+                    change = core_engine.applier.merge_file_configurations(
+                        project_path / ".gitignore",
+                        templates[".gitignore.template"]
+                    )
+                    changes.append(change)
+                    logger.debug("Added .gitignore template change")
+                except Exception as e:
+                    logger.warning("Failed to generate .gitignore change", error=str(e))
             
+            # pre-commit template
             if not project_state.has_pre_commit_config and ".pre-commit-config.yaml.template" in templates:
-                change = core_engine.applier.merge_file_configurations(
-                    project_path / ".pre-commit-config.yaml",
-                    templates[".pre-commit-config.yaml.template"]
-                )
-                changes.append(change)
+                try:
+                    change = core_engine.applier.merge_file_configurations(
+                        project_path / ".pre-commit-config.yaml",
+                        templates[".pre-commit-config.yaml.template"]
+                    )
+                    changes.append(change)
+                    logger.debug("Added pre-commit template change")
+                except Exception as e:
+                    logger.warning("Failed to generate pre-commit change", error=str(e))
             
             # Add workflow templates if they exist
             workflow_templates = [name for name in templates.keys() if name.startswith("workflows/")]
             for workflow_template in workflow_templates:
                 workflow_path = project_path / ".github" / workflow_template
                 if not workflow_path.exists():
-                    change = core_engine.applier.merge_file_configurations(
-                        workflow_path,
-                        templates[workflow_template]
-                    )
-                    changes.append(change)
+                    try:
+                        change = core_engine.applier.merge_file_configurations(
+                            workflow_path,
+                            templates[workflow_template]
+                        )
+                        changes.append(change)
+                        logger.debug("Added workflow template change", workflow=workflow_template)
+                    except Exception as e:
+                        logger.warning("Failed to generate workflow change", 
+                                     workflow=workflow_template, error=str(e))
         
         # Add security tools integration if needed
         if apply_security and project_state.security_tools:
@@ -477,10 +502,16 @@ def apply(
                 if not configured
             ]
             if missing_security_tools:
-                security_changes = core_engine.applier.get_security_integration_changes(
-                    project_path, missing_security_tools
-                )
-                changes.extend(security_changes)
+                try:
+                    security_changes = core_engine.applier.get_security_integration_changes(
+                        project_path, missing_security_tools
+                    )
+                    changes.extend(security_changes)
+                    logger.debug("Added security tools integration changes", 
+                               tools=missing_security_tools, count=len(security_changes))
+                except Exception as e:
+                    logger.warning("Failed to generate security integration changes", 
+                                 tools=missing_security_tools, error=str(e))
         
         # Add quality tools integration if needed
         if apply_templates and project_state.quality_tools:
@@ -489,28 +520,41 @@ def apply(
                 if not configured
             ]
             if missing_quality_tools:
-                # Generate quality tools configuration changes
-                quality_changes = core_engine.applier.get_quality_integration_changes(
-                    project_path, missing_quality_tools
-                )
-                changes.extend(quality_changes)
+                try:
+                    quality_changes = core_engine.applier.get_quality_integration_changes(
+                        project_path, missing_quality_tools
+                    )
+                    changes.extend(quality_changes)
+                    logger.debug("Added quality tools integration changes", 
+                               tools=missing_quality_tools, count=len(quality_changes))
+                except Exception as e:
+                    logger.warning("Failed to generate quality integration changes", 
+                                 tools=missing_quality_tools, error=str(e))
         
         # Handle dependency migration if needed
         if (apply_templates and 
             project_state.dependency_analysis and 
             project_state.dependency_analysis.migration_needed):
-            migration_change = core_engine.applier.get_dependency_migration_change(
-                project_path, project_state.dependency_analysis
-            )
-            if migration_change:
-                changes.append(migration_change)
+            try:
+                migration_change = core_engine.applier.get_dependency_migration_change(
+                    project_path, project_state.dependency_analysis
+                )
+                if migration_change:
+                    changes.append(migration_change)
+                    logger.debug("Added dependency migration change")
+            except Exception as e:
+                logger.warning("Failed to generate dependency migration change", error=str(e))
         
         # Add CI/CD workflows if needed
         if apply_templates and not project_state.ci_workflows:
-            workflow_changes = core_engine.applier.get_workflow_integration_changes(
-                project_path, ["security", "quality"]
-            )
-            changes.extend(workflow_changes)
+            try:
+                workflow_changes = core_engine.applier.get_workflow_integration_changes(
+                    project_path, ["security", "quality"]
+                )
+                changes.extend(workflow_changes)
+                logger.debug("Added CI/CD workflow changes", count=len(workflow_changes))
+            except Exception as e:
+                logger.warning("Failed to generate workflow changes", error=str(e))
         
         if not changes:
             if not structured_output:
@@ -548,10 +592,27 @@ def apply(
                 console.print("[bold yellow]⚠️  This will modify your project files![/bold yellow]")
                 console.print("[dim]Backups will be created for existing files.[/dim]")
                 
-                confirm = typer.confirm("\nApply configuration changes?")
+                # Show summary of what will be changed
+                file_changes = {}
+                for change in changes:
+                    action = change.change_type.value
+                    if action not in file_changes:
+                        file_changes[action] = []
+                    file_changes[action].append(change.file_path.name)
+                
+                console.print("\n[bold]Summary of changes:[/bold]")
+                for action, files in file_changes.items():
+                    action_color = {
+                        "CREATE": "[green]",
+                        "UPDATE": "[yellow]", 
+                        "MERGE": "[blue]"
+                    }.get(action, "[white]")
+                    console.print(f"  {action_color}{action}[/{action_color.split('[')[1]}]: {', '.join(files)}")
+                
+                confirm = typer.confirm(f"\nApply {len(changes)} configuration changes?")
                 if not confirm:
                     console.print("[yellow]Operation cancelled.[/yellow]")
-                    logger.info("Operation cancelled by user")
+                    logger.info("Operation cancelled by user", changes_count=len(changes))
                     return
             else:
                 # In structured mode, require force flag for non-interactive operation
@@ -568,24 +629,55 @@ def apply(
                     console.print(f"\n[bold]Conflicts in {change.file_path.name}:[/bold]")
                     for conflict in change.conflicts:
                         console.print(f"  • {conflict.description}")
-                        console.print(f"    Existing: {conflict.existing_value}")
-                        console.print(f"    Template: {conflict.template_value}")
+                        console.print(f"    [dim]Existing:[/dim] {conflict.existing_value}")
+                        console.print(f"    [dim]Template:[/dim] {conflict.template_value}")
                 
-                console.print("\n[dim]Conflicts must be resolved manually before applying changes.[/dim]")
-                console.print("[dim]You can use --dry-run to see all proposed changes first.[/dim]")
-            
-            logger.warning("Configuration conflicts detected", 
-                         conflicted_changes=len(conflicted_changes),
-                         total_conflicts=sum(len(c.conflicts) for c in conflicted_changes))
-            return
+                console.print("\n[bold yellow]Conflict Resolution Options:[/bold yellow]")
+                console.print("  1. Use --dry-run to preview all changes")
+                console.print("  2. Use --force to apply non-conflicted changes only")
+                console.print("  3. Manually resolve conflicts and run apply again")
+                
+                if not force:
+                    console.print("\n[dim]Stopping due to conflicts. Use --force to apply non-conflicted changes.[/dim]")
+                    logger.warning("Configuration conflicts detected - stopping", 
+                                 conflicted_changes=len(conflicted_changes),
+                                 total_conflicts=sum(len(c.conflicts) for c in conflicted_changes))
+                    return
+                else:
+                    # Filter out conflicted changes when using --force
+                    console.print("\n[yellow]--force flag detected: applying non-conflicted changes only[/yellow]")
+                    changes = [c for c in changes if not c.has_conflicts()]
+                    logger.info("Applying non-conflicted changes only due to --force flag",
+                              original_changes=len(changes) + len(conflicted_changes),
+                              applying_changes=len(changes))
+            else:
+                logger.warning("Configuration conflicts detected", 
+                             conflicted_changes=len(conflicted_changes),
+                             total_conflicts=sum(len(c.conflicts) for c in conflicted_changes))
+                if not force:
+                    return
+                else:
+                    # Filter out conflicted changes when using --force
+                    changes = [c for c in changes if not c.has_conflicts()]
         
-        # Apply changes (use interactive mode if not in structured output and not force)
+        # Apply changes with appropriate method based on mode
+        logger.info("Applying configuration changes", 
+                   changes_count=len(changes), 
+                   dry_run=dry_run, 
+                   interactive=not structured_output and not force and not dry_run)
+        
         if not structured_output and not force and not dry_run:
+            # Interactive mode - show diffs and get individual approvals
             result = core_engine.applier.apply_changes_interactively(
                 changes, dry_run=dry_run, batch_mode=False
             )
         else:
-            result = core_engine.applier.apply_changes(changes, dry_run=dry_run)
+            # Batch mode - apply all changes at once
+            if not structured_output and not dry_run:
+                with console.status("[bold green]Applying configuration changes..."):
+                    result = core_engine.applier.apply_changes(changes, dry_run=dry_run)
+            else:
+                result = core_engine.applier.apply_changes(changes, dry_run=dry_run)
         
         # Log results
         for change in result.successful_changes:
@@ -607,29 +699,43 @@ def apply(
         
         # Show results
         if not structured_output:
+            console.print()  # Add spacing
+            
             if result.successful_changes:
                 console.print(f"[green]✓ Successfully applied {len(result.successful_changes)} changes[/green]")
                 
                 if verbose:
+                    console.print("\n[bold]Applied changes:[/bold]")
                     for change in result.successful_changes:
-                        console.print(f"  • {change.file_path.name}: {change.description}")
+                        action_color = {
+                            "CREATE": "[green]",
+                            "UPDATE": "[yellow]", 
+                            "MERGE": "[blue]"
+                        }.get(change.change_type.value, "[white]")
+                        console.print(f"  • {action_color}{change.change_type.value}[/{action_color.split('[')[1]}] {change.file_path.name}: {change.description}")
+                else:
+                    # Show summary of file types changed
+                    changed_files = [change.file_path.name for change in result.successful_changes]
+                    console.print(f"[dim]Modified files: {', '.join(changed_files)}[/dim]")
             
             if result.failed_changes:
                 console.print(f"[red]✗ Failed to apply {len(result.failed_changes)} changes[/red]")
                 for change, error in result.failed_changes:
-                    console.print(f"  • {change.file_path.name}: {error}")
+                    console.print(f"  • [red]{change.file_path.name}[/red]: {error}")
             
             if result.backups_created:
                 console.print(f"[dim]Created {len(result.backups_created)} backup files[/dim]")
                 if verbose:
+                    console.print("\n[bold]Backup files:[/bold]")
                     for backup_path in result.backups_created:
                         console.print(f"  • {backup_path}")
             
             if result.conflicts:
                 console.print(f"[yellow]⚠ {len(result.conflicts)} conflicts need manual resolution[/yellow]")
                 if verbose:
+                    console.print("\n[bold]Unresolved conflicts:[/bold]")
                     for conflict in result.conflicts:
-                        console.print(f"  • {conflict.file_path}: {conflict.description}")
+                        console.print(f"  • [yellow]{conflict.file_path}[/yellow]: {conflict.description}")
             
             # Show summary with next steps
             if dry_run:

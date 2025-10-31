@@ -8,40 +8,104 @@ version = "0.1.0"
 description = "Automate and standardize Python project security and quality configurations"
 readme = "README.md"
 requires-python = ">=3.8"
+license = "MIT"
 authors = [
-    {name = "Secuority Team"}
+    {name = "Secuority Team", email = "team@secuority.dev"}
+]
+maintainers = [
+    {name = "Secuority Team", email = "team@secuority.dev"}
+]
+keywords = [
+    "security",
+    "quality",
+    "python",
+    "automation",
+    "configuration",
+    "linting",
+    "pre-commit",
+    "ci-cd"
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Environment :: Console",
+    "Typing :: Typed"
 ]
 dependencies = [
     "typer>=0.9.0",
     "rich>=13.0",
+    "toml>=0.10.0",
+    "pyyaml>=6.0",
+    "requests>=2.28.0",
+    "pathlib2>=2.3.0; python_version<'3.4'",
 ]
 
-[project.optional-dependencies]
+[project.urls]
+Homepage = "https://github.com/secuority/secuority-cli"
+Documentation = "https://secuority.readthedocs.io"
+Repository = "https://github.com/secuority/secuority-cli"
+"Bug Tracker" = "https://github.com/secuority/secuority-cli/issues"
+Changelog = "https://github.com/secuority/secuority-cli/blob/main/CHANGELOG.md"
+
+[dependency-groups]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "black>=23.0",
     "ruff>=0.1.0",
     "mypy>=1.0",
+    "pre-commit>=3.0.0",
+]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.10.0",
+    "pytest-xdist>=3.0.0",
+]
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "myst-parser>=0.18.0",
+]
+security = [
+    "bandit>=1.7.0",
+    "safety>=2.3.0",
+    "semgrep>=1.0.0",
 ]
 
 [project.scripts]
 secuority = "secuority.cli.main:main"
 
+[project.entry-points."secuority.plugins"]
+# Future plugin system entry points can be added here
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = true
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["secuority*"]
+exclude = ["tests*", "docs*"]
+
+[tool.setuptools.package-data]
+secuority = [
+    "templates/*.template",
+    "templates/**/*.yml",
+    "templates/**/*.yaml",
+    "templates/**/*.md",
+    "py.typed"
+]
 
 [tool.ruff]
 line-length = 88

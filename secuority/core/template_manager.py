@@ -157,6 +157,9 @@ class TemplateManager(TemplateManagerInterface):
             templates_path.mkdir(parents=True, exist_ok=True)
             workflows_path.mkdir(parents=True, exist_ok=True)
 
+            # Copy default templates from package to user directory
+            self._copy_default_templates(templates_path)
+
             # Create config.yaml if it doesn't exist
             config_path = template_dir / 'config.yaml'
             if not config_path.exists():
@@ -217,6 +220,54 @@ class TemplateManager(TemplateManagerInterface):
 
         with open(version_path, 'w', encoding='utf-8') as f:
             json.dump(version_data, f, indent=2)
+    
+    def _copy_default_templates(self, templates_path: Path) -> None:
+        """Copy default templates from package to user directory.
+        
+        Args:
+            templates_path: Path to user templates directory
+            
+        Raises:
+            TemplateError: If copying fails
+        """
+        try:
+            # Get the path to the package templates directory
+            package_templates_path = Path(__file__).parent.parent / 'templates'
+            
+            if not package_templates_path.exists():
+                msg = f"Package templates directory not found: {package_templates_path}"
+                raise TemplateError(msg)
+            
+            # Template files to copy
+            template_files = [
+                'pyproject.toml.template',
+                '.gitignore.template', 
+                '.pre-commit-config.yaml.template'
+            ]
+            
+            # Copy template files
+            for template_file in template_files:
+                source_path = package_templates_path / template_file
+                dest_path = templates_path / template_file
+                
+                if source_path.exists() and not dest_path.exists():
+                    shutil.copy2(source_path, dest_path)
+            
+            # Copy workflow templates
+            workflows_source = package_templates_path / 'workflows'
+            workflows_dest = templates_path / 'workflows'
+            
+            if workflows_source.exists():
+                workflows_dest.mkdir(exist_ok=True)
+                
+                for workflow_file in workflows_source.glob('*.yml'):
+                    dest_workflow = workflows_dest / workflow_file.name
+                    if not dest_workflow.exists():
+                        shutil.copy2(workflow_file, dest_workflow)
+            
+        except OSError as e:
+            msg = f"Failed to copy default templates: {e}"
+            raise TemplateError(msg) from e
     
     def update_templates(self) -> bool:
         """Update templates from remote source.
