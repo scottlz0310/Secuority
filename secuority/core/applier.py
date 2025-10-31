@@ -19,7 +19,10 @@ try:
 except ImportError:
     tomli_w = None
 
-import yaml
+try:
+    import yaml  # type: ignore
+except ImportError:
+    yaml = None
 
 from ..models.config import (
     ApplyResult,
@@ -34,6 +37,9 @@ from ..models.interfaces import ChangeType, ConfigurationApplierInterface
 from ..utils.diff import DiffGenerator
 from ..utils.file_ops import FileOperations
 from ..utils.user_interface import UserApprovalInterface
+from .security_tools import SecurityToolsIntegrator
+from .precommit_integrator import PreCommitIntegrator
+from .workflow_integrator import WorkflowIntegrator
 
 
 class ConfigurationMerger:
@@ -167,6 +173,9 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         self.merger = ConfigurationMerger()
         self.diff_generator = DiffGenerator()
         self.ui = UserApprovalInterface()
+        self.security_integrator = SecurityToolsIntegrator()
+        self.precommit_integrator = PreCommitIntegrator()
+        self.workflow_integrator = WorkflowIntegrator()
     
     def apply_changes(
         self,
@@ -446,3 +455,215 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         else:
             # Return empty result if no changes approved or user cancelled
             return ApplyResult(dry_run=False)
+    
+    def apply_security_tools_integration(
+        self,
+        project_path: Path,
+        tools: Optional[List[str]] = None,
+        dry_run: bool = False
+    ) -> ApplyResult:
+        """Apply security tools integration to the project.
+        
+        Args:
+            project_path: Path to the project directory
+            tools: List of security tools to integrate (default: ['bandit', 'safety'])
+            dry_run: Whether to perform a dry run
+            
+        Returns:
+            ApplyResult with integration results
+        """
+        if tools is None:
+            tools = ['bandit', 'safety']
+        
+        # Generate security tool configuration changes
+        changes = self.security_integrator.integrate_security_tools(project_path, tools)
+        
+        # Apply the changes
+        return self.apply_changes(changes, dry_run=dry_run)
+    
+    def get_security_integration_changes(
+        self,
+        project_path: Path,
+        tools: Optional[List[str]] = None
+    ) -> List[ConfigChange]:
+        """Get security tools integration changes without applying them.
+        
+        Args:
+            project_path: Path to the project directory
+            tools: List of security tools to integrate (default: ['bandit', 'safety'])
+            
+        Returns:
+            List of ConfigChange objects for security tools integration
+        """
+        if tools is None:
+            tools = ['bandit', 'safety']
+        
+        return self.security_integrator.integrate_security_tools(project_path, tools)
+    
+    def apply_precommit_security_hooks(
+        self,
+        project_path: Path,
+        hooks: Optional[List[str]] = None,
+        dry_run: bool = False
+    ) -> ApplyResult:
+        """Apply pre-commit security hooks to the project.
+        
+        Args:
+            project_path: Path to the project directory
+            hooks: List of security hooks to integrate (default: ['gitleaks', 'bandit', 'safety'])
+            dry_run: Whether to perform a dry run
+            
+        Returns:
+            ApplyResult with integration results
+        """
+        if hooks is None:
+            hooks = ['gitleaks', 'bandit', 'safety']
+        
+        # Generate pre-commit security hooks configuration change
+        change = self.precommit_integrator.integrate_security_hooks(project_path, hooks)
+        
+        # Apply the change
+        return self.apply_changes([change], dry_run=dry_run)
+    
+    def merge_precommit_with_template(
+        self,
+        project_path: Path,
+        template_content: str,
+        dry_run: bool = False
+    ) -> ApplyResult:
+        """Merge existing pre-commit configuration with template.
+        
+        Args:
+            project_path: Path to the project directory
+            template_content: Template pre-commit configuration content
+            dry_run: Whether to perform a dry run
+            
+        Returns:
+            ApplyResult with merge results
+        """
+        # Generate merged pre-commit configuration change
+        change = self.precommit_integrator.merge_with_existing_precommit(
+            project_path, template_content
+        )
+        
+        # Apply the change
+        return self.apply_changes([change], dry_run=dry_run)
+    
+    def get_precommit_integration_changes(
+        self,
+        project_path: Path,
+        hooks: Optional[List[str]] = None
+    ) -> List[ConfigChange]:
+        """Get pre-commit security hooks integration changes without applying them.
+        
+        Args:
+            project_path: Path to the project directory
+            hooks: List of security hooks to integrate (default: ['gitleaks', 'bandit', 'safety'])
+            
+        Returns:
+            List of ConfigChange objects for pre-commit hooks integration
+        """
+        if hooks is None:
+            hooks = ['gitleaks', 'bandit', 'safety']
+        
+        change = self.precommit_integrator.integrate_security_hooks(project_path, hooks)
+        return [change]
+    
+    def apply_ci_workflows(
+        self,
+        project_path: Path,
+        workflows: Optional[List[str]] = None,
+        python_versions: Optional[List[str]] = None,
+        dry_run: bool = False
+    ) -> ApplyResult:
+        """Apply CI/CD workflows to the project.
+        
+        Args:
+            project_path: Path to the project directory
+            workflows: List of workflows to generate (default: ['security', 'quality'])
+            python_versions: List of Python versions to test
+            dry_run: Whether to perform a dry run
+            
+        Returns:
+            ApplyResult with workflow generation results
+        """
+        if workflows is None:
+            workflows = ['security', 'quality']
+        
+        # Generate CI/CD workflow configuration changes
+        changes = self.workflow_integrator.generate_workflows(
+            project_path, workflows, python_versions
+        )
+        
+        # Apply the changes
+        return self.apply_changes(changes, dry_run=dry_run)
+    
+    def get_workflow_integration_changes(
+        self,
+        project_path: Path,
+        workflows: Optional[List[str]] = None,
+        python_versions: Optional[List[str]] = None
+    ) -> List[ConfigChange]:
+        """Get CI/CD workflow integration changes without applying them.
+        
+        Args:
+            project_path: Path to the project directory
+            workflows: List of workflows to generate (default: ['security', 'quality'])
+            python_versions: List of Python versions to test
+            
+        Returns:
+            List of ConfigChange objects for workflow integration
+        """
+        if workflows is None:
+            workflows = ['security', 'quality']
+        
+        return self.workflow_integrator.generate_workflows(
+            project_path, workflows, python_versions
+        )
+    
+    def apply_complete_security_integration(
+        self,
+        project_path: Path,
+        security_tools: Optional[List[str]] = None,
+        precommit_hooks: Optional[List[str]] = None,
+        workflows: Optional[List[str]] = None,
+        python_versions: Optional[List[str]] = None,
+        dry_run: bool = False
+    ) -> ApplyResult:
+        """Apply complete security integration (tools + hooks + workflows).
+        
+        Args:
+            project_path: Path to the project directory
+            security_tools: List of security tools to integrate
+            precommit_hooks: List of pre-commit hooks to integrate
+            workflows: List of workflows to generate
+            python_versions: List of Python versions to test
+            dry_run: Whether to perform a dry run
+            
+        Returns:
+            ApplyResult with complete integration results
+        """
+        all_changes = []
+        
+        # Get security tools integration changes
+        if security_tools is None:
+            security_tools = ['bandit', 'safety']
+        security_changes = self.get_security_integration_changes(project_path, security_tools)
+        all_changes.extend(security_changes)
+        
+        # Get pre-commit hooks integration changes
+        if precommit_hooks is None:
+            precommit_hooks = ['gitleaks', 'bandit', 'safety']
+        precommit_changes = self.get_precommit_integration_changes(project_path, precommit_hooks)
+        all_changes.extend(precommit_changes)
+        
+        # Get workflow integration changes
+        if workflows is None:
+            workflows = ['security', 'quality']
+        workflow_changes = self.get_workflow_integration_changes(
+            project_path, workflows, python_versions
+        )
+        all_changes.extend(workflow_changes)
+        
+        # Apply all changes
+        return self.apply_changes(all_changes, dry_run=dry_run)
