@@ -169,6 +169,9 @@ def check(
             console.print(workflows_table)
             console.print()
 
+        # Initialize recommendations list
+        recommendations = []
+
         # GitHub integration analysis (if available)
         github_analysis = None
         if core_engine.github_client:
@@ -217,8 +220,7 @@ def check(
             else:
                 console.print("[dim]GitHub integration not available (no token or not a GitHub repository)[/dim]\n")
 
-        # Generate recommendations
-        recommendations = []
+        # Add more recommendations based on project state
         if not project_state.has_pyproject_toml:
             recommendations.append("Create pyproject.toml for modern Python configuration")
         if not project_state.has_gitignore:
@@ -671,7 +673,7 @@ def apply(
                 success=True,
             )
 
-        for change, error in result.failed_changes:
+        for change, _error in result.failed_changes:
             logger.log_configuration_change(
                 file_path=str(change.file_path),
                 change_type=change.change_type.value.lower(),
@@ -702,8 +704,8 @@ def apply(
 
             if result.failed_changes:
                 console.print(f"[red]✗ Failed to apply {len(result.failed_changes)} changes[/red]")
-                for change, error in result.failed_changes:
-                    console.print(f"  • [red]{change.file_path.name}[/red]: {error}")
+                for change, _error in result.failed_changes:
+                    console.print(f"  • [red]{change.file_path.name}[/red]: {_error}")
 
             if result.backups_created:
                 console.print(f"[dim]Created {len(result.backups_created)} backup files[/dim]")

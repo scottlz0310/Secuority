@@ -64,7 +64,7 @@ class DiffGenerator:
         # Use difflib's HtmlDiff for side-by-side comparison
         # but extract just the text content
         differ = difflib.HtmlDiff(wrapcolumn=width // 2)
-        html_diff = differ.make_table(
+        _ = differ.make_table(
             old_lines, new_lines, fromdesc="Original", todesc="Modified", context=True, numlines=self.context_lines,
         )
 
@@ -227,20 +227,20 @@ class DiffGenerator:
         highlighted_lines = []
 
         # ANSI color codes
-        RED = "\033[31m"
-        GREEN = "\033[32m"
-        CYAN = "\033[36m"
-        RESET = "\033[0m"
+        red = "\033[31m"
+        green = "\033[32m"
+        cyan = "\033[36m"
+        reset = "\033[0m"
 
         for line in lines:
             if line.startswith("+++") or line.startswith("---"):
-                highlighted_lines.append(f"{CYAN}{line}{RESET}")
+                highlighted_lines.append(f"{cyan}{line}{reset}")
             elif line.startswith("@@"):
-                highlighted_lines.append(f"{CYAN}{line}{RESET}")
+                highlighted_lines.append(f"{cyan}{line}{reset}")
             elif line.startswith("+"):
-                highlighted_lines.append(f"{GREEN}{line}{RESET}")
+                highlighted_lines.append(f"{green}{line}{reset}")
             elif line.startswith("-"):
-                highlighted_lines.append(f"{RED}{line}{RESET}")
+                highlighted_lines.append(f"{red}{line}{reset}")
             else:
                 highlighted_lines.append(line)
 

@@ -3,6 +3,8 @@
 import logging
 from typing import Any
 
+from rich.console import Console
+
 from ..utils.github_error_handler import GitHubErrorHandler, safe_github_call
 from .github_client import GitHubClient
 
@@ -23,6 +25,7 @@ class GitHubIntegration:
         self.error_handler = GitHubErrorHandler(continue_on_error, show_warnings)
         self.show_warnings = show_warnings
         self.continue_on_error = continue_on_error
+        self.console = Console()
 
     def analyze_repository_comprehensive(self, owner: str, repo: str) -> dict[str, Any]:
         """Perform comprehensive repository analysis with error handling.
@@ -270,33 +273,33 @@ class GitHubIntegration:
 
     def print_analysis_summary(self, analysis_result: dict[str, Any]) -> None:
         """Print a summary of the GitHub analysis results."""
-        print(f"\n📊 GitHub Repository Analysis: {analysis_result['owner']}/{analysis_result['repo']}")
-        print("=" * 60)
+        self.console.print(f"\n📊 GitHub Repository Analysis: {analysis_result['owner']}/{analysis_result['repo']}")
+        self.console.print("=" * 60)
 
         # API Status
         api_status = analysis_result["api_status"]
         if api_status["authenticated"]:
-            print("✅ GitHub API: Authenticated and accessible")
+            self.console.print("✅ GitHub API: Authenticated and accessible")
         elif api_status["has_token"]:
-            print("⚠️  GitHub API: Token provided but authentication failed")
+            self.console.print("⚠️  GitHub API: Token provided but authentication failed")
         else:
-            print("ℹ️  GitHub API: No token provided (limited analysis)")
+            self.console.print("ℹ️  GitHub API: No token provided (limited analysis)")
 
         # Security Analysis
         security = analysis_result["security_analysis"]
         if security.get("security_settings"):
             settings = security["security_settings"]
-            print("\n🔒 Security Settings:")
-            print(f"   Secret Scanning: {'✅' if settings.get('secret_scanning') else '❌'}")
-            print(f"   Push Protection: {'✅' if security.get('push_protection') else '❌'}")
-            print(f"   Dependency Graph: {'✅' if settings.get('dependency_graph') else '❌'}")
+            self.console.print("\n🔒 Security Settings:")
+            self.console.print(f"   Secret Scanning: {'✅' if settings.get('secret_scanning') else '❌'}")
+            self.console.print(f"   Push Protection: {'✅' if security.get('push_protection') else '❌'}")
+            self.console.print(f"   Dependency Graph: {'✅' if settings.get('dependency_graph') else '❌'}")
 
         # Workflow Analysis
         workflows = analysis_result["workflow_analysis"]
         if workflows.get("workflows"):
-            print(f"\n⚙️  GitHub Actions: {len(workflows['workflows'])} workflows found")
-            print(f"   Security Workflows: {'✅' if workflows['has_security_workflows'] else '❌'}")
-            print(f"   Quality Workflows: {'✅' if workflows['has_quality_workflows'] else '❌'}")
+            self.console.print(f"\n⚙️  GitHub Actions: {len(workflows['workflows'])} workflows found")
+            self.console.print(f"   Security Workflows: {'✅' if workflows['has_security_workflows'] else '❌'}")
+            self.console.print(f"   Quality Workflows: {'✅' if workflows['has_quality_workflows'] else '❌'}")
 
         # Recommendations
         all_recommendations = []
@@ -304,17 +307,17 @@ class GitHubIntegration:
             all_recommendations.extend(section.get("recommendations", []))
 
         if all_recommendations:
-            print("\n💡 Recommendations:")
+            self.console.print("\n💡 Recommendations:")
             for i, rec in enumerate(all_recommendations[:5], 1):  # Show top 5
-                print(f"   {i}. {rec}")
+                self.console.print(f"   {i}. {rec}")
 
         # Errors
         if analysis_result["errors"]:
-            print(f"\n⚠️  Encountered {len(analysis_result['errors'])} API errors")
+            self.console.print(f"\n⚠️  Encountered {len(analysis_result['errors'])} API errors")
             if self.show_warnings:
                 self.error_handler.print_setup_instructions()
 
-        print("=" * 60)
+        self.console.print("=" * 60)
 
     def get_setup_instructions(self) -> str:
         """Get setup instructions for GitHub integration."""

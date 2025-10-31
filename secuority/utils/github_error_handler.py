@@ -4,6 +4,8 @@ import logging
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+from rich.console import Console
+
 from ..models.exceptions import GitHubAPIError
 
 # Type variable for return type of wrapped functions
@@ -24,7 +26,8 @@ class GitHubErrorHandler:
         """
         self.continue_on_error = continue_on_error
         self.show_warnings = show_warnings
-        self.errors_encountered: List[dict[str, Any]] = []
+        self.errors_encountered: list[dict[str, Any]] = []
+        self.console = Console()
 
     def handle_api_call(
         self,
@@ -118,7 +121,7 @@ class GitHubErrorHandler:
         logger.warning(message)
 
         if self.show_warnings:
-            print(message)
+            self.console.print(message)
 
     def get_error_summary(self) -> dict[str, Any]:
         """Get summary of all errors encountered.
@@ -141,34 +144,34 @@ class GitHubErrorHandler:
 
         error_summary = self.get_error_summary()
 
-        print("\n" + "=" * 60)
-        print("GitHub Integration Setup Instructions")
-        print("=" * 60)
+        self.console.print("\n" + "=" * 60)
+        self.console.print("GitHub Integration Setup Instructions")
+        self.console.print("=" * 60)
 
         if error_summary["has_auth_errors"]:
-            print("\n🔑 Authentication Issues:")
-            print("   To enable GitHub integration, you need a personal access token.")
-            print("   1. Go to https://github.com/settings/tokens")
-            print("   2. Generate a new token with 'repo' scope")
-            print("   3. Set the GITHUB_PERSONAL_ACCESS_TOKEN environment variable:")
-            print("      export GITHUB_PERSONAL_ACCESS_TOKEN=your_token_here")
+            self.console.print("\n🔑 Authentication Issues:")
+            self.console.print("   To enable GitHub integration, you need a personal access token.")
+            self.console.print("   1. Go to https://github.com/settings/tokens")
+            self.console.print("   2. Generate a new token with 'repo' scope")
+            self.console.print("   3. Set the GITHUB_PERSONAL_ACCESS_TOKEN environment variable:")
+            self.console.print("      export GITHUB_PERSONAL_ACCESS_TOKEN=your_token_here")
 
         if error_summary["has_rate_limit_errors"]:
-            print("\n⏱️  Rate Limit Issues:")
-            print("   GitHub API rate limits have been exceeded.")
-            print("   - Wait for the rate limit to reset")
-            print("   - Use authentication to get higher rate limits")
+            self.console.print("\n⏱️  Rate Limit Issues:")
+            self.console.print("   GitHub API rate limits have been exceeded.")
+            self.console.print("   - Wait for the rate limit to reset")
+            self.console.print("   - Use authentication to get higher rate limits")
 
         if error_summary["has_network_errors"]:
-            print("\n🌐 Network Issues:")
-            print("   Network connectivity problems detected.")
-            print("   - Check your internet connection")
-            print("   - Verify GitHub.com is accessible")
+            self.console.print("\n🌐 Network Issues:")
+            self.console.print("   Network connectivity problems detected.")
+            self.console.print("   - Check your internet connection")
+            self.console.print("   - Verify GitHub.com is accessible")
 
-        print("\n💡 Alternative:")
-        print("   Secuority can still analyze your project locally without GitHub integration.")
-        print("   GitHub features provide additional security insights but are not required.")
-        print("=" * 60 + "\n")
+        self.console.print("\n💡 Alternative:")
+        self.console.print("   Secuority can still analyze your project locally without GitHub integration.")
+        self.console.print("   GitHub features provide additional security insights but are not required.")
+        self.console.print("=" * 60 + "\n")
 
 
 def with_github_error_handling(

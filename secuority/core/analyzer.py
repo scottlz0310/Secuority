@@ -391,7 +391,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
     def _check_security_tools(self, project_path: Path, config_files: dict[str, Path]) -> dict[SecurityTool, bool]:
         """Check which security tools are configured."""
-        security_tools = {tool: False for tool in SecurityTool}
+        security_tools = dict.fromkeys(SecurityTool, False)
 
         # Check for Bandit configuration
         bandit_configs = ["bandit.yaml", "bandit.yml"]
@@ -424,7 +424,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
     def _check_quality_tools(self, project_path: Path, config_files: dict[str, Path]) -> dict[QualityTool, bool]:
         """Check which quality tools are configured."""
-        quality_tools = {tool: False for tool in QualityTool}
+        quality_tools = dict.fromkeys(QualityTool, False)
 
         # Check standalone config files
         tool_file_mapping = {

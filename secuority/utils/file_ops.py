@@ -50,7 +50,7 @@ class FileOperations:
             return backup_path
 
         except OSError as e:
-            raise ConfigurationError(f"Failed to create backup of {file_path}: {e}")
+            raise ConfigurationError(f"Failed to create backup of {file_path}: {e}") from e
 
     def safe_write_file(self, file_path: Path, content: str, create_backup: bool = True) -> Path | None:
         """Safely write content to a file with optional backup.
@@ -103,7 +103,7 @@ class FileOperations:
             error_msg = f"Failed to write file {file_path}: {e}"
             if backup_path:
                 error_msg += f" (backup created at {backup_path})"
-            raise ConfigurationError(error_msg)
+            raise ConfigurationError(error_msg) from e
 
     def restore_from_backup(self, backup_path: Path, target_path: Path) -> None:
         """Restore a file from backup.
@@ -130,7 +130,7 @@ class FileOperations:
                 raise ConfigurationError(f"File was not restored: {target_path}")
 
         except OSError as e:
-            raise ConfigurationError(f"Failed to restore from backup {backup_path}: {e}")
+            raise ConfigurationError(f"Failed to restore from backup {backup_path}: {e}") from e
 
     def cleanup_old_backups(self, days_to_keep: int = 30) -> int:
         """Clean up old backup files.

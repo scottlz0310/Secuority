@@ -3,6 +3,8 @@
 from pathlib import Path
 from typing import Any
 
+from rich.console import Console
+
 try:
     import tomllib
 except ImportError:
@@ -163,6 +165,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         self.security_integrator = SecurityToolsIntegrator()
         self.precommit_integrator = PreCommitIntegrator()
         self.workflow_integrator = WorkflowIntegrator()
+        self.console = Console()
 
     def apply_changes(self, changes: list[ConfigChange], dry_run: bool = False) -> ApplyResult:
         """Apply configuration changes with backup and conflict resolution."""
@@ -419,35 +422,6 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         except Exception as e:
             raise ConfigurationError(f"Failed to format TOML content: {e}") from e
 
-        # Convert back to TOML
-        if tomli_w is None:
-            # Fallback to basic TOML generation
-            import json
-
-            try:
-                lines = []
-                for section, content in merged_data.items():
-                    if isinstance(content, dict):
-                        lines.append(f"[{section}]")
-                        for key, value in content.items():
-                            if isinstance(value, dict):
-                                lines.append(f"[{section}.{key}]")
-                                for subkey, subvalue in value.items():
-                                    lines.append(f"{subkey} = {json.dumps(subvalue)}")
-                            else:
-                                lines.append(f"{key} = {json.dumps(value)}")
-                        lines.append("")
-                merged_content = "\n".join(lines)
-            except Exception as e:
-                raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
-        else:
-            try:
-                merged_content = tomli_w.dumps(merged_data)
-            except Exception as e:
-                raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
-
-        return merged_content, conflicts
-
     def _merge_yaml_file(
         self, existing_content: str, template_content: str, file_path: Path,
     ) -> tuple[str, list[Conflict]]:
@@ -481,7 +455,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         # Resolve conflicts first
         if conflicted_changes:
-            print(f"Found {len(conflicted_changes)} changes with conflicts.")
+            self.console.print(f"Found {len(conflicted_changes)} changes with conflicts.")
             all_conflicts = []
             for change in conflicted_changes:
                 all_conflicts.extend(change.conflicts)
