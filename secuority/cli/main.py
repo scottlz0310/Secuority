@@ -14,7 +14,7 @@ from ..core.engine import CoreEngine
 from ..core.github_client import GitHubClient
 from ..core.template_manager import TemplateManager
 from ..models.exceptions import ProjectAnalysisError, ConfigurationError, TemplateError
-from ..utils.logging import configure_logging, get_logger
+from ..utils.logger import configure_logging, get_logger
 
 console = Console()
 

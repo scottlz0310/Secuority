@@ -14,6 +14,8 @@ Secuority は、Pythonプロジェクトのセキュリティと品質設定を�
 
 ## 📦 インストール
 
+### 通常のプロジェクトでの使用
+
 ```bash
 # uvを使用してGitHubから直接インストール（推奨）
 uv add git+https://github.com/scottlz0310/Secuority.git
@@ -21,13 +23,32 @@ uv add git+https://github.com/scottlz0310/Secuority.git
 # pipを使用してGitHubから直接インストール
 pip install git+https://github.com/scottlz0310/Secuority.git
 
-# 開発版（特定のブランチ）をインストール
+# 特定のブランチやタグを指定
 uv add git+https://github.com/scottlz0310/Secuority.git@main
+uv add git+https://github.com/scottlz0310/Secuority.git@v1.0.0
 
-# ローカル開発用（リポジトリをクローンしてから）
+# グローバルにインストール（システム全体で使用、pipxが必要）
+pipx install git+https://github.com/scottlz0310/Secuority.git
+
+# pipxがない場合は先にインストール
+# pip install pipx
+```
+
+**注意**: インストール後は `secuority` コマンドが利用可能になります。プロジェクトの仮想環境内にインストールした場合は、その環境をアクティブにしてから使用してください。
+
+### 開発・コントリビューション用
+
+```bash
+# リポジトリをクローンして開発環境をセットアップ
 git clone https://github.com/scottlz0310/Secuority.git
-cd secuority
+cd Secuority
 uv sync
+
+# 開発モードで実行
+uv run python -m secuority.cli.main --help
+
+# テストの実行
+uv run pytest
 ```
 
 ## 🚀 基本的な使い方
@@ -37,7 +58,11 @@ uv sync
 まず、Secuorityを初期化してテンプレートファイルをセットアップします：
 
 ```bash
+# インストール済みの場合
 secuority init
+
+# 開発環境の場合
+uv run python -m secuority.cli.main init
 ```
 
 これにより、以下のディレクトリ構造が作成されます：
@@ -63,8 +88,11 @@ secuority init
 現在のプロジェクトの設定状況を分析します：
 
 ```bash
-# 基本分析
+# 基本分析（インストール済み）
 secuority check
+
+# 開発環境での実行
+uv run python -m secuority.cli.main check
 
 # 詳細情報付き
 secuority check --verbose
@@ -80,6 +108,9 @@ secuority check --project-path /path/to/project
 ```bash
 # 変更内容をプレビュー（実際には変更しない）
 secuority apply --dry-run
+
+# 開発環境での実行
+uv run python -m secuority.cli.main apply --dry-run
 
 # 対話的に設定を適用
 secuority apply
