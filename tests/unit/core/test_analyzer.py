@@ -6,11 +6,7 @@ import pytest
 
 from secuority.core.analyzer import ProjectAnalyzer
 from secuority.models.exceptions import ProjectAnalysisError
-from secuority.models.interfaces import (
-    DependencyManager,
-    QualityTool,
-    SecurityTool,
-)
+from secuority.models.interfaces import DependencyManager, QualityTool, SecurityTool
 
 
 class TestProjectAnalyzer:
@@ -157,9 +153,7 @@ class TestProjectAnalyzer:
     ) -> None:
         """Test parsing requirements.txt with comments."""
         requirements_path = tmp_path / "requirements.txt"
-        requirements_path.write_text(
-            "# Testing dependencies\npytest==7.0.0\n\n# HTTP library\nrequests>=2.28.0\n"
-        )
+        requirements_path.write_text("# Testing dependencies\npytest==7.0.0\n\n# HTTP library\nrequests>=2.28.0\n")
 
         packages = analyzer._parse_requirements_txt(requirements_path)
 
@@ -173,7 +167,7 @@ class TestProjectAnalyzer:
         """Test parsing pyproject.toml dependencies."""
         pyproject_path = tmp_path / "pyproject.toml"
         pyproject_path.write_text(
-            '[project]\nname = "test"\ndependencies = [\n  "pytest>=7.0.0",\n  "requests==2.28.0"\n]\n'
+            '[project]\nname = "test"\ndependencies = [\n  "pytest>=7.0.0",\n  "requests==2.28.0"\n]\n',
         )
 
         packages, extras = analyzer._parse_pyproject_dependencies(pyproject_path)
@@ -192,9 +186,9 @@ class TestProjectAnalyzer:
         pyproject_path = tmp_path / "pyproject.toml"
         pyproject_path.write_text(
             '[project]\nname = "test"\n'
-            '[project.optional-dependencies]\n'
+            "[project.optional-dependencies]\n"
             'dev = ["pytest>=7.0.0"]\n'
-            'docs = ["sphinx>=4.0.0"]\n'
+            'docs = ["sphinx>=4.0.0"]\n',
         )
 
         packages, extras = analyzer._parse_pyproject_dependencies(pyproject_path)
@@ -259,10 +253,7 @@ class TestProjectAnalyzer:
         """Test detecting gitleaks in pre-commit config."""
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         precommit_path.write_text(
-            "repos:\n"
-            "  - repo: https://github.com/gitleaks/gitleaks\n"
-            "    hooks:\n"
-            "      - id: gitleaks\n"
+            "repos:\n" "  - repo: https://github.com/gitleaks/gitleaks\n" "    hooks:\n" "      - id: gitleaks\n",
         )
 
         config_files = {".pre-commit-config.yaml": precommit_path}
@@ -277,7 +268,7 @@ class TestProjectAnalyzer:
     ) -> None:
         """Test detecting Ruff in pyproject.toml."""
         pyproject_path = tmp_path / "pyproject.toml"
-        pyproject_path.write_text('[tool.ruff]\nline-length = 120\n')
+        pyproject_path.write_text("[tool.ruff]\nline-length = 120\n")
 
         config_files = {"pyproject.toml": pyproject_path}
         quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
@@ -316,7 +307,7 @@ class TestProjectAnalyzer:
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
             "      - uses: actions/checkout@v3\n"
-            "      - run: pytest\n"
+            "      - run: pytest\n",
         )
 
         workflows = analyzer._detect_ci_workflows(tmp_path)
@@ -343,7 +334,7 @@ class TestProjectAnalyzer:
             "    steps:\n"
             "      - uses: actions/checkout@v3\n"
             "      - run: bandit -r .\n"
-            "      - run: safety check\n"
+            "      - run: safety check\n",
         )
 
         workflows = analyzer._detect_ci_workflows(tmp_path)
@@ -409,9 +400,7 @@ class TestProjectAnalyzer:
     ) -> None:
         """Test detecting configured tools."""
         pyproject_path = tmp_path / "pyproject.toml"
-        pyproject_path.write_text(
-            "[tool.ruff]\nline-length = 120\n\n[tool.mypy]\nstrict = true\n"
-        )
+        pyproject_path.write_text("[tool.ruff]\nline-length = 120\n\n[tool.mypy]\nstrict = true\n")
 
         config_files = {"pyproject.toml": pyproject_path}
         tools = analyzer._detect_configured_tools(tmp_path, config_files)
@@ -429,11 +418,7 @@ class TestProjectAnalyzer:
         """Test parsing basic GitHub workflow."""
         workflow_path = tmp_path / "test.yml"
         workflow_path.write_text(
-            "name: Test Workflow\n"
-            "on: push\n"
-            "jobs:\n"
-            "  test:\n"
-            "    runs-on: ubuntu-latest\n"
+            "name: Test Workflow\n" "on: push\n" "jobs:\n" "  test:\n" "    runs-on: ubuntu-latest\n",
         )
 
         workflow = analyzer._parse_github_workflow(workflow_path)
@@ -451,9 +436,7 @@ class TestProjectAnalyzer:
     ) -> None:
         """Test detecting Ruff with import sorting enabled."""
         pyproject_path = tmp_path / "pyproject.toml"
-        pyproject_path.write_text(
-            '[tool.ruff]\nselect = ["E", "F", "I"]\nline-length = 120\n'
-        )
+        pyproject_path.write_text('[tool.ruff]\nselect = ["E", "F", "I"]\nline-length = 120\n')
 
         config_files = {"pyproject.toml": pyproject_path}
         quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
@@ -477,7 +460,7 @@ class TestProjectAnalyzer:
             "on: [push\n"  # Missing closing bracket
             "jobs:\n"
             "  test:\n"
-            "    runs-on: ubuntu-latest\n"
+            "    runs-on: ubuntu-latest\n",
         )
 
         # Should not raise an error, just skip the invalid file
@@ -503,7 +486,7 @@ class TestProjectAnalyzer:
             "  test:\n"
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
-            "      - run: pytest\n"
+            "      - run: pytest\n",
         )
 
         (workflows_dir / "security.yaml").write_text(
@@ -513,7 +496,7 @@ class TestProjectAnalyzer:
             "  security:\n"
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
-            "      - run: bandit -r .\n"
+            "      - run: bandit -r .\n",
         )
 
         workflows = analyzer._detect_ci_workflows(tmp_path)
@@ -540,7 +523,7 @@ class TestProjectAnalyzer:
             "      - id: mypy\n"
             "  - repo: https://github.com/gitleaks/gitleaks\n"
             "    hooks:\n"
-            "      - id: gitleaks\n"
+            "      - id: gitleaks\n",
         )
 
         tools = analyzer._check_tools_in_precommit(precommit_path)
@@ -557,10 +540,7 @@ class TestProjectAnalyzer:
         """Test detecting safety in pre-commit config."""
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         precommit_path.write_text(
-            "repos:\n"
-            "  - repo: https://github.com/pyupio/safety\n"
-            "    hooks:\n"
-            "      - id: safety\n"
+            "repos:\n" "  - repo: https://github.com/pyupio/safety\n" "    hooks:\n" "      - id: safety\n",
         )
 
         tools = analyzer._check_tools_in_precommit(precommit_path)
@@ -575,10 +555,7 @@ class TestProjectAnalyzer:
         """Test detecting bandit in pre-commit config."""
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         precommit_path.write_text(
-            "repos:\n"
-            "  - repo: https://github.com/pycqa/bandit\n"
-            "    hooks:\n"
-            "      - id: bandit\n"
+            "repos:\n" "  - repo: https://github.com/pycqa/bandit\n" "    hooks:\n" "      - id: bandit\n",
         )
 
         tools = analyzer._check_tools_in_precommit(precommit_path)
@@ -599,7 +576,7 @@ class TestProjectAnalyzer:
             "      - id: ruff\n"
             "  - repo: https://github.com/gitleaks/gitleaks\n"
             "    hooks:\n"
-            "      - id: gitleaks\n"
+            "      - id: gitleaks\n",
         )
 
         # Even without yaml library, text search should find the tools
@@ -625,7 +602,7 @@ class TestProjectAnalyzer:
             "      - id: bandit\n"
             "  - repo: https://github.com/pyupio/safety\n"
             "    hooks:\n"
-            "      - id: safety\n"
+            "      - id: safety\n",
         )
 
         config_files = {".pre-commit-config.yaml": precommit_path}
@@ -649,7 +626,7 @@ class TestProjectAnalyzer:
             "      - id: ruff\n"
             "  - repo: https://github.com/pre-commit/mirrors-mypy\n"
             "    hooks:\n"
-            "      - id: mypy\n"
+            "      - id: mypy\n",
         )
 
         config_files = {".pre-commit-config.yaml": precommit_path}
@@ -672,7 +649,7 @@ class TestProjectAnalyzer:
             "  test:\n"
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
-            "      - run: pytest\n"
+            "      - run: pytest\n",
         )
 
         workflow = analyzer._parse_github_workflow(workflow_path)
@@ -701,9 +678,7 @@ class TestProjectAnalyzer:
     ) -> None:
         """Test detecting Ruff with import sorting in lint.select (modern format)."""
         pyproject_path = tmp_path / "pyproject.toml"
-        pyproject_path.write_text(
-            '[tool.ruff]\nline-length = 120\n\n[tool.ruff.lint]\nselect = ["E", "F", "I"]\n'
-        )
+        pyproject_path.write_text('[tool.ruff]\nline-length = 120\n\n[tool.ruff.lint]\nselect = ["E", "F", "I"]\n')
 
         config_files = {"pyproject.toml": pyproject_path}
         quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
@@ -734,7 +709,7 @@ class TestProjectAnalyzer:
             "      - name: Run Safety\n"
             "        run: safety check\n"
             "      - name: Run Gitleaks\n"
-            "        run: gitleaks detect\n"
+            "        run: gitleaks detect\n",
         )
 
         workflows = analyzer._detect_ci_workflows(tmp_path)
@@ -770,7 +745,7 @@ class TestProjectAnalyzer:
             "      - name: Run Mypy\n"
             "        run: mypy .\n"
             "      - name: Run Tests\n"
-            "        run: pytest\n"
+            "        run: pytest\n",
         )
 
         workflows = analyzer._detect_ci_workflows(tmp_path)
@@ -860,7 +835,7 @@ class TestProjectAnalyzer:
             "  security:\n"
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
-            "      - run: bandit -r .\n"
+            "      - run: bandit -r .\n",
         )
 
         result = analyzer.check_github_workflows(tmp_path)
@@ -924,9 +899,9 @@ class TestProjectAnalyzer:
 
         config_path = git_dir / "config"
         config_path.write_text(
-            "[remote \"origin\"]\n"
+            '[remote "origin"]\n'
             "    url = https://github.com/owner/repo.git\n"
-            "    fetch = +refs/heads/*:refs/remotes/origin/*\n"
+            "    fetch = +refs/heads/*:refs/remotes/origin/*\n",
         )
 
         result = analyzer._detect_github_repository(tmp_path)
@@ -945,9 +920,9 @@ class TestProjectAnalyzer:
 
         config_path = git_dir / "config"
         config_path.write_text(
-            "[remote \"origin\"]\n"
+            '[remote "origin"]\n'
             "    url = git@github.com:owner/repo.git\n"
-            "    fetch = +refs/heads/*:refs/remotes/origin/*\n"
+            "    fetch = +refs/heads/*:refs/remotes/origin/*\n",
         )
 
         result = analyzer._detect_github_repository(tmp_path)
@@ -976,9 +951,9 @@ class TestProjectAnalyzer:
 
         config_path = git_dir / "config"
         config_path.write_text(
-            "[remote \"origin\"]\n"
+            '[remote "origin"]\n'
             "    url = https://gitlab.com/owner/repo.git\n"
-            "    fetch = +refs/heads/*:refs/remotes/origin/*\n"
+            "    fetch = +refs/heads/*:refs/remotes/origin/*\n",
         )
 
         result = analyzer._detect_github_repository(tmp_path)
@@ -994,9 +969,7 @@ class TestProjectAnalyzer:
         # Create pyproject.toml with modern tools
         pyproject_path = tmp_path / "pyproject.toml"
         pyproject_path.write_text(
-            '[project]\nname = "test"\n\n'
-            '[tool.ruff]\nline-length = 120\n\n'
-            '[tool.mypy]\nstrict = true\n'
+            '[project]\nname = "test"\n\n' "[tool.ruff]\nline-length = 120\n\n" "[tool.mypy]\nstrict = true\n",
         )
 
         # Create existing security and quality workflows
@@ -1011,7 +984,7 @@ class TestProjectAnalyzer:
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
             "      - run: bandit -r .\n"
-            "      - run: safety check\n"
+            "      - run: safety check\n",
         )
 
         (workflows_dir / "quality.yml").write_text(
@@ -1022,11 +995,11 @@ class TestProjectAnalyzer:
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
             "      - run: ruff check .\n"
-            "      - run: mypy .\n"
+            "      - run: mypy .\n",
         )
 
         # Analyze project
-        state = analyzer.analyze_project(tmp_path)
+        analyzer.analyze_project(tmp_path)
 
         # Verify no workflow recommendations since they already exist
         workflow_result = analyzer.check_github_workflows(tmp_path)
@@ -1045,7 +1018,7 @@ class TestProjectAnalyzer:
         pyproject_path.write_text(
             '[project]\nname = "test"\n\n'
             '[tool.ruff]\nline-length = 120\nselect = ["E", "F", "I"]\n\n'
-            '[tool.mypy]\nstrict = true\n'
+            "[tool.mypy]\nstrict = true\n",
         )
 
         config_files = {"pyproject.toml": pyproject_path}
@@ -1090,10 +1063,7 @@ class TestProjectAnalyzer:
         """Test recommendations when some security tools are configured."""
         # Create project with only Bandit configured
         pyproject_path = tmp_path / "pyproject.toml"
-        pyproject_path.write_text(
-            '[project]\nname = "test"\n\n'
-            '[tool.bandit]\nskip = ["B101"]\n'
-        )
+        pyproject_path.write_text('[project]\nname = "test"\n\n' '[tool.bandit]\nskip = ["B101"]\n')
 
         config_files = {"pyproject.toml": pyproject_path}
         security_tools = analyzer._check_security_tools(tmp_path, config_files)
@@ -1116,8 +1086,8 @@ class TestProjectAnalyzer:
         pyproject_path.write_text(
             '[project]\nname = "test"\n\n'
             '[tool.ruff]\nline-length = 120\nselect = ["E", "F", "I"]\n\n'
-            '[tool.mypy]\nstrict = true\n\n'
-            '[tool.bandit]\nskip = ["B101"]\n'
+            "[tool.mypy]\nstrict = true\n\n"
+            '[tool.bandit]\nskip = ["B101"]\n',
         )
 
         precommit_path = tmp_path / ".pre-commit-config.yaml"
@@ -1134,7 +1104,7 @@ class TestProjectAnalyzer:
             "      - id: gitleaks\n"
             "  - repo: https://github.com/pyupio/safety\n"
             "    hooks:\n"
-            "      - id: safety\n"
+            "      - id: safety\n",
         )
 
         workflows_dir = tmp_path / ".github" / "workflows"
@@ -1153,7 +1123,7 @@ class TestProjectAnalyzer:
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
             "      - run: bandit -r .\n"
-            "      - run: safety check\n"
+            "      - run: safety check\n",
         )
 
         # Analyze complete setup
@@ -1205,7 +1175,7 @@ class TestProjectAnalyzer:
             "          bandit -r .\n"
             "          safety check\n"
             "      - name: Tests\n"
-            "        run: pytest\n"
+            "        run: pytest\n",
         )
 
         workflows = analyzer._detect_ci_workflows(tmp_path)
@@ -1252,7 +1222,7 @@ class TestProjectAnalyzer:
             "  - repo: https://github.com/pyupio/safety\n"
             "    rev: 2.0.0\n"
             "    hooks:\n"
-            "      - id: safety\n"
+            "      - id: safety\n",
         )
 
         tools = analyzer._check_tools_in_precommit(precommit_path)
@@ -1284,7 +1254,7 @@ class TestProjectAnalyzer:
             "  test:\n"
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
-            "      - run: pytest\n"
+            "      - run: pytest\n",
         )
 
         # Create invalid workflow with YAML syntax error
@@ -1293,7 +1263,7 @@ class TestProjectAnalyzer:
             "on: [push\n"  # Missing closing bracket
             "jobs:\n"
             "  test:\n"
-            "    runs-on: ubuntu-latest\n"
+            "    runs-on: ubuntu-latest\n",
         )
 
         # Should not raise an error, just skip invalid file
@@ -1313,9 +1283,9 @@ class TestProjectAnalyzer:
         pyproject_path = tmp_path / "pyproject.toml"
         pyproject_path.write_text(
             '[project]\nname = "test"\n\n'
-            '[tool.black]\nline-length = 88\n\n'
+            "[tool.black]\nline-length = 88\n\n"
             '[tool.isort]\nprofile = "black"\n\n'
-            '[tool.flake8]\nmax-line-length = 88\n'
+            "[tool.flake8]\nmax-line-length = 88\n",
         )
 
         config_files = {"pyproject.toml": pyproject_path}

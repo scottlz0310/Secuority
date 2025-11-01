@@ -6,7 +6,6 @@ import pytest
 
 from secuority.core.applier import ConfigurationApplier
 from secuority.core.template_manager import TemplateManager
-from secuority.models.exceptions import TemplateError
 from secuority.models.interfaces import ChangeType
 
 
@@ -28,7 +27,8 @@ class TestSecurityMdIntegration:
 
 ## Supported Versions
 
-We release patches for security vulnerabilities. Which versions are eligible for receiving such patches depends on the CVSS v3.0 Rating:
+We release patches for security vulnerabilities. Which versions are eligible for
+receiving such patches depends on the CVSS v3.0 Rating:
 
 | Version | Supported          |
 | ------- | ------------------ |
@@ -37,7 +37,8 @@ We release patches for security vulnerabilities. Which versions are eligible for
 
 ## Reporting a Vulnerability
 
-We take the security of our software seriously. If you believe you have found a security vulnerability, please report it to us as described below.
+We take the security of our software seriously. If you believe you have found a
+security vulnerability, please report it to us as described below.
 
 ### Where to Report
 
@@ -45,7 +46,8 @@ We take the security of our software seriously. If you believe you have found a 
 
 Instead, please report them via one of the following methods:
 
-1. **Email**: Send an email to [{{ author_email | default('security@example.com') }}](mailto:{{ author_email | default('security@example.com') }})
+1. **Email**: Send an email to
+   [{{ author_email | default('security@example.com') }}](mailto:{{ author_email | default('security@example.com') }})
 2. **GitHub Security Advisories**: Use the [GitHub Security Advisory](../../security/advisories/new) feature
 
 ### What to Include
@@ -105,7 +107,8 @@ This project includes the following security measures:
 
 For any security-related questions or concerns, please contact:
 
-- **Security Team**: [{{ author_email | default('security@example.com') }}](mailto:{{ author_email | default('security@example.com') }})
+- **Security Team**:
+  [{{ author_email | default('security@example.com') }}](mailto:{{ author_email | default('security@example.com') }})
 - **Project Maintainers**: See [MAINTAINERS.md](MAINTAINERS.md) or [CODEOWNERS](.github/CODEOWNERS)
 
 ## Acknowledgments
@@ -319,7 +322,7 @@ Please email us at custom@example.com
         # Verify file was updated (backup is created internally by file_ops)
         assert len(result.successful_changes) == 1
         assert security_md_path.exists()
-        
+
         # Verify content was merged
         content = security_md_path.read_text()
         assert "Security Policy" in content
@@ -340,7 +343,7 @@ Please email us at custom@example.com
 
         # Load templates - should succeed but not include SECURITY.md.template
         templates = manager.load_templates()
-        
+
         # Verify SECURITY.md.template is not in templates
         assert "SECURITY.md.template" not in templates
 

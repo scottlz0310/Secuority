@@ -1,7 +1,6 @@
 """Unit tests for SECURITY.md generation functionality."""
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 

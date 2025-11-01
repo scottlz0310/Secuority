@@ -66,9 +66,7 @@ class TestSecurityFeatures:
     ) -> None:
         """Test integrating security config when tools already exist."""
         pyproject_path = sample_project / "pyproject.toml"
-        pyproject_path.write_text(
-            '[project]\nname = "test"\n[tool.ruff]\nline-length = 120\n'
-        )
+        pyproject_path.write_text('[project]\nname = "test"\n[tool.ruff]\nline-length = 120\n')
 
         result = integrator.integrate_bandit_config(sample_project)
 
@@ -83,9 +81,7 @@ class TestSecurityFeatures:
     ) -> None:
         """Test detection of existing security tools."""
         pyproject_path = sample_project / "pyproject.toml"
-        pyproject_path.write_text(
-            '[project]\nname = "test"\n[tool.bandit]\nskip = ["B101"]\n'
-        )
+        pyproject_path.write_text('[project]\nname = "test"\n[tool.bandit]\nskip = ["B101"]\n')
 
         # Check if Bandit is detected
         content = pyproject_path.read_text()
@@ -117,9 +113,7 @@ class TestSecurityFeatures:
     ) -> None:
         """Test merging Bandit config with existing configuration."""
         pyproject_path = sample_project / "pyproject.toml"
-        pyproject_path.write_text(
-            '[project]\nname = "test"\n[tool.bandit]\nexclude_dirs = ["/test"]\n'
-        )
+        pyproject_path.write_text('[project]\nname = "test"\n[tool.bandit]\nexclude_dirs = ["/test"]\n')
 
         # Integrate Bandit config (should merge)
         result = integrator.integrate_bandit_config(sample_project)
@@ -169,12 +163,12 @@ class TestSecurityFeatures:
         # Configure Bandit
         integrator.integrate_bandit_config(sample_project)
         pyproject_path = sample_project / "pyproject.toml"
-        
+
         # Write the change to disk
         if pyproject_path.exists():
             change = integrator.integrate_bandit_config(sample_project)
             pyproject_path.write_text(change.new_content)
-            
+
             # Check status again
             status = integrator.check_security_tools_status(sample_project)
             assert status["bandit"] is True
@@ -199,9 +193,7 @@ class TestSecurityFeatures:
     ) -> None:
         """Test Bandit configuration preserves custom settings."""
         pyproject_path = sample_project / "pyproject.toml"
-        pyproject_path.write_text(
-            '[project]\nname = "test"\n[tool.bandit]\nexclude_dirs = ["/custom"]\n'
-        )
+        pyproject_path.write_text('[project]\nname = "test"\n[tool.bandit]\nexclude_dirs = ["/custom"]\n')
 
         result = integrator.integrate_bandit_config(sample_project)
 
@@ -230,6 +222,7 @@ class TestWorkflowGeneration:
     def workflow_integrator(self):  # type: ignore[no-untyped-def]
         """Create WorkflowIntegrator instance."""
         from secuority.core.workflow_integrator import WorkflowIntegrator
+
         return WorkflowIntegrator()
 
     @pytest.fixture
@@ -440,7 +433,6 @@ class TestWorkflowGeneration:
         assert "safety" in security_workflow.new_content.lower()
 
 
-
 class TestRecommendationAccuracy:
     """Test recommendation generation accuracy."""
 
@@ -448,6 +440,7 @@ class TestRecommendationAccuracy:
     def analyzer(self):  # type: ignore[no-untyped-def]
         """Create ProjectAnalyzer instance."""
         from secuority.core.analyzer import ProjectAnalyzer
+
         return ProjectAnalyzer()
 
     @pytest.fixture
@@ -475,7 +468,7 @@ class TestRecommendationAccuracy:
             "    steps:\n"
             "      - uses: actions/checkout@v3\n"
             "      - run: bandit -r .\n"
-            "      - run: safety check\n"
+            "      - run: safety check\n",
         )
 
         (workflows_dir / "quality.yml").write_text(
@@ -487,7 +480,7 @@ class TestRecommendationAccuracy:
             "    steps:\n"
             "      - uses: actions/checkout@v3\n"
             "      - run: ruff check .\n"
-            "      - run: mypy .\n"
+            "      - run: mypy .\n",
         )
 
         # Check workflow recommendations
@@ -513,7 +506,7 @@ class TestRecommendationAccuracy:
         pyproject_path.write_text(
             '[project]\nname = "test"\n\n'
             '[tool.ruff]\nline-length = 120\nselect = ["E", "F", "I"]\n\n'
-            '[tool.mypy]\nstrict = true\n'
+            "[tool.mypy]\nstrict = true\n",
         )
 
         # Analyze project
@@ -538,10 +531,7 @@ class TestRecommendationAccuracy:
 
         # Set up only Bandit
         pyproject_path = sample_project / "pyproject.toml"
-        pyproject_path.write_text(
-            '[project]\nname = "test"\n\n'
-            '[tool.bandit]\nskip = ["B101"]\n'
-        )
+        pyproject_path.write_text('[project]\nname = "test"\n\n' '[tool.bandit]\nskip = ["B101"]\n')
 
         # Analyze project
         state = analyzer.analyze_project(sample_project)
@@ -567,8 +557,8 @@ class TestRecommendationAccuracy:
         pyproject_path.write_text(
             '[project]\nname = "test"\n\n'
             '[tool.ruff]\nline-length = 120\nselect = ["E", "F", "I"]\n\n'
-            '[tool.mypy]\nstrict = true\n\n'
-            '[tool.bandit]\nskip = ["B101"]\n'
+            "[tool.mypy]\nstrict = true\n\n"
+            '[tool.bandit]\nskip = ["B101"]\n',
         )
 
         precommit_path = sample_project / ".pre-commit-config.yaml"
@@ -585,7 +575,7 @@ class TestRecommendationAccuracy:
             "      - id: gitleaks\n"
             "  - repo: https://github.com/pyupio/safety\n"
             "    hooks:\n"
-            "      - id: safety\n"
+            "      - id: safety\n",
         )
 
         workflows_dir = sample_project / ".github" / "workflows"
@@ -604,7 +594,7 @@ class TestRecommendationAccuracy:
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
             "      - run: bandit -r .\n"
-            "      - run: safety check\n"
+            "      - run: safety check\n",
         )
 
         # Analyze complete setup
@@ -648,7 +638,7 @@ class TestRecommendationAccuracy:
             "      - name: Security\n"
             "        run: |\n"
             "          bandit -r .\n"
-            "          safety check\n"
+            "          safety check\n",
         )
 
         # Check workflow detection
@@ -693,7 +683,7 @@ class TestRecommendationAccuracy:
             "  - repo: https://github.com/pyupio/safety\n"
             "    rev: 2.0.0\n"
             "    hooks:\n"
-            "      - id: safety\n"
+            "      - id: safety\n",
         )
 
         # Analyze project
@@ -723,7 +713,7 @@ class TestRecommendationAccuracy:
             "  test:\n"
             "    runs-on: ubuntu-latest\n"
             "    steps:\n"
-            "      - run: pytest\n"
+            "      - run: pytest\n",
         )
 
         # Create invalid workflow
@@ -732,7 +722,7 @@ class TestRecommendationAccuracy:
             "on: [push\n"  # Missing closing bracket
             "jobs:\n"
             "  test:\n"
-            "    runs-on: ubuntu-latest\n"
+            "    runs-on: ubuntu-latest\n",
         )
 
         # Should not raise an error
@@ -753,9 +743,9 @@ class TestRecommendationAccuracy:
         pyproject_path = sample_project / "pyproject.toml"
         pyproject_path.write_text(
             '[project]\nname = "test"\n\n'
-            '[tool.black]\nline-length = 88\n\n'
+            "[tool.black]\nline-length = 88\n\n"
             '[tool.isort]\nprofile = "black"\n\n'
-            '[tool.flake8]\nmax-line-length = 88\n'
+            "[tool.flake8]\nmax-line-length = 88\n",
         )
 
         # Analyze project

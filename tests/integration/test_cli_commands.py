@@ -1,7 +1,7 @@
 """Integration tests for CLI commands."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -21,9 +21,7 @@ class TestCLICommands:
     def sample_project(self, tmp_path: Path) -> Path:
         """Create a sample project for testing."""
         # Create basic project structure
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nname = "test-project"\nversion = "0.1.0"\n'
-        )
+        (tmp_path / "pyproject.toml").write_text('[project]\nname = "test-project"\nversion = "0.1.0"\n')
         (tmp_path / "requirements.txt").write_text("pytest>=7.0.0\n")
         (tmp_path / ".gitignore").write_text("*.pyc\n")
 
@@ -140,10 +138,7 @@ class TestCLICommands:
         # Create .git directory to simulate git repo
         git_dir = sample_project / ".git"
         git_dir.mkdir()
-        (git_dir / "config").write_text(
-            "[remote \"origin\"]\n"
-            "url = https://github.com/test/repo.git\n"
-        )
+        (git_dir / "config").write_text('[remote "origin"]\n' "url = https://github.com/test/repo.git\n")
 
         # Mock GitHub client to avoid actual API calls
         with patch("secuority.core.github_client.GitHubClient.is_authenticated") as mock_auth:
@@ -210,9 +205,7 @@ class TestCLICommands:
     ) -> None:
         """Test apply command handles configuration conflicts."""
         # Create conflicting configuration
-        (sample_project / "pyproject.toml").write_text(
-            '[tool.ruff]\nline-length = 88\n'
-        )
+        (sample_project / "pyproject.toml").write_text("[tool.ruff]\nline-length = 88\n")
 
         result = runner.invoke(
             app,
@@ -241,9 +234,7 @@ class TestCLICommands:
     ) -> None:
         """Test check command detects security tools."""
         # Add security tool configuration
-        (sample_project / "pyproject.toml").write_text(
-            '[project]\nname = "test"\n[tool.bandit]\nskip = ["B101"]\n'
-        )
+        (sample_project / "pyproject.toml").write_text('[project]\nname = "test"\n[tool.bandit]\nskip = ["B101"]\n')
 
         result = runner.invoke(app, ["check", "--project-path", str(sample_project)])
 
@@ -275,9 +266,7 @@ class TestCLICommands:
         # Create workflow directory
         workflows_dir = sample_project / ".github" / "workflows"
         workflows_dir.mkdir(parents=True)
-        (workflows_dir / "ci.yml").write_text(
-            "name: CI\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n"
-        )
+        (workflows_dir / "ci.yml").write_text("name: CI\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n")
 
         result = runner.invoke(app, ["check", "--project-path", str(sample_project)])
 

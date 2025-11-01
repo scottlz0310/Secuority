@@ -1,12 +1,11 @@
 """Unit tests for UserApprovalInterface."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from secuority.models.config import ConfigChange, Conflict, ConflictResolution
-from secuority.models.interfaces import ChangeType
 from secuority.utils.user_interface import UserApprovalInterface
 
 

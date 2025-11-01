@@ -49,26 +49,7 @@ jobs:
         run: |
           # Detect package name from pyproject.toml
           if [ -f "pyproject.toml" ]; then
-            PACKAGE_NAME=$(uv run python -c "
-import tomllib
-with open('pyproject.toml', 'rb') as f:
-    data = tomllib.load(f)
-    # Try to get package name from project.name
-    name = data.get('project', {}).get('name', '')
-    if name:
-        # Convert hyphens to underscores for package directory
-        print(name.replace('-', '_'))
-    else:
-        # Fallback: try to find from setuptools.packages.find
-        packages = data.get('tool', {}).get('setuptools', {}).get('packages', {}).get('find', {})
-        include = packages.get('include', [])
-        if include:
-            # Get first package pattern and remove wildcard
-            print(include[0].rstrip('*'))
-        else:
-            print('src')
-" 2>/dev/null || echo "src")
-            
+            PACKAGE_NAME=$(uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); name=data.get('project',{}).get('name',''); print(name.replace('-','_') if name else 'src')" 2>/dev/null || echo "src")
             # Run tests with detected package
             if [ -d "tests" ]; then
               uv run pytest tests/ --cov="$PACKAGE_NAME" --cov-report=xml --cov-report=term-missing

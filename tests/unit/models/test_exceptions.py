@@ -12,8 +12,8 @@ from secuority.models.exceptions import (
     GitHubAuthenticationError,
     GitHubRateLimitError,
     ProjectAnalysisError,
-    SecurityToolError,
     SecuorityError,
+    SecurityToolError,
     TemplateError,
     TemplateNotFoundError,
     TemplateParsingError,
@@ -276,16 +276,19 @@ class TestExceptionRaising:
         """Test catching specific exception type."""
         with pytest.raises(TemplateNotFoundError) as exc_info:
             raise TemplateNotFoundError("missing.template")
+        # Assertion moved outside context manager to avoid unreachable code
         assert "missing.template" in str(exc_info.value)
 
     def test_catch_base_exception(self) -> None:
         """Test catching derived exception with base class."""
-        with pytest.raises(SecuorityError):
+        with pytest.raises(SecuorityError) as exc_info:
             raise ProjectAnalysisError("Analysis failed")
+        assert isinstance(exc_info.value, ProjectAnalysisError)
 
     def test_exception_details_preserved(self) -> None:
         """Test that exception details are preserved when raised."""
         details = {"key": "value", "count": 42}
         with pytest.raises(SecuorityError) as exc_info:
             raise SecuorityError("Test error", details=details)
+        # Assertion moved outside context manager to avoid unreachable code
         assert exc_info.value.details == details

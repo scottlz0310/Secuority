@@ -149,9 +149,7 @@ class TestGitHubClient:
 
             if call_count[0] == 1:
                 # First call: repo data
-                return create_mock_response(
-                    b'{"security_and_analysis": {"secret_scanning": {"status": "enabled"}}}'
-                )
+                return create_mock_response(b'{"security_and_analysis": {"secret_scanning": {"status": "enabled"}}}')
             else:
                 # Second call: push protection endpoint fails
                 raise HTTPError("url", 404, "Not Found", {}, None)
@@ -170,7 +168,7 @@ class TestGitHubClient:
 
             if call_count[0] == 1:
                 # Vulnerability alerts endpoint
-                return create_mock_response(b'{}')
+                return create_mock_response(b"{}")
             else:
                 # Config file endpoint
                 return create_mock_response(b'{"content": "base64content"}')
@@ -196,9 +194,7 @@ class TestGitHubClient:
 
     def test_list_workflows_success(self, client: GitHubClient) -> None:
         """Test listing workflows successfully."""
-        mock_response = create_mock_response(
-            b'{"workflows": [{"name": "CI", "path": ".github/workflows/ci.yml"}]}'
-        )
+        mock_response = create_mock_response(b'{"workflows": [{"name": "CI", "path": ".github/workflows/ci.yml"}]}')
 
         with patch("secuority.core.github_client.urlopen", return_value=mock_response):
             result = client.list_workflows("owner", "repo")
@@ -234,8 +230,8 @@ class TestGitHubClient:
                                 "secret_scanning_push_protection": {"status": "enabled"},
                                 "private_vulnerability_reporting": {"status": "enabled"},
                             },
-                        }
-                    ).encode()
+                        },
+                    ).encode(),
                 )
             else:
                 # SECURITY.md check

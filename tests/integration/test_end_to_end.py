@@ -28,24 +28,19 @@ class TestEndToEndWorkflows:
     def legacy_project(self, tmp_path: Path) -> Path:
         """Create a legacy Python project with old-style configuration."""
         # Old-style requirements.txt
-        (tmp_path / "requirements.txt").write_text(
-            "requests==2.31.0\n"
-            "pytest>=7.0.0\n"
-            "black==23.0.0\n"
-        )
-        
+        (tmp_path / "requirements.txt").write_text("requests==2.31.0\n" "pytest>=7.0.0\n" "black==23.0.0\n")
+
         # Basic setup.py
         (tmp_path / "setup.py").write_text(
-            'from setuptools import setup\n'
-            'setup(name="legacy-project", version="0.1.0")\n'
+            "from setuptools import setup\n" 'setup(name="legacy-project", version="0.1.0")\n',
         )
-        
+
         # Minimal .gitignore
         (tmp_path / ".gitignore").write_text("*.pyc\n")
-        
+
         # Source code
         (tmp_path / "main.py").write_text('print("Legacy project")\n')
-        
+
         return tmp_path
 
     @pytest.fixture
@@ -53,38 +48,31 @@ class TestEndToEndWorkflows:
         """Create a modern Python project with pyproject.toml."""
         # Modern pyproject.toml
         (tmp_path / "pyproject.toml").write_text(
-            '[project]\n'
+            "[project]\n"
             'name = "modern-project"\n'
             'version = "0.1.0"\n'
             'requires-python = ">=3.12"\n'
-            'dependencies = [\n'
+            "dependencies = [\n"
             '    "requests>=2.31.0",\n'
-            ']\n'
-            '\n'
-            '[tool.ruff]\n'
-            'line-length = 120\n'
+            "]\n"
+            "\n"
+            "[tool.ruff]\n"
+            "line-length = 120\n"
             'target-version = "py312"\n'
-            '\n'
-            '[tool.mypy]\n'
-            'strict = true\n'
+            "\n"
+            "[tool.mypy]\n"
+            "strict = true\n",
         )
-        
+
         # Comprehensive .gitignore
-        (tmp_path / ".gitignore").write_text(
-            "*.pyc\n"
-            "__pycache__/\n"
-            ".venv/\n"
-            ".env\n"
-            "dist/\n"
-            "*.egg-info/\n"
-        )
-        
+        (tmp_path / ".gitignore").write_text("*.pyc\n" "__pycache__/\n" ".venv/\n" ".env\n" "dist/\n" "*.egg-info/\n")
+
         # Source code
         src_dir = tmp_path / "src" / "modern_project"
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text('"""Modern project."""\n')
         (src_dir / "main.py").write_text('def main() -> None:\n    print("Modern")\n')
-        
+
         return tmp_path
 
     @pytest.fixture
@@ -94,20 +82,13 @@ class TestEndToEndWorkflows:
         git_dir = tmp_path / ".git"
         git_dir.mkdir()
         (git_dir / "config").write_text(
-            "[core]\n"
-            "repositoryformatversion = 0\n"
-            "[remote \"origin\"]\n"
-            "url = https://github.com/test/repo.git\n"
+            "[core]\n" "repositoryformatversion = 0\n" '[remote "origin"]\n' "url = https://github.com/test/repo.git\n",
         )
-        
+
         # Basic project files
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\n'
-            'name = "git-project"\n'
-            'version = "0.1.0"\n'
-        )
+        (tmp_path / "pyproject.toml").write_text("[project]\n" 'name = "git-project"\n' 'version = "0.1.0"\n')
         (tmp_path / "main.py").write_text('print("Git project")\n')
-        
+
         return tmp_path
 
     def test_complete_workflow_minimal_to_modern(
@@ -122,21 +103,21 @@ class TestEndToEndWorkflows:
             ["check", "--project-path", str(minimal_project)],
         )
         assert check_result.exit_code == 0
-        
+
         # Step 2: Apply configurations with dry-run
         dry_run_result = runner.invoke(
             app,
             ["apply", "--project-path", str(minimal_project), "--dry-run"],
         )
         assert dry_run_result.exit_code == 0
-        
+
         # Step 3: Apply configurations with force
         apply_result = runner.invoke(
             app,
             ["apply", "--project-path", str(minimal_project), "--force"],
         )
         assert apply_result.exit_code == 0
-        
+
         # Step 4: Check again (should have fewer issues)
         final_check = runner.invoke(
             app,
@@ -156,24 +137,24 @@ class TestEndToEndWorkflows:
             ["check", "--project-path", str(legacy_project), "--verbose"],
         )
         assert initial_check.exit_code == 0
-        
+
         # Verify requirements.txt exists
         assert (legacy_project / "requirements.txt").exists()
-        
+
         # Step 2: Apply modernization
         apply_result = runner.invoke(
             app,
             ["apply", "--project-path", str(legacy_project), "--force"],
         )
         assert apply_result.exit_code == 0
-        
+
         # Step 3: Verify pyproject.toml was created or updated
         pyproject_path = legacy_project / "pyproject.toml"
         if pyproject_path.exists():
             content = pyproject_path.read_text()
             # Should have project metadata
             assert "project" in content or "tool" in content
-        
+
         # Step 4: Final check
         final_check = runner.invoke(
             app,
@@ -193,14 +174,14 @@ class TestEndToEndWorkflows:
             ["check", "--project-path", str(modern_project)],
         )
         assert check_result.exit_code == 0
-        
+
         # Step 2: Apply security enhancements
         apply_result = runner.invoke(
             app,
             ["apply", "--project-path", str(modern_project), "--force"],
         )
         assert apply_result.exit_code == 0
-        
+
         # Step 3: Verify security tools were added
         pyproject_path = modern_project / "pyproject.toml"
         if pyproject_path.exists():
@@ -208,7 +189,7 @@ class TestEndToEndWorkflows:
             # Should have security tool configurations
             # (bandit, safety, etc.)
             assert "tool" in content
-        
+
         # Step 4: Check for workflows
         workflows_dir = modern_project / ".github" / "workflows"
         if workflows_dir.exists():
@@ -225,14 +206,14 @@ class TestEndToEndWorkflows:
         # Mock GitHub API to avoid actual calls
         with patch("secuority.core.github_client.GitHubClient.is_authenticated") as mock_auth:
             mock_auth.return_value = False
-            
+
             # Step 1: Check with GitHub integration
             check_result = runner.invoke(
                 app,
                 ["check", "--project-path", str(git_project)],
             )
             assert check_result.exit_code == 0
-            
+
             # Step 2: Apply with GitHub-aware configurations
             apply_result = runner.invoke(
                 app,
@@ -251,7 +232,7 @@ class TestEndToEndWorkflows:
         with patch("pathlib.Path.home", return_value=tmp_path):
             init_result = runner.invoke(app, ["init"])
         assert init_result.exit_code == 0
-        
+
         # Step 2: Apply to project
         apply_result = runner.invoke(
             app,
@@ -269,7 +250,7 @@ class TestEndToEndWorkflows:
             # Step 1: Initialize
             init_result = runner.invoke(app, ["init"])
             assert init_result.exit_code == 0
-            
+
             # Step 2: List templates
             with patch("secuority.core.template_manager.TemplateManager.load_templates") as mock_load:
                 mock_load.return_value = {
@@ -277,7 +258,7 @@ class TestEndToEndWorkflows:
                 }
                 list_result = runner.invoke(app, ["template", "list"])
             assert list_result.exit_code == 0
-            
+
             # Step 3: Update templates
             with patch("secuority.core.template_manager.TemplateManager.update_templates") as mock_update:
                 mock_update.return_value = True
@@ -296,14 +277,14 @@ class TestEndToEndWorkflows:
             ["check", "--project-path", str(legacy_project)],
         )
         assert check1.exit_code == 0
-        
+
         # Apply changes
         apply_result = runner.invoke(
             app,
             ["apply", "--project-path", str(legacy_project), "--force"],
         )
         assert apply_result.exit_code == 0
-        
+
         # Second check (should show improvements)
         check2 = runner.invoke(
             app,
@@ -320,18 +301,18 @@ class TestEndToEndWorkflows:
         # Get initial state
         pyproject_before = (modern_project / "pyproject.toml").read_text()
         gitignore_before = (modern_project / ".gitignore").read_text()
-        
+
         # Run with dry-run
         result = runner.invoke(
             app,
             ["apply", "--project-path", str(modern_project), "--dry-run"],
         )
         assert result.exit_code == 0
-        
+
         # Verify no changes
         pyproject_after = (modern_project / "pyproject.toml").read_text()
         gitignore_after = (modern_project / ".gitignore").read_text()
-        
+
         assert pyproject_before == pyproject_after
         assert gitignore_before == gitignore_after
 
@@ -347,9 +328,8 @@ class TestEndToEndWorkflows:
             ["apply", "--project-path", str(modern_project), "--force"],
         )
         assert result.exit_code == 0
-        
+
         # Check for backup files (if any changes were made)
-        backup_files = list(modern_project.glob("*.backup*"))
         # Backups may or may not exist depending on whether changes were needed
         # Just verify the command succeeded
         assert result.exit_code == 0
@@ -375,9 +355,9 @@ class TestEndToEndWorkflows:
         # Create corrupted pyproject.toml
         (tmp_path / "pyproject.toml").write_text(
             "[project\n"  # Missing closing bracket
-            "name = 'broken'\n"
+            "name = 'broken'\n",
         )
-        
+
         result = runner.invoke(
             app,
             ["check", "--project-path", str(tmp_path)],
@@ -397,7 +377,7 @@ class TestEndToEndWorkflows:
             ["check", "--project-path", str(modern_project), "--verbose"],
         )
         assert check_result.exit_code == 0
-        
+
         # Apply with verbose (if supported)
         apply_result = runner.invoke(
             app,
@@ -431,21 +411,21 @@ class TestEndToEndWorkflows:
             ["check", "--project-path", str(minimal_project)],
         )
         assert result1.exit_code == 0
-        
+
         # Check second project
         result2 = runner.invoke(
             app,
             ["check", "--project-path", str(modern_project)],
         )
         assert result2.exit_code == 0
-        
+
         # Apply to first project
         apply1 = runner.invoke(
             app,
             ["apply", "--project-path", str(minimal_project), "--force"],
         )
         assert apply1.exit_code == 0
-        
+
         # Apply to second project
         apply2 = runner.invoke(
             app,
@@ -465,14 +445,14 @@ class TestEndToEndWorkflows:
             ["check", "--project-path", str(modern_project)],
         )
         assert check_result.exit_code == 0
-        
+
         # Apply security configurations
         apply_result = runner.invoke(
             app,
             ["apply", "--project-path", str(modern_project), "--force"],
         )
         assert apply_result.exit_code == 0
-        
+
         # Verify security files were created/updated
         pyproject_path = modern_project / "pyproject.toml"
         if pyproject_path.exists():
@@ -492,9 +472,8 @@ class TestEndToEndWorkflows:
             ["apply", "--project-path", str(git_project), "--force"],
         )
         assert result.exit_code == 0
-        
+
         # Check if workflows directory was created
-        workflows_dir = git_project / ".github" / "workflows"
         # Workflows may or may not be created depending on project state
         # Just verify command succeeded
         assert result.exit_code == 0
@@ -508,7 +487,7 @@ class TestEndToEndWorkflows:
         help_result = runner.invoke(app, ["--help"])
         assert help_result.exit_code == 0
         assert "check" in help_result.stdout
-        
+
         # Test version (may not be implemented, so just check it doesn't crash)
         version_result = runner.invoke(app, ["--version"])
         # Version command may exit with 2 if not implemented
@@ -524,26 +503,26 @@ class TestEndToEndWorkflows:
         new_project = tmp_path / "new_project"
         new_project.mkdir()
         (new_project / "main.py").write_text('print("New project")\n')
-        
+
         # Initialize templates
         with patch("pathlib.Path.home", return_value=tmp_path):
             init_result = runner.invoke(app, ["init"])
         assert init_result.exit_code == 0
-        
+
         # Check the new project
         check_result = runner.invoke(
             app,
             ["check", "--project-path", str(new_project)],
         )
         assert check_result.exit_code == 0
-        
+
         # Apply all configurations
         apply_result = runner.invoke(
             app,
             ["apply", "--project-path", str(new_project), "--force"],
         )
         assert apply_result.exit_code == 0
-        
+
         # Final verification
         final_check = runner.invoke(
             app,
@@ -569,27 +548,23 @@ class TestRealWorldScenarios:
         # Create project structure
         project = tmp_path / "opensource_project"
         project.mkdir()
-        
+
         # Add typical open-source files
         (project / "README.md").write_text("# My Project\n")
         (project / "LICENSE").write_text("MIT License\n")
-        (project / "pyproject.toml").write_text(
-            '[project]\n'
-            'name = "opensource-project"\n'
-            'version = "1.0.0"\n'
-        )
-        
+        (project / "pyproject.toml").write_text("[project]\n" 'name = "opensource-project"\n' 'version = "1.0.0"\n')
+
         src = project / "src" / "myproject"
         src.mkdir(parents=True)
         (src / "__init__.py").write_text('"""My project."""\n')
-        
+
         # Run secuority
         check_result = runner.invoke(
             app,
             ["check", "--project-path", str(project)],
         )
         assert check_result.exit_code == 0
-        
+
         apply_result = runner.invoke(
             app,
             ["apply", "--project-path", str(project), "--force"],
@@ -604,17 +579,13 @@ class TestRealWorldScenarios:
         """Test setting up a private/internal project."""
         project = tmp_path / "private_project"
         project.mkdir()
-        
-        (project / "pyproject.toml").write_text(
-            '[project]\n'
-            'name = "private-project"\n'
-            'version = "0.1.0"\n'
-        )
+
+        (project / "pyproject.toml").write_text("[project]\n" 'name = "private-project"\n' 'version = "0.1.0"\n')
         (project / "main.py").write_text('print("Private")\n')
-        
+
         # Add .env file (should be ignored)
         (project / ".env").write_text("SECRET_KEY=secret\n")
-        
+
         result = runner.invoke(
             app,
             ["check", "--project-path", str(project)],
@@ -630,17 +601,13 @@ class TestRealWorldScenarios:
         # Create monorepo structure
         monorepo = tmp_path / "monorepo"
         monorepo.mkdir()
-        
+
         # Subproject
         subproject = monorepo / "services" / "api"
         subproject.mkdir(parents=True)
-        (subproject / "pyproject.toml").write_text(
-            '[project]\n'
-            'name = "api-service"\n'
-            'version = "0.1.0"\n'
-        )
+        (subproject / "pyproject.toml").write_text("[project]\n" 'name = "api-service"\n' 'version = "0.1.0"\n')
         (subproject / "main.py").write_text('print("API")\n')
-        
+
         # Run on subproject
         result = runner.invoke(
             app,
@@ -656,19 +623,19 @@ class TestRealWorldScenarios:
         """Test project already using Poetry."""
         project = tmp_path / "poetry_project"
         project.mkdir()
-        
+
         # Poetry-style pyproject.toml
         (project / "pyproject.toml").write_text(
-            '[tool.poetry]\n'
+            "[tool.poetry]\n"
             'name = "poetry-project"\n'
             'version = "0.1.0"\n'
-            '\n'
-            '[tool.poetry.dependencies]\n'
+            "\n"
+            "[tool.poetry.dependencies]\n"
             'python = "^3.12"\n'
-            'requests = "^2.31.0"\n'
+            'requests = "^2.31.0"\n',
         )
         (project / "main.py").write_text('print("Poetry")\n')
-        
+
         # Should detect Poetry and handle appropriately
         result = runner.invoke(
             app,
@@ -684,27 +651,27 @@ class TestRealWorldScenarios:
         """Test project that already has some security tools."""
         project = tmp_path / "secure_project"
         project.mkdir()
-        
+
         (project / "pyproject.toml").write_text(
-            '[project]\n'
+            "[project]\n"
             'name = "secure-project"\n'
             'version = "0.1.0"\n'
-            '\n'
-            '[tool.bandit]\n'
+            "\n"
+            "[tool.bandit]\n"
             'exclude_dirs = ["/tests"]\n'
-            '\n'
-            '[tool.ruff]\n'
-            'line-length = 120\n'
+            "\n"
+            "[tool.ruff]\n"
+            "line-length = 120\n",
         )
-        
+
         (project / ".pre-commit-config.yaml").write_text(
-            'repos:\n'
-            '  - repo: https://github.com/psf/black\n'
-            '    rev: 23.0.0\n'
-            '    hooks:\n'
-            '      - id: black\n'
+            "repos:\n"
+            "  - repo: https://github.com/psf/black\n"
+            "    rev: 23.0.0\n"
+            "    hooks:\n"
+            "      - id: black\n",
         )
-        
+
         # Should merge with existing configuration
         result = runner.invoke(
             app,

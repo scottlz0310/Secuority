@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from secuority.models.config import ConfigChange
-from secuority.models.interfaces import ChangeType
 from secuority.utils.diff import DiffGenerator
 
 

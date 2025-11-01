@@ -1,6 +1,5 @@
 """Unit tests for ProjectState model."""
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -194,7 +193,7 @@ class TestProjectState:
                     name="security",
                     file_path=workflow_path,
                     has_security_checks=True,
-                )
+                ),
             ],
         )
 
@@ -213,7 +212,7 @@ class TestProjectState:
                     name="quality",
                     file_path=workflow_path,
                     has_quality_checks=True,
-                )
+                ),
             ],
         )
 
@@ -309,7 +308,7 @@ class TestProjectState:
                 Workflow(
                     name="missing",
                     file_path=nonexistent_path,
-                )
+                ),
             ],
         )
 

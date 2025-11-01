@@ -5,9 +5,9 @@ name: Code Quality
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main, develop]
+    branches: [ main, develop ]
 
 permissions:
   contents: read
@@ -18,182 +18,147 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12", "3.13", "3.14"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
 
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: |
-          # Install project dependencies
-          if [ -f "pyproject.toml" ]; then
-            # Use uv sync to install all dependencies including optional groups
-            uv sync --all-extras || uv sync
-          elif [ -f "requirements.txt" ]; then
-            # Create virtual environment and install dependencies
-            uv venv
-            source .venv/bin/activate
-            uv pip install -r requirements.txt
-            # Install common development tools
-            uv pip install ruff mypy pytest pytest-cov
-          else
-            # Install basic tools for projects without dependency files
-            uv venv
-            source .venv/bin/activate
-            uv pip install ruff mypy pytest pytest-cov
-          fi
+    - name: Install dependencies
+      run: |
+        # Install project dependencies
+        if [ -f "pyproject.toml" ]; then
+          # Use uv sync to install all dependencies including optional groups
+          uv sync --all-extras || uv sync
+        elif [ -f "requirements.txt" ]; then
+          # Create virtual environment and install dependencies
+          uv venv
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
+          # Install common development tools
+          uv pip install ruff mypy pytest pytest-cov
+        else
+          # Install basic tools for projects without dependency files
+          uv venv
+          source .venv/bin/activate
+          uv pip install ruff mypy pytest pytest-cov
+        fi
 
-      - name: Lint with Ruff
-        run: |
-          # Stop the build if there are Python syntax errors or undefined names
-          uv run ruff check . --output-format=github --select=E9,F63,F7,F82 --show-source
-          # Default set of ruff rules with GitHub Actions annotations
-          uv run ruff check . --output-format=github
+    - name: Lint with Ruff
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        uv run ruff check . --output-format=github --select=E9,F63,F7,F82 --show-source
+        # Default set of ruff rules with GitHub Actions annotations
+        uv run ruff check . --output-format=github
 
-      - name: Format check with Ruff
-        run: |
-          uv run ruff format --check .
+    - name: Format check with Ruff
+      run: |
+        uv run ruff format --check .
 
-      - name: Type check with MyPy
-        run: |
-          uv run mypy . --show-error-codes --show-error-context
+    - name: Type check with MyPy
+      run: |
+        uv run mypy . --show-error-codes --show-error-context
 
-      - name: Test with pytest
-        run: |
-          # Detect package name from pyproject.toml
-          if [ -f "pyproject.toml" ]; then
-            PACKAGE_NAME=$(uv run python -c "
-import tomllib
-with open('pyproject.toml', 'rb') as f:
-    data = tomllib.load(f)
-    # Try to get package name from project.name
-    name = data.get('project', {}).get('name', '')
-    if name:
-        # Convert hyphens to underscores for package directory
-        print(name.replace('-', '_'))
-    else:
-        # Fallback: try to find from setuptools.packages.find
-        packages = data.get('tool', {}).get('setuptools', {}).get('packages', {}).get('find', {})
-        include = packages.get('include', [])
-        if include:
-            # Get first package pattern and remove wildcard
-            print(include[0].rstrip('*'))
-        else:
-            print('src')
-" 2>/dev/null || echo "src")
-            
-            # Run tests with detected package
-            if [ -d "tests" ]; then
-              uv run pytest tests/ --cov="$PACKAGE_NAME" --cov-report=xml --cov-report=term-missing
-            else
-              uv run pytest --cov="$PACKAGE_NAME" --cov-report=xml --cov-report=term-missing
-            fi
-          else
-            # Fallback for projects without pyproject.toml
-            if [ -d "tests" ]; then
-              uv run pytest tests/ --cov-report=xml --cov-report=term-missing
-            else
-              uv run pytest --cov-report=xml --cov-report=term-missing
-            fi
-          fi
+    - name: Test with pytest
+      run: |
+        uv run pytest --cov=. --cov-report=xml --cov-report=term-missing
 
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
 
-      - name: Set up Python
-        run: |
-          # Install Python 3.12 for pre-commit (3.13 not yet widely supported)
-          uv python install 3.12
-          uv python pin 3.12
+    - name: Set up Python
+      run: |
+        # Install Python 3.12 for pre-commit (3.13 not yet widely supported)
+        uv python install 3.12
+        uv python pin 3.12
 
-      - name: Install pre-commit
-        run: |
-          uv tool install pre-commit
+    - name: Install pre-commit
+      run: |
+        uv tool install pre-commit
 
-      - name: Cache pre-commit hooks
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+    - name: Cache pre-commit hooks
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
-      - name: Run pre-commit hooks
-        run: |
-          pre-commit run --all-files
+    - name: Run pre-commit hooks
+      run: |
+        pre-commit run --all-files
 
   docs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
 
-      - name: Set up Python
-        run: uv python install 3.13
+    - name: Set up Python
+      run: uv python install 3.11
 
-      - name: Install documentation dependencies
-        run: |
-          # Only install and build docs if docs directory exists
-          if [ ! -d "docs" ]; then
-            echo "No docs directory found, skipping documentation build"
-            exit 0
-          fi
+    - name: Install documentation dependencies
+      run: |
+        # Only install and build docs if docs directory exists
+        if [ ! -d "docs" ]; then
+          echo "No docs directory found, skipping documentation build"
+          exit 0
+        fi
 
-          if [ -f "pyproject.toml" ]; then
-            # Check if dependency-groups are defined
-            if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data and 'docs' in data['dependency-groups'] else 1)" 2>/dev/null; then
-              uv sync --group docs
-            else
-              # Fallback to basic sphinx installation
-              uv pip install --system sphinx sphinx-rtd-theme
-            fi
+        if [ -f "pyproject.toml" ]; then
+          # Check if dependency-groups are defined
+          if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data and 'docs' in data['dependency-groups'] else 1)" 2>/dev/null; then
+            uv sync --group docs
           else
+            # Fallback to basic sphinx installation
             uv pip install --system sphinx sphinx-rtd-theme
           fi
+        else
+          uv pip install --system sphinx sphinx-rtd-theme
+        fi
 
-      - name: Build documentation
-        run: |
-          if [ -d "docs" ] && [ -f "docs/Makefile" ]; then
-            cd docs
-            make html
-          else
-            echo "No docs directory or Makefile found, skipping documentation build"
-          fi
+    - name: Build documentation
+      run: |
+        if [ -d "docs" ] && [ -f "docs/Makefile" ]; then
+          cd docs
+          make html
+        else
+          echo "No docs directory or Makefile found, skipping documentation build"
+        fi
 
-      - name: Deploy to GitHub Pages
-        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/_build/html
-        continue-on-error: true
+    - name: Deploy to GitHub Pages
+      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/_build/html
+      continue-on-error: true
 
   dependency-review:
     runs-on: ubuntu-latest

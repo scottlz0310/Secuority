@@ -1,6 +1,5 @@
 """Unit tests for configuration change models."""
 
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -389,7 +388,7 @@ class TestConfigChange:
                 existing_value={},
                 template_value={},
                 description="Test conflict",
-            )
+            ),
         ]
 
         change = ConfigChange.merge_file_change(

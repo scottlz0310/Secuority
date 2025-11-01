@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -417,9 +417,7 @@ class TestLoggerIntegration:
         logger.configure(level=LogLevel.WARNING)
 
         # Mock the underlying logger to check what gets called
-        with patch.object(logger.logger, "debug") as mock_debug, patch.object(
-            logger.logger, "warning"
-        ) as mock_warning:
+        with patch.object(logger.logger, "debug") as mock_debug, patch.object(logger.logger, "warning") as mock_warning:
             logger.debug("Debug message")
             logger.warning("Warning message")
 

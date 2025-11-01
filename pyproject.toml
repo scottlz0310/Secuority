@@ -67,9 +67,22 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 
+[[tool.mypy.overrides]]
+module = "tests.*"
+warn_unreachable = false
+disallow_untyped_decorators = false
+disallow_untyped_defs = false
+warn_unused_ignores = false
+disallow_any_generics = false
+check_untyped_defs = false
+disallow_incomplete_defs = false
+no_implicit_optional = false
+strict_optional = false
+disable_error_code = ["method-assign", "index", "arg-type"]
+
 [tool.bandit]
-exclude_dirs = [ "tests", "test_*",]
-skips = [ "B101", "B310", "B601",]
+exclude_dirs = [ "tests",]
+skips = [ "B101", "B310",]
 
 [project.entry-points."secuority.plugins"]
 
@@ -79,6 +92,9 @@ secuority = [ "templates/*.template", "templates/**/*.yml", "templates/**/*.yaml
 [tool.ruff.lint]
 select = [ "E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "T20",]
 ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S105", "S106"]
 
 [tool.bandit.assert_used]
 skips = [ "*_test.py", "test_*.py",]

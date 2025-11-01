@@ -275,7 +275,11 @@ class TestPreCommitIntegrator:
             ],
         }
 
-        merged, conflicts = integrator._merge_precommit_configs(existing, template, tmp_path / ".pre-commit-config.yaml")
+        merged, conflicts = integrator._merge_precommit_configs(
+            existing,
+            template,
+            tmp_path / ".pre-commit-config.yaml",
+        )
 
         assert len(merged["repos"]) == 2
         assert len(conflicts) == 0
@@ -296,7 +300,11 @@ class TestPreCommitIntegrator:
             "fail_fast": False,
         }
 
-        merged, conflicts = integrator._merge_precommit_configs(existing, template, tmp_path / ".pre-commit-config.yaml")
+        merged, conflicts = integrator._merge_precommit_configs(
+            existing,
+            template,
+            tmp_path / ".pre-commit-config.yaml",
+        )
 
         # Should keep existing value
         assert merged["fail_fast"] is True
