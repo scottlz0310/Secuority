@@ -34,14 +34,10 @@ jobs:
       with:
         version: "latest"
 
-    - name: Set up Python $
-      run: uv python install $
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
 
-    - name: Install security tools
-      run: |
-        uv pip install bandit[toml] safety
-
-    - name: Install project dependencies
+    - name: Install security tools and dependencies
       run: |
         if [ -f "pyproject.toml" ]; then
           # Check if dependency-groups are defined
@@ -52,8 +48,15 @@ jobs:
             uv sync --extra dev --extra test
           fi
         elif [ -f "requirements.txt" ]; then
+          uv venv
+          source .venv/bin/activate
           uv pip install -r requirements.txt
+        else
+          uv venv
+          source .venv/bin/activate
         fi
+        # Install security tools
+        uv pip install bandit[toml] safety
 
     - name: Run Bandit security linter
       run: |
@@ -68,8 +71,8 @@ jobs:
     - name: Run Gitleaks secret scanner
       uses: gitleaks/gitleaks-action@v2
       env:
-        GITHUB_PERSONAL_ACCESS_TOKEN: $
-        GITLEAKS_LICENSE: $
+        GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
     - name: Upload security reports to SARIF
       if: always()
@@ -128,7 +131,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: security-reports-$
+        name: security-reports-${{ matrix.python-version }}
         path: |
           bandit-report.json
           safety-report.json
@@ -173,7 +176,7 @@ jobs:
             comment += '### 🔍 Safety Dependency Scanner\n❓ Report not available\n\n';
           }
           
-          comment += `---\n*Security scan completed for Python $*`;
+          comment += `---\n*Security scan completed for Python ${{ matrix.python-version }}*`;
           
           github.rest.issues.createComment({
             issue_number: context.issue.number,
@@ -213,7 +216,7 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
-        languages: $
+        languages: ${{ matrix.language }}
 
     - name: Autobuild
       uses: github/codeql-action/autobuild@v3
@@ -221,4 +224,4 @@ jobs:
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
-        category: "/language:$"
+        category: "/language:${{matrix.language}}"

@@ -364,6 +364,11 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         # Process template variables with default values
         def replace_variable(match):
+            # Check if this is a GitHub Actions variable (preceded by $)
+            # If so, return it unchanged
+            if match.group(0).startswith("${{"):
+                return match.group(0)
+
             var_expr = match.group(1).strip()
 
             # Handle default values: {{ var | default('value') }}
@@ -379,8 +384,9 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             else:
                 return variables.get(var_expr, "")
 
-        # Replace template variables
-        processed_content = re.sub(r"\{\{\s*([^}]+)\s*\}\}", replace_variable, template_content)
+        # Replace template variables (but not GitHub Actions variables like ${{ }})
+        # Match {{ }} that are NOT preceded by $
+        processed_content = re.sub(r"(?<!\$)\{\{\s*([^}]+)\s*\}\}", replace_variable, template_content)
 
         return processed_content
 

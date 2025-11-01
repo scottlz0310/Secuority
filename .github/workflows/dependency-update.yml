@@ -70,6 +70,8 @@ jobs:
             uv sync --extra test
           fi
         elif [ -f "requirements.txt" ]; then
+          uv venv
+          source .venv/bin/activate
           uv pip install -r requirements.txt
           uv pip install pytest
         fi
@@ -85,7 +87,7 @@ jobs:
       if: env.has_updates == 'true'
       uses: peter-evans/create-pull-request@v6
       with:
-        token: $
+        token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
         commit-message: |
           chore: update dependencies
           

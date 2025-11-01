@@ -28,8 +28,8 @@ jobs:
       with:
         version: "latest"
 
-    - name: Set up Python $
-      run: uv python install $
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
@@ -43,11 +43,16 @@ jobs:
             uv sync --extra dev --extra test
           fi
         elif [ -f "requirements.txt" ]; then
+          # Create virtual environment and install dependencies
+          uv venv
+          source .venv/bin/activate
           uv pip install -r requirements.txt
           # Install common development tools
           uv pip install ruff mypy pytest pytest-cov
         else
           # Install basic tools for projects without dependency files
+          uv venv
+          source .venv/bin/activate
           uv pip install ruff mypy pytest pytest-cov
         fi
 
@@ -77,7 +82,7 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
-        token: $
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   pre-commit:
     runs-on: ubuntu-latest
@@ -94,17 +99,17 @@ jobs:
 
     - name: Install pre-commit
       run: |
-        uv pip install pre-commit
+        uv tool install pre-commit
 
     - name: Cache pre-commit hooks
       uses: actions/cache@v4
       with:
         path: ~/.cache/pre-commit
-        key: pre-commit-$-$
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
     - name: Run pre-commit hooks
       run: |
-        uv run pre-commit run --all-files
+        pre-commit run --all-files
 
   docs:
     runs-on: ubuntu-latest
@@ -122,30 +127,38 @@ jobs:
 
     - name: Install documentation dependencies
       run: |
+        # Only install and build docs if docs directory exists
+        if [ ! -d "docs" ]; then
+          echo "No docs directory found, skipping documentation build"
+          exit 0
+        fi
+
         if [ -f "pyproject.toml" ]; then
           # Check if dependency-groups are defined
           if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data and 'docs' in data['dependency-groups'] else 1)" 2>/dev/null; then
             uv sync --group docs
           else
             # Fallback to basic sphinx installation
-            uv pip install sphinx sphinx-rtd-theme
+            uv pip install --system sphinx sphinx-rtd-theme
           fi
         else
-          uv pip install sphinx sphinx-rtd-theme
+          uv pip install --system sphinx sphinx-rtd-theme
         fi
 
     - name: Build documentation
       run: |
-        if [ -d "docs" ]; then
+        if [ -d "docs" ] && [ -f "docs/Makefile" ]; then
           cd docs
-          uv run make html
+          make html
+        else
+          echo "No docs directory or Makefile found, skipping documentation build"
         fi
 
     - name: Deploy to GitHub Pages
       if: success()
       uses: peaceiris/actions-gh-pages@v4
       with:
-        GITHUB_PERSONAL_ACCESS_TOKEN: $
+        GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
         publish_dir: ./docs/_build/html
 
   dependency-review:
