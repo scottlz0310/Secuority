@@ -4,6 +4,7 @@ Secuority CLI - Python project security and quality configuration tool.
 
 # CLI import removed to avoid circular imports
 from .core.engine import CoreEngine
+from .models.config import ApplyResult, ConfigChange
 from .models.exceptions import (
     ConfigurationError,
     FileOperationError,
@@ -14,10 +15,8 @@ from .models.exceptions import (
     ValidationError,
 )
 from .models.interfaces import (
-    ApplyResult,
     ChangeType,
     CLIInterface,
-    ConfigChange,
     ConfigurationApplierInterface,
     GitHubClientInterface,
     ProjectAnalyzerInterface,

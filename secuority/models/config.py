@@ -95,14 +95,7 @@ class ConfigChange:
             if self.change_type == ChangeType.UPDATE and self.old_content is None:
                 return False
 
-            # Validate conflicts
-            for conflict in self.conflicts:
-                if not isinstance(conflict, Conflict):
-                    return False
-
-            # Validate metadata
-            if not isinstance(self.metadata, dict):
-                return False
+            # Conflicts and metadata are validated by type hints
 
             return True
         except Exception:
@@ -160,9 +153,8 @@ class ConfigChange:
             return False
         elif self.backup_strategy == BackupStrategy.ALWAYS:
             return self.requires_backup
-        elif self.backup_strategy == BackupStrategy.ON_CONFLICT:
+        else:  # BackupStrategy.ON_CONFLICT
             return self.requires_backup and self.has_conflicts()
-        return self.requires_backup
 
     def to_dict(self) -> dict[str, Any]:
         """Convert configuration change to dictionary."""

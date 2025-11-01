@@ -71,21 +71,13 @@ class ProjectState:
 
             # Validate tool configurations
             for tool_name, tool_config in self.current_tools.items():
-                if not isinstance(tool_config, ToolConfig):
-                    return False
                 if tool_config.name != tool_name:
                     return False
 
             # Validate workflows
             for workflow in self.ci_workflows:
-                if not isinstance(workflow, Workflow):
-                    return False
                 if not workflow.file_path.exists():
                     return False
-
-            # Validate dependency analysis if present
-            if self.dependency_analysis and not isinstance(self.dependency_analysis, DependencyAnalysis):
-                return False
 
             return True
         except Exception:

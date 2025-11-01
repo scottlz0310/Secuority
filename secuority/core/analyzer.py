@@ -5,7 +5,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-import structlog
+import structlog  # type: ignore[import-not-found]
 
 from ..models.exceptions import GitHubAPIError, ProjectAnalysisError
 from ..models.interfaces import (
@@ -155,7 +155,8 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             raise ProjectAnalysisError(f"Invalid project path: {project_path}")
 
         config_files = self.detect_configuration_files(project_path)
-        return self._check_security_tools(project_path, config_files)
+        security_tools = self._check_security_tools(project_path, config_files)
+        return {tool.value: status for tool, status in security_tools.items()}
 
     def _detect_dependency_manager(self, project_path: Path) -> DependencyManager | None:
         """Detect the dependency manager used by the project."""
@@ -366,7 +367,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
     def _parse_pyproject_tools(self, pyproject_path: Path) -> dict[str, ToolConfig]:
         """Parse tool configurations from pyproject.toml."""
-        tools = {}
+        tools: dict[str, ToolConfig] = {}
 
         try:
             with open(pyproject_path, "rb") as f:
@@ -522,7 +523,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         try:
             # Try to import yaml, if not available, fall back to text search
             try:
-                import yaml  # type: ignore
+                import yaml  # type: ignore[import-untyped, unused-ignore]
 
                 yaml_available = True
             except ImportError:
@@ -565,7 +566,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         try:
             # Try to import yaml, if not available, fall back to text search
             try:
-                import yaml  # type: ignore
+                import yaml  # type: ignore[import-untyped, unused-ignore]
 
                 yaml_available = True
             except ImportError:
@@ -653,7 +654,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         try:
             # Try to import yaml, if not available, fall back to basic parsing
             try:
-                import yaml  # type: ignore
+                import yaml  # type: ignore[import-untyped, unused-ignore]
 
                 yaml_available = True
             except ImportError:
@@ -742,7 +743,11 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                     data = tomllib.load(f)
 
                 if "project" in data and "requires-python" in data["project"]:
-                    return data["project"]["requires-python"]
+                    project_data = data["project"]
+                    if isinstance(project_data, dict):
+                        requires_python = project_data.get("requires-python")
+                        if isinstance(requires_python, str):
+                            return requires_python
 
             except (tomllib.TOMLDecodeError, OSError):
                 pass

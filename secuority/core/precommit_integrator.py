@@ -300,7 +300,7 @@ class PreCommitIntegrator:
             ConfigurationError: If YAML generation fails
         """
         try:
-            return yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
+            return str(yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2))
         except Exception as e:
             raise ConfigurationError(f"Failed to generate YAML content: {e}") from e
 
@@ -417,7 +417,7 @@ class PreCommitIntegrator:
         Returns:
             List of conflicts found during merge
         """
-        conflicts = []
+        conflicts: list[Conflict] = []
 
         if "hooks" not in template_repo:
             return conflicts

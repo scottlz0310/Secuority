@@ -380,7 +380,7 @@ github.rest.issues.createComment({
 
             yaml_content = yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
 
-            return header + yaml_content
+            return header + str(yaml_content)
         except Exception as e:
             raise ConfigurationError(f"Failed to generate YAML content: {e}") from e
 

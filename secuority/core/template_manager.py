@@ -618,14 +618,16 @@ class TemplateManager(TemplateManagerInterface):
         if config_path.exists() and yaml is not None:
             try:
                 with open(config_path, encoding="utf-8") as f:
-                    return yaml.safe_load(f)
+                    result: dict[str, Any] = yaml.safe_load(f)
+                    return result
             except (OSError, yaml.YAMLError) as e:
                 msg = f"Failed to load configuration: {e}"
                 raise TemplateError(msg) from e
         elif json_config_path.exists():
             try:
                 with open(json_config_path, encoding="utf-8") as f:
-                    return json.load(f)
+                    json_result: dict[str, Any] = json.load(f)
+                    return json_result
             except (OSError, json.JSONDecodeError) as e:
                 msg = f"Failed to load configuration: {e}"
                 raise TemplateError(msg) from e

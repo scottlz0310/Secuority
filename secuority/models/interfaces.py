@@ -5,7 +5,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .config import ApplyResult
+    from .config import ConfigChange as ConfigChangeType
 
 
 class ChangeType(Enum):
@@ -81,8 +85,6 @@ def validate_version_string(version: str) -> bool:
 
 def validate_tool_config(config: dict[str, Any]) -> bool:
     """Validate tool configuration dictionary."""
-    if not isinstance(config, dict):
-        return False
     # Basic validation - ensure it's a dictionary with string keys
     return all(isinstance(key, str) for key in config.keys())
 
@@ -156,28 +158,6 @@ class Workflow:
             raise ValueError("Workflow name cannot be empty")
 
 
-@dataclass
-class ConfigChange:
-    """Represents a configuration change to be applied."""
-
-    file_path: Path
-    change_type: ChangeType
-    old_content: str | None
-    new_content: str
-    description: str
-    requires_backup: bool
-
-
-@dataclass
-class ApplyResult:
-    """Result of applying configuration changes."""
-
-    successful_changes: list[ConfigChange]
-    failed_changes: list[tuple]  # (ConfigChange, Exception)
-    conflicts: list[str]
-    backups_created: list[Path]
-
-
 class ProjectAnalyzerInterface(ABC):
     """Interface for project analysis functionality."""
 
@@ -222,7 +202,7 @@ class ConfigurationApplierInterface(ABC):
     """Interface for applying configuration changes."""
 
     @abstractmethod
-    def apply_changes(self, changes: list[ConfigChange], dry_run: bool = False) -> ApplyResult:
+    def apply_changes(self, changes: list["ConfigChangeType"], dry_run: bool = False) -> "ApplyResult":
         """Apply configuration changes to the project."""
 
     @abstractmethod
@@ -238,19 +218,19 @@ class GitHubClientInterface(ABC):
     """Interface for GitHub API integration."""
 
     @abstractmethod
-    def check_push_protection(self, repo: str) -> bool:
+    def check_push_protection(self, owner: str, repo: str) -> bool:
         """Check if GitHub Push Protection is enabled for the repository."""
 
     @abstractmethod
-    def get_dependabot_config(self, repo: str) -> dict[str, Any]:
+    def get_dependabot_config(self, owner: str, repo: str) -> dict[str, Any]:
         """Get Dependabot configuration for the repository."""
 
     @abstractmethod
-    def list_workflows(self, repo: str) -> list[str]:
+    def list_workflows(self, owner: str, repo: str) -> list[dict[str, Any]]:
         """List GitHub Actions workflows in the repository."""
 
     @abstractmethod
-    def check_security_settings(self, repo: str) -> dict[str, Any]:
+    def check_security_settings(self, owner: str, repo: str) -> dict[str, Any]:
         """Check repository security settings."""
 
 
@@ -283,20 +263,6 @@ class ProjectState:
         try:
             # Validate project path
             if not validate_project_path(self.project_path):
-                return False
-
-            # Validate tool configurations
-            for tool_config in self.current_tools.values():
-                if not isinstance(tool_config, ToolConfig):
-                    return False
-
-            # Validate workflows
-            for workflow in self.ci_workflows:
-                if not isinstance(workflow, Workflow):
-                    return False
-
-            # Validate dependency analysis if present
-            if self.dependency_analysis and not isinstance(self.dependency_analysis, DependencyAnalysis):
                 return False
 
             return True

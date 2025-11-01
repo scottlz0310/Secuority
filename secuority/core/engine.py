@@ -74,7 +74,11 @@ class CoreEngine:
         return self.applier.apply_changes(recommendations, dry_run)
 
     def check_github_integration(self, repo: str) -> dict:
-        """Check GitHub repository settings if client is available."""
+        """Check GitHub repository settings if client is available.
+
+        Args:
+            repo: Repository in format "owner/repo"
+        """
         if self.github_client is None:
             return {
                 "available": False,
@@ -82,12 +86,17 @@ class CoreEngine:
             }
 
         try:
+            # Parse owner/repo format
+            if "/" not in repo:
+                return {"available": False, "error": "Repository must be in 'owner/repo' format"}
+            owner, repo_name = repo.split("/", 1)
+
             return {
                 "available": True,
-                "push_protection": self.github_client.check_push_protection(repo),
-                "dependabot": self.github_client.get_dependabot_config(repo),
-                "workflows": self.github_client.list_workflows(repo),
-                "security_settings": self.github_client.check_security_settings(repo),
+                "push_protection": self.github_client.check_push_protection(owner, repo_name),
+                "dependabot": self.github_client.get_dependabot_config(owner, repo_name),
+                "workflows": self.github_client.list_workflows(owner, repo_name),
+                "security_settings": self.github_client.check_security_settings(owner, repo_name),
             }
         except Exception as e:
             return {"available": False, "error": str(e)}

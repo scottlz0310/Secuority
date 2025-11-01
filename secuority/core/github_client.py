@@ -9,11 +9,12 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from ..models.exceptions import GitHubAPIError
+from ..models.interfaces import GitHubClientInterface
 
 logger = logging.getLogger(__name__)
 
 
-class GitHubClient:
+class GitHubClient(GitHubClientInterface):
     """Client for interacting with GitHub API."""
 
     BASE_URL = "https://api.github.com"
@@ -48,7 +49,8 @@ class GitHubClient:
         try:
             # S310: Safe - Opening GitHub API endpoint with validated HTTPS URL
             with urlopen(request) as response:  # noqa: S310
-                return json.loads(response.read().decode("utf-8"))
+                result: dict[str, Any] = json.loads(response.read().decode("utf-8"))
+                return result
         except HTTPError as e:
             if e.code == 401:
                 raise GitHubAPIError("GitHub API authentication failed. Check GITHUB_PERSONAL_ACCESS_TOKEN.") from None
@@ -84,10 +86,17 @@ class GitHubClient:
             security_endpoint = f"/repos/{owner}/{repo}/secret-scanning/push-protection"
             try:
                 protection_data = self._make_request(security_endpoint)
-                return protection_data.get("enabled", False)
+                enabled: bool = protection_data.get("enabled", False)
+                return enabled
             except GitHubAPIError:
                 # If we can't access push protection endpoint, check general security settings
-                return repo_data.get("security_and_analysis", {}).get("secret_scanning", {}).get("status") == "enabled"
+                security_analysis = repo_data.get("security_and_analysis", {})
+                if isinstance(security_analysis, dict):
+                    secret_scanning = security_analysis.get("secret_scanning", {})
+                else:
+                    secret_scanning = {}
+                status = secret_scanning.get("status") if isinstance(secret_scanning, dict) else None
+                return status == "enabled"
         except GitHubAPIError:
             raise
 
@@ -140,7 +149,8 @@ class GitHubClient:
         endpoint = f"/repos/{owner}/{repo}/actions/workflows"
         try:
             response = self._make_request(endpoint)
-            return response.get("workflows", [])
+            workflows: list[dict[str, Any]] = response.get("workflows", [])
+            return workflows
         except GitHubAPIError:
             raise
 

@@ -74,7 +74,13 @@ class GitHubAPIError(SecuorityError):
     Note: These are typically handled as warnings to allow execution to continue.
     """
 
-    def __init__(self, message: str, status_code: int | None = None, response_data: dict | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        response_data: dict | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, **kwargs)
         if status_code:
             self.details["status_code"] = status_code
@@ -155,7 +161,13 @@ class FileOperationError(SecuorityError):
 class BackupError(FileOperationError):
     """Exception raised when backup operations fail."""
 
-    def __init__(self, message: str, original_file: str | None = None, backup_file: str | None = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        message: str,
+        original_file: str | None = None,
+        backup_file: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(message, operation="backup", **kwargs)
         if original_file:
             self.details["original_file"] = original_file

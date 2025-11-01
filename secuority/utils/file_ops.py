@@ -180,7 +180,7 @@ class FileOperations:
                 continue
 
         # Sort by creation time, newest first
-        backups.sort(key=lambda x: x["created"], reverse=True)
+        backups.sort(key=lambda x: float(x["created"]) if isinstance(x["created"], (int, float)) else 0.0, reverse=True)
         return backups
 
     def validate_file_permissions(self, file_path: Path) -> bool:

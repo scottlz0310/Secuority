@@ -7,12 +7,12 @@ try:
     import tomllib
 except ImportError:
     try:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[import-not-found,no-redef]
     except ImportError:
-        tomllib = None
+        tomllib = None  # type: ignore[assignment]
 
 try:
-    import tomli_w
+    import tomli_w  # type: ignore[import-not-found]
 except ImportError:
     tomli_w = None
 
@@ -52,7 +52,7 @@ class SecurityToolsIntegrator:
             existing_config = self._load_pyproject_config(pyproject_path)
 
         # Default Bandit configuration
-        bandit_config = {
+        bandit_config: dict[str, Any] = {
             "exclude_dirs": ["tests", "test_*"],
             "skips": ["B101", "B601"],  # Skip assert_used and shell_injection_process_args
         }
@@ -266,15 +266,17 @@ class SecurityToolsIntegrator:
             ConfigurationError: If TOML generation fails
         """
         try:
-            import toml
+            import toml  # type: ignore[import-untyped]
 
-            return toml.dumps(config)
+            result: str = toml.dumps(config)
+            return result
         except ImportError:
             pass
 
         if tomli_w is not None:
             try:
-                return tomli_w.dumps(config)
+                tomli_result: str = tomli_w.dumps(config)
+                return tomli_result
             except Exception as e:
                 raise ConfigurationError(f"Failed to generate TOML content: {e}") from e
 

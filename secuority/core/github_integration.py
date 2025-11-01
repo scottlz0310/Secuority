@@ -50,10 +50,13 @@ class GitHubIntegration:
         }
 
         # If not authenticated, provide helpful information
-        if not analysis_result["api_status"]["authenticated"]:
-            if "warnings" not in analysis_result:
-                analysis_result["warnings"] = []
-            analysis_result["warnings"].append(
+        api_status = analysis_result["api_status"]
+        if isinstance(api_status, dict) and not api_status.get("authenticated"):
+            warnings_list = analysis_result.get("warnings")
+            if not isinstance(warnings_list, list):
+                warnings_list = []
+                analysis_result["warnings"] = warnings_list
+            warnings_list.append(
                 "GitHub API authentication not available. "
                 "Set GITHUB_PERSONAL_ACCESS_TOKEN environment variable for full analysis.",
             )
@@ -104,7 +107,7 @@ class GitHubIntegration:
 
     def _analyze_security_settings(self, owner: str, repo: str) -> dict[str, Any]:
         """Analyze repository security settings with error handling."""
-        security_settings = (
+        security_settings: dict[str, Any] = (
             safe_github_call(
                 self.client.check_security_settings,
                 owner,
@@ -136,7 +139,7 @@ class GitHubIntegration:
 
     def _analyze_workflows(self, owner: str, repo: str) -> dict[str, Any]:
         """Analyze repository workflows with error handling."""
-        workflows = (
+        workflows: list[dict[str, Any]] = (
             safe_github_call(
                 self.client.list_workflows,
                 owner,
@@ -185,13 +188,23 @@ class GitHubIntegration:
 
     def _analyze_dependabot(self, owner: str, repo: str) -> dict[str, Any]:
         """Analyze Dependabot configuration with error handling."""
-        dependabot_config = safe_github_call(
+        dependabot_config_result = safe_github_call(
             self.client.get_dependabot_config,
             owner,
             repo,
             fallback_value={"enabled": False, "config_file_exists": False, "config_content": ""},
             operation_name="Dependabot configuration check",
             show_warnings=self.show_warnings,
+        )
+
+        dependabot_config: dict[str, Any] = (
+            dependabot_config_result
+            if dependabot_config_result is not None
+            else {
+                "enabled": False,
+                "config_file_exists": False,
+                "config_content": "",
+            }
         )
 
         recommendations = []

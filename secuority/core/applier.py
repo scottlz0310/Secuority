@@ -9,17 +9,17 @@ try:
     import tomllib
 except ImportError:
     try:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[import-not-found,no-redef]
     except ImportError:
-        tomllib = None
+        tomllib = None  # type: ignore[assignment]
 
 try:
-    import tomli_w
+    import tomli_w  # type: ignore[import-not-found]
 except ImportError:
     tomli_w = None
 
 try:
-    import toml
+    import toml  # type: ignore[import-untyped]
 except ImportError:
     toml = None
 
@@ -154,7 +154,7 @@ class ConfigurationMerger:
 
         # For text files like .gitignore, we typically append new lines
         merged_lines = list(existing_lines)
-        conflicts = []
+        conflicts: list[Conflict] = []
 
         for line in template_lines:
             line = line.strip()
@@ -380,9 +380,11 @@ class ConfigurationApplier(ConfigurationApplierInterface):
                 default_match = re.search(r"default\(['\"]([^'\"]*)['\"]", default_part)
                 default_value = default_match.group(1) if default_match else ""
 
-                return variables.get(var_name, default_value)
+                result_value = variables.get(var_name, default_value)
+                return str(result_value) if result_value is not None else default_value
             else:
-                return variables.get(var_expr, "")
+                result_value = variables.get(var_expr, "")
+                return str(result_value) if result_value is not None else ""
 
         # Replace template variables (but not GitHub Actions variables like ${{ }})
         # Match {{ }} that are NOT preceded by $
@@ -446,7 +448,8 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         try:
             import toml
 
-            return toml.dumps(data)
+            result: str = toml.dumps(data)
+            return result
         except Exception as e:
             raise ConfigurationError(f"Failed to format TOML content: {e}") from e
 

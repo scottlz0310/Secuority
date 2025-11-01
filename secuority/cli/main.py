@@ -153,8 +153,8 @@ def check(
             modern_tools = {"ruff", "mypy"}
             legacy_tools = {"black", "isort", "flake8", "pylint"}
 
-            for tool, configured in project_state.quality_tools.items():
-                tool_name = tool.value.lower()
+            for quality_tool, configured in project_state.quality_tools.items():
+                tool_name = quality_tool.value.lower()
 
                 if tool_name in modern_tools:
                     # Modern tools - show configured/not configured
@@ -173,7 +173,7 @@ def check(
                     status = "[green]✓ Configured[/green]" if configured else "[red]✗ Not configured[/red]"
                     note = ""
 
-                quality_table.add_row(tool.value, status, note)
+                quality_table.add_row(quality_tool.value, status, note)
 
             console.print(quality_table)
             console.print()
@@ -200,7 +200,7 @@ def check(
         github_analysis = None
         if core_engine.github_client:
             try:
-                github_analysis = core_engine.analyzer.analyze_github_repository(project_path)
+                github_analysis = core_engine.analyzer.analyze_github_repository(project_path)  # type: ignore[attr-defined]
                 if github_analysis.get("analysis_successful"):
                     if not github_analysis.get("push_protection", False):
                         recommendations.append("Enable GitHub Push Protection for secret scanning")
@@ -249,7 +249,7 @@ def check(
                 if not is_private:
                     console.print(
                         "[dim]Note: Some security features (Secret Scanning, Push Protection) "
-                        "require GitHub Advanced Security for public repositories.[/dim]"
+                        "require GitHub Advanced Security for public repositories.[/dim]",
                     )
 
                 console.print()
@@ -287,8 +287,8 @@ def check(
             essential_tools = ["ruff", "mypy"]
             missing_essential = []
 
-            for tool, configured in project_state.quality_tools.items():
-                tool_name = tool.value.lower()
+            for quality_tool, configured in project_state.quality_tools.items():
+                tool_name = quality_tool.value.lower()
                 if tool_name in essential_tools and not configured:
                     missing_essential.append(tool.value)
 
@@ -301,11 +301,11 @@ def check(
             if ruff_configured:
                 # Check if using redundant tools that ruff can replace
                 redundant_tools = []
-                for tool, configured in project_state.quality_tools.items():
-                    tool_name = tool.value.lower()
+                for qtool, configured in project_state.quality_tools.items():
+                    tool_name = qtool.value.lower()
                     if tool_name in ["black", "flake8", "isort"] and configured:
                         # Only suggest if it's configured separately from ruff
-                        redundant_tools.append(tool.value)
+                        redundant_tools.append(qtool.value)
 
                 if redundant_tools:
                     recommendations.append(
@@ -314,10 +314,10 @@ def check(
             else:
                 # Ruff not configured, suggest it as replacement for legacy tools
                 legacy_in_use = []
-                for tool, configured in project_state.quality_tools.items():
-                    tool_name = tool.value.lower()
+                for qtool, configured in project_state.quality_tools.items():
+                    tool_name = qtool.value.lower()
                     if tool_name in ["black", "flake8", "pylint"] and configured:
-                        legacy_in_use.append(tool.value)
+                        legacy_in_use.append(qtool.value)
 
                 if legacy_in_use:
                     recommendations.append(f"Consider migrating to ruff (can replace: {', '.join(legacy_in_use)})")
@@ -509,7 +509,7 @@ def apply(
             # pyproject.toml template
             if not project_state.has_pyproject_toml and "pyproject.toml.template" in templates:
                 try:
-                    change = core_engine.applier.merge_file_configurations(
+                    change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
                         project_path / "pyproject.toml",
                         templates["pyproject.toml.template"],
                     )
@@ -521,7 +521,7 @@ def apply(
             # .gitignore template
             if not project_state.has_gitignore and ".gitignore.template" in templates:
                 try:
-                    change = core_engine.applier.merge_file_configurations(
+                    change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
                         project_path / ".gitignore",
                         templates[".gitignore.template"],
                     )
@@ -533,7 +533,7 @@ def apply(
             # pre-commit template
             if not project_state.has_pre_commit_config and ".pre-commit-config.yaml.template" in templates:
                 try:
-                    change = core_engine.applier.merge_file_configurations(
+                    change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
                         project_path / ".pre-commit-config.yaml",
                         templates[".pre-commit-config.yaml.template"],
                     )
@@ -545,7 +545,7 @@ def apply(
             # SECURITY.md template
             if not project_state.has_security_md and "SECURITY.md.template" in templates:
                 try:
-                    change = core_engine.applier.merge_file_configurations(
+                    change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
                         project_path / "SECURITY.md",
                         templates["SECURITY.md.template"],
                     )
@@ -560,7 +560,7 @@ def apply(
                 workflow_path = project_path / ".github" / workflow_template
                 if not workflow_path.exists():
                     try:
-                        change = core_engine.applier.merge_file_configurations(
+                        change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
                             workflow_path,
                             templates[workflow_template],
                         )
@@ -576,7 +576,7 @@ def apply(
             ]
             if missing_security_tools:
                 try:
-                    security_changes = core_engine.applier.get_security_integration_changes(
+                    security_changes = core_engine.applier.get_security_integration_changes(  # type: ignore[attr-defined]
                         project_path,
                         missing_security_tools,
                     )
@@ -600,7 +600,7 @@ def apply(
             ]
             if missing_quality_tools:
                 try:
-                    quality_changes = core_engine.applier.get_quality_integration_changes(
+                    quality_changes = core_engine.applier.get_quality_integration_changes(  # type: ignore[attr-defined]
                         project_path,
                         missing_quality_tools,
                     )
@@ -620,7 +620,7 @@ def apply(
         # Handle dependency migration if needed
         if apply_templates and project_state.dependency_analysis and project_state.dependency_analysis.migration_needed:
             try:
-                migration_change = core_engine.applier.get_dependency_migration_change(
+                migration_change = core_engine.applier.get_dependency_migration_change(  # type: ignore[attr-defined]
                     project_path,
                     project_state.dependency_analysis,
                 )
@@ -633,7 +633,7 @@ def apply(
         # Add CI/CD workflows if needed
         if apply_templates and not project_state.ci_workflows:
             try:
-                workflow_changes = core_engine.applier.get_workflow_integration_changes(
+                workflow_changes = core_engine.applier.get_workflow_integration_changes(  # type: ignore[attr-defined]
                     project_path,
                     ["security", "quality"],
                 )
@@ -675,7 +675,7 @@ def apply(
                 console.print("[dim]Backups will be created for existing files.[/dim]")
 
                 # Show summary of what will be changed
-                file_changes = {}
+                file_changes: dict[str, list[str]] = {}
                 for change in changes:
                     action = change.change_type.value
                     if action not in file_changes:
@@ -758,9 +758,9 @@ def apply(
 
         if not structured_output and not force and not dry_run:
             # Interactive mode - show diffs and get individual approvals
-            result = core_engine.applier.apply_changes_interactively(changes, dry_run=dry_run, batch_mode=False)
+            result = core_engine.applier.apply_changes_interactively(changes, dry_run=dry_run, batch_mode=False)  # type: ignore[attr-defined]
         else:
-            # Batch mode - apply all changes at once
+            # Batch mode - apply all changes at once  # type: ignore[attr-defined]
             if not structured_output and not dry_run:
                 with console.status("[bold green]Applying configuration changes..."):
                     result = core_engine.applier.apply_changes(changes, dry_run=dry_run)
@@ -996,7 +996,7 @@ def template_update(
 
         if success:
             # Get update history
-            history = core_engine.template_manager.get_template_history()
+            history = core_engine.template_manager.get_template_history()  # type: ignore[attr-defined]
 
             logger.log_operation(
                 operation="template_update",
