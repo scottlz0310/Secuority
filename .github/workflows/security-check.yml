@@ -72,47 +72,45 @@ jobs:
       - name: Upload security reports to SARIF
         if: always()
         run: |
-          # Convert Bandit report to SARIF format if available
           if [ -f "bandit-report.json" ]; then
             uv pip install sarif-om
-            uv run python -c "
-            import json
-            import sys
-            from sarif_om import SarifLog, Run, Tool, Result, Location, PhysicalLocation, ArtifactLocation, Message
+            uv run python << 'PYTHON_SCRIPT'
+          import json
+          from sarif_om import SarifLog, Run, Tool, Result, Location, PhysicalLocation, ArtifactLocation, Message
 
-            try:
-                with open('bandit-report.json', 'r') as f:
-                    bandit_data = json.load(f)
+          try:
+              with open("bandit-report.json", "r") as f:
+                  bandit_data = json.load(f)
 
-                sarif_log = SarifLog(
-                    version='2.1.0',
-                    runs=[
-                        Run(
-                            tool=Tool(driver={'name': 'Bandit', 'version': '1.7.10'}),
-                            results=[
-                                Result(
-                                    rule_id=result['test_id'],
-                                    message=Message(text=result['issue_text']),
-                                    level='error' if result['issue_severity'] == 'HIGH' else 'warning',
-                                    locations=[
-                                        Location(
-                                            physical_location=PhysicalLocation(
-                                                artifact_location=ArtifactLocation(uri=result['filename']),
-                                                region={'startLine': result['line_number']}
-                                            )
-                                        )
-                                    ]
-                                ) for result in bandit_data.get('results', [])
-                            ]
-                        )
-                    ]
-                )
+              sarif_log = SarifLog(
+                  version="2.1.0",
+                  runs=[
+                      Run(
+                          tool=Tool(driver={"name": "Bandit", "version": "1.7.10"}),
+                          results=[
+                              Result(
+                                  rule_id=result["test_id"],
+                                  message=Message(text=result["issue_text"]),
+                                  level="error" if result["issue_severity"] == "HIGH" else "warning",
+                                  locations=[
+                                      Location(
+                                          physical_location=PhysicalLocation(
+                                              artifact_location=ArtifactLocation(uri=result["filename"]),
+                                              region={"startLine": result["line_number"]}
+                                          )
+                                      )
+                                  ]
+                              ) for result in bandit_data.get("results", [])
+                          ]
+                      )
+                  ]
+              )
 
-                with open('bandit.sarif', 'w') as f:
-                    json.dump(sarif_log.to_dict(), f, indent=2)
-            except Exception as e:
-                print(f'Failed to convert Bandit report to SARIF: {e}')
-            "
+              with open("bandit.sarif", "w") as f:
+                  json.dump(sarif_log.to_dict(), f, indent=2)
+          except Exception as e:
+              print(f"Failed to convert Bandit report to SARIF: {e}")
+          PYTHON_SCRIPT
           fi
 
       - name: Upload SARIF file
