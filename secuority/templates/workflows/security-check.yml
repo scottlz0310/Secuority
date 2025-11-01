@@ -28,7 +28,7 @@ jobs:
       - name: Run Gitleaks secret scanner
         uses: gitleaks/gitleaks-action@v2
         env:
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   security:
@@ -190,7 +190,6 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, GPL-3.0
           deny-licenses: GPL-2.0, LGPL-2.0, LGPL-2.1
 
   codeql:
