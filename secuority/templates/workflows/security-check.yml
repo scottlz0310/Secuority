@@ -55,8 +55,8 @@ jobs:
 
       - name: Run Bandit security linter
         run: |
-          uv run bandit -r . -f json -o bandit-report.json || true
-          uv run bandit -r . -f txt
+          uv run bandit -c pyproject.toml -r . -f json -o bandit-report.json || true
+          uv run bandit -c pyproject.toml -r . -f txt
 
       - name: Run Safety dependency vulnerability scanner
         run: |
