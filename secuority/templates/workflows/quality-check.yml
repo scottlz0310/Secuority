@@ -67,7 +67,7 @@ jobs:
       - name: Type check with MyPy
         run: |
           # MyPy will use pyproject.toml configuration automatically
-          uv run mypy . --show-error-codes --show-error-context
+          uv run mypy {{ package_name }} --show-error-codes --show-error-context
 
       - name: Test with pytest
         run: |
