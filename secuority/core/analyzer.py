@@ -555,7 +555,11 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 has_quality_checks=has_quality_checks,
             )
 
-        except (ImportError, OSError, yaml.YAMLError):
+        except ImportError:
+            # If yaml is not available, return None
+            return None
+        except (OSError, Exception):
+            # If file can't be read or parsed, return None
             return None
 
     def _detect_python_version(self, project_path: Path, config_files: dict[str, Path]) -> str | None:
