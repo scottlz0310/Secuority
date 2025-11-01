@@ -3,8 +3,8 @@
 from pathlib import Path
 from typing import Any
 
+from ..models.config import ApplyResult
 from ..models.interfaces import (
-    ApplyResult,
     ConfigurationApplierInterface,
     GitHubClientInterface,
     ProjectAnalyzerInterface,

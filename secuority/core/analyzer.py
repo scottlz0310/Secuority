@@ -5,8 +5,6 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-import structlog
-
 from ..models.exceptions import GitHubAPIError, ProjectAnalysisError
 from ..models.interfaces import (
     DependencyAnalysis,
@@ -20,9 +18,10 @@ from ..models.interfaces import (
     Workflow,
     validate_project_path,
 )
+from ..utils.logger import get_logger
 from .github_client import GitHubClient
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class ProjectAnalyzer(ProjectAnalyzerInterface):
