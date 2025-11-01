@@ -55,7 +55,7 @@ jobs:
         run: |
           # Ruff will use pyproject.toml configuration automatically
           # Stop the build if there are Python syntax errors or undefined names
-          uv run ruff check . --output-format=github --select=E9,F63,F7,F82 --show-source
+          uv run ruff check . --output-format=github --select=E9,F63,F7,F82
           # Default set of ruff rules with GitHub Actions annotations
           uv run ruff check . --output-format=github
 
