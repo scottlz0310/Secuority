@@ -78,6 +78,7 @@ def check(
             ("setup.py", project_state.has_setup_py, "Legacy format (consider migration)", False),
             (".gitignore", project_state.has_gitignore, "Git ignore patterns", True),
             (".pre-commit-config.yaml", project_state.has_pre_commit_config, "Pre-commit hooks", True),
+            ("SECURITY.md", project_state.has_security_md, "Security policy", True),
         ]
 
         if not structured_output:
@@ -211,6 +212,11 @@ def check(
                     vuln_alerts = security_settings.get("vulnerability_alerts", {}).get("enabled", False)
                     va_status = "[green]✓ Enabled[/green]" if vuln_alerts else "[red]✗ Disabled[/red]"
                     github_table.add_row("Vulnerability Alerts", va_status)
+                    
+                    # Security Policy
+                    security_policy = security_settings.get("security_policy", False)
+                    sp_status = "[green]✓ Enabled[/green]" if security_policy else "[red]✗ Disabled[/red]"
+                    github_table.add_row("Security Policy", sp_status)
 
                 console.print(github_table)
                 console.print()
@@ -227,6 +233,8 @@ def check(
             recommendations.append("Add .gitignore file with Python patterns")
         if not project_state.has_pre_commit_config:
             recommendations.append("Set up pre-commit hooks for code quality")
+        if not project_state.has_security_md:
+            recommendations.append("Add SECURITY.md to define security policy and enable GitHub Security tab")
 
         # Check for dependency migration
         if project_state.dependency_analysis and project_state.dependency_analysis.migration_needed:
@@ -240,23 +248,63 @@ def check(
             if missing_security:
                 recommendations.append(f"Configure security tools: {', '.join(missing_security)}")
 
-        # Check for missing quality tools
+        # Check for missing quality tools (modern approach)
         if project_state.quality_tools:
-            missing_quality = [tool.value for tool, configured in project_state.quality_tools.items() if not configured]
-            if missing_quality:
-                recommendations.append(f"Configure quality tools: {', '.join(missing_quality)}")
+            # Check for essential modern tools
+            essential_tools = ["ruff", "mypy"]
+            missing_essential = []
+            
+            for tool, configured in project_state.quality_tools.items():
+                tool_name = tool.value.lower()
+                if tool_name in essential_tools and not configured:
+                    missing_essential.append(tool.value)
+            
+            if missing_essential:
+                recommendations.append(f"Configure essential quality tools: {', '.join(missing_essential)}")
+            
+            # Check for tool redundancy and suggest modern alternatives
+            ruff_configured = any(
+                t.value.lower() == "ruff" for t, c in project_state.quality_tools.items() if c
+            )
+            
+            if ruff_configured:
+                # Check if using redundant tools that ruff can replace
+                redundant_tools = []
+                for tool, configured in project_state.quality_tools.items():
+                    tool_name = tool.value.lower()
+                    if tool_name in ["black", "flake8", "isort"] and configured:
+                        # Only suggest if it's configured separately from ruff
+                        redundant_tools.append(tool.value)
+                
+                if redundant_tools:
+                    recommendations.append(
+                        f"Consider removing redundant tools (ruff already handles: {', '.join(redundant_tools)})"
+                    )
+            else:
+                # Ruff not configured, suggest it as replacement for legacy tools
+                legacy_in_use = []
+                for tool, configured in project_state.quality_tools.items():
+                    tool_name = tool.value.lower()
+                    if tool_name in ["black", "flake8", "pylint"] and configured:
+                        legacy_in_use.append(tool.value)
+                
+                if legacy_in_use:
+                    recommendations.append(
+                        f"Consider migrating to ruff (can replace: {', '.join(legacy_in_use)})"
+                    )
 
-        # Check CI workflows
+        # Check CI workflows - only recommend if no workflows exist
         if not project_state.ci_workflows:
             recommendations.append("Set up CI/CD workflows for automated testing and security checks")
         else:
+            # If workflows exist, check for specific missing features
             has_security_workflow = any(wf.has_security_checks for wf in project_state.ci_workflows)
             has_quality_workflow = any(wf.has_quality_checks for wf in project_state.ci_workflows)
 
             if not has_security_workflow:
-                recommendations.append("Add security checks to CI/CD workflows")
+                recommendations.append("Add security checks to existing CI/CD workflows")
             if not has_quality_workflow:
-                recommendations.append("Add quality checks to CI/CD workflows")
+                recommendations.append("Add quality checks to existing CI/CD workflows")
 
         # Log recommendations
         if recommendations:
@@ -464,6 +512,18 @@ def apply(
                     logger.debug("Added pre-commit template change")
                 except Exception as e:
                     logger.warning("Failed to generate pre-commit change", error=str(e))
+
+            # SECURITY.md template
+            if not project_state.has_security_md and "SECURITY.md.template" in templates:
+                try:
+                    change = core_engine.applier.merge_file_configurations(
+                        project_path / "SECURITY.md",
+                        templates["SECURITY.md.template"],
+                    )
+                    changes.append(change)
+                    logger.debug("Added SECURITY.md template change")
+                except Exception as e:
+                    logger.warning("Failed to generate SECURITY.md change", error=str(e))
 
             # Add workflow templates if they exist
             workflow_templates = [name for name in templates.keys() if name.startswith("workflows/")]

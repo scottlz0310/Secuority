@@ -264,6 +264,7 @@ class ProjectState:
     has_setup_py: bool = False
     has_gitignore: bool = False
     has_pre_commit_config: bool = False
+    has_security_md: bool = False
     dependency_manager: DependencyManager | None = None
     current_tools: dict[str, ToolConfig] = field(default_factory=dict)
     security_tools: dict[SecurityTool, bool] = field(default_factory=dict)

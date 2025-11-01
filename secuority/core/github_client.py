@@ -162,6 +162,16 @@ class GitHubClient:
             repo_data = self._make_request(endpoint)
             security_analysis = repo_data.get("security_and_analysis", {})
 
+            # Check if SECURITY.md exists in the repository
+            has_security_policy = False
+            try:
+                security_md_endpoint = f"/repos/{owner}/{repo}/contents/SECURITY.md"
+                self._make_request(security_md_endpoint)
+                has_security_policy = True
+            except GitHubAPIError:
+                # SECURITY.md doesn't exist
+                pass
+
             return {
                 "secret_scanning": security_analysis.get("secret_scanning", {}).get("status") == "enabled",
                 "secret_scanning_push_protection": security_analysis.get("secret_scanning_push_protection", {}).get(
@@ -173,6 +183,7 @@ class GitHubClient:
                     "status",
                 )
                 == "enabled",
+                "security_policy": has_security_policy,
             }
         except GitHubAPIError:
             raise

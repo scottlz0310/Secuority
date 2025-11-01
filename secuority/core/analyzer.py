@@ -39,6 +39,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         project_state.has_setup_py = "setup.py" in config_files
         project_state.has_gitignore = ".gitignore" in config_files
         project_state.has_pre_commit_config = ".pre-commit-config.yaml" in config_files
+        project_state.has_security_md = "SECURITY.md" in config_files
 
         # Detect dependency manager
         project_state.dependency_manager = self._detect_dependency_manager(project_path)
@@ -79,6 +80,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             ".gitignore",
             ".pre-commit-config.yaml",
             ".pre-commit-config.yml",
+            "SECURITY.md",
             "tox.ini",
             "pytest.ini",
             "mypy.ini",
@@ -413,16 +415,22 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             except (tomllib.TOMLDecodeError, OSError):
                 pass
 
-        # Check for Safety (usually in requirements or CI)
-        # This is a simplified check - in practice, you'd look for safety in CI configs
-        if "requirements.txt" in config_files:
-            security_tools[SecurityTool.SAFETY] = True
-
         # Check for gitleaks in pre-commit config
         precommit_configs = [".pre-commit-config.yaml", ".pre-commit-config.yml"]
         for config_name in precommit_configs:
             if config_name in config_files:
                 if self._check_gitleaks_in_precommit(config_files[config_name]):
+                    security_tools[SecurityTool.GITLEAKS] = True
+
+        # Check for security tools in pre-commit config
+        for config_name in precommit_configs:
+            if config_name in config_files:
+                precommit_tools = self._check_tools_in_precommit(config_files[config_name])
+                if "bandit" in precommit_tools:
+                    security_tools[SecurityTool.BANDIT] = True
+                if "safety" in precommit_tools:
+                    security_tools[SecurityTool.SAFETY] = True
+                if "gitleaks" in precommit_tools:
                     security_tools[SecurityTool.GITLEAKS] = True
 
         return security_tools
@@ -460,36 +468,157 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                         for tool_name, tool_enum in tool_mapping.items():
                             if tool_name in data["tool"]:
                                 quality_tools[tool_enum] = True
+
+                        # Check if ruff has import sorting enabled (modern replacement for isort)
+                        if "ruff" in data["tool"]:
+                            ruff_config = data["tool"]["ruff"]
+                            # Check if ruff is configured for import sorting
+                            if isinstance(ruff_config, dict):
+                                # Check top-level select rules
+                                select_rules = ruff_config.get("select", [])
+                                # Check lint.select rules (newer ruff format)
+                                lint_config = ruff_config.get("lint", {})
+                                lint_select = lint_config.get("select", []) if isinstance(lint_config, dict) else []
+                                
+                                all_rules = select_rules + lint_select
+                                
+                                # Check for import sorting rules (I001, etc.)
+                                has_import_rules = any(
+                                    rule.startswith("I") for rule in all_rules 
+                                    if isinstance(rule, str)
+                                )
+                                
+                                if has_import_rules:
+                                    quality_tools[QualityTool.ISORT] = True
             except (tomllib.TOMLDecodeError, OSError):
                 pass
+
+        # Check for quality tools in pre-commit config
+        precommit_configs = [".pre-commit-config.yaml", ".pre-commit-config.yml"]
+        for config_name in precommit_configs:
+            if config_name in config_files:
+                precommit_tools = self._check_tools_in_precommit(config_files[config_name])
+                # Map pre-commit tools to quality tools
+                tool_mapping = {
+                    "ruff": QualityTool.RUFF,
+                    "mypy": QualityTool.MYPY,
+                    "black": QualityTool.BLACK,
+                    "isort": QualityTool.ISORT,
+                    "flake8": QualityTool.FLAKE8,
+                    "pylint": QualityTool.PYLINT,
+                }
+                
+                for tool_name, tool_enum in tool_mapping.items():
+                    if tool_name in precommit_tools:
+                        quality_tools[tool_enum] = True
 
         return quality_tools
 
     def _check_gitleaks_in_precommit(self, precommit_path: Path) -> bool:
         """Check if gitleaks is configured in pre-commit config."""
         try:
-            import yaml  # type: ignore
+            # Try to import yaml, if not available, fall back to text search
+            try:
+                import yaml  # type: ignore
+                yaml_available = True
+            except ImportError:
+                yaml_available = False
 
-            with open(precommit_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+            if yaml_available:
+                # Use YAML parser for accurate parsing
+                with open(precommit_path, encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
 
-            if not isinstance(data, dict) or "repos" not in data:
-                return False
+                if not isinstance(data, dict) or "repos" not in data:
+                    return False
 
-            for repo in data["repos"]:
-                if isinstance(repo, dict) and "repo" in repo:
-                    repo_url = repo["repo"]
-                    if "gitleaks" in repo_url.lower():
-                        return True
+                for repo in data["repos"]:
+                    if isinstance(repo, dict) and "repo" in repo:
+                        repo_url = repo["repo"]
+                        if "gitleaks" in repo_url.lower():
+                            return True
+            else:
+                # Fallback to text search
+                with open(precommit_path, encoding="utf-8") as f:
+                    content = f.read().lower()
+                    return "gitleaks" in content
 
-        except ImportError:
-            # If yaml is not available, return False
+        except (OSError, UnicodeDecodeError):
+            # If file can't be read, return False
             pass
-        except (OSError, Exception):
-            # If file can't be read or parsed, return False
+        except Exception:
+            # For any other errors, return False
             pass
 
         return False
+
+    def _check_tools_in_precommit(self, precommit_path: Path) -> list[str]:
+        """Check which tools are configured in pre-commit config."""
+        tools = []
+        
+        try:
+            # Try to import yaml, if not available, fall back to text search
+            try:
+                import yaml  # type: ignore
+                yaml_available = True
+            except ImportError:
+                yaml_available = False
+
+            if yaml_available:
+                # Use YAML parser for accurate parsing
+                with open(precommit_path, encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
+
+                if isinstance(data, dict) and "repos" in data:
+                    for repo in data["repos"]:
+                        if isinstance(repo, dict):
+                            # Check repo URL for tool names
+                            repo_url = repo.get("repo", "").lower()
+                            
+                            # Common tool patterns in repo URLs
+                            tool_patterns = {
+                                "ruff": ["ruff", "astral-sh/ruff"],
+                                "mypy": ["mypy", "pre-commit/mirrors-mypy"],
+                                "black": ["black", "psf/black"],
+                                "isort": ["isort", "pycqa/isort"],
+                                "flake8": ["flake8", "pycqa/flake8"],
+                                "pylint": ["pylint", "pycqa/pylint"],
+                                "bandit": ["bandit", "pycqa/bandit"],
+                                "safety": ["safety", "pyupio/safety"],
+                                "gitleaks": ["gitleaks", "zricethezav/gitleaks"],
+                            }
+                            
+                            for tool_name, patterns in tool_patterns.items():
+                                if any(pattern in repo_url for pattern in patterns):
+                                    tools.append(tool_name)
+                            
+                            # Check hooks for tool names
+                            hooks = repo.get("hooks", [])
+                            for hook in hooks:
+                                if isinstance(hook, dict):
+                                    hook_id = hook.get("id", "").lower()
+                                    for tool_name, patterns in tool_patterns.items():
+                                        if any(pattern in hook_id for pattern in patterns):
+                                            tools.append(tool_name)
+            else:
+                # Fallback to text search
+                with open(precommit_path, encoding="utf-8") as f:
+                    content = f.read().lower()
+                    
+                    # Search for common tool names in the content
+                    tool_names = ["ruff", "mypy", "black", "isort", "flake8", "pylint", "bandit", "safety", "gitleaks"]
+                    for tool_name in tool_names:
+                        if tool_name in content:
+                            tools.append(tool_name)
+
+        except (OSError, UnicodeDecodeError):
+            # If file can't be read, return empty list
+            pass
+        except Exception:
+            # For any other errors, return empty list
+            pass
+
+        return list(set(tools))  # Remove duplicates
 
     def _detect_ci_workflows(self, project_path: Path) -> list[Workflow]:
         """Detect CI/CD workflows in the project."""
@@ -513,33 +642,65 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
     def _parse_github_workflow(self, workflow_path: Path) -> Workflow | None:
         """Parse a GitHub Actions workflow file."""
         try:
-            import yaml  # type: ignore
+            # Try to import yaml, if not available, fall back to basic parsing
+            try:
+                import yaml  # type: ignore
+                yaml_available = True
+            except ImportError:
+                yaml_available = False
 
-            with open(workflow_path, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+            if yaml_available:
+                # Use YAML parser for full parsing
+                with open(workflow_path, encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
 
-            if not isinstance(data, dict):
-                return None
+                if not isinstance(data, dict):
+                    return None
 
-            name = data.get("name", workflow_path.stem)
+                name = data.get("name", workflow_path.stem)
 
-            # Extract triggers
-            triggers = []
-            if "on" in data:
-                on_data = data["on"]
-                if isinstance(on_data, str):
-                    triggers.append(on_data)
-                elif isinstance(on_data, list):
-                    triggers.extend(on_data)
-                elif isinstance(on_data, dict):
-                    triggers.extend(on_data.keys())
+                # Extract triggers
+                triggers = []
+                if "on" in data:
+                    on_data = data["on"]
+                    if isinstance(on_data, str):
+                        triggers.append(on_data)
+                    elif isinstance(on_data, list):
+                        triggers.extend(on_data)
+                    elif isinstance(on_data, dict):
+                        triggers.extend(on_data.keys())
 
-            # Extract job names
-            jobs = []
-            if "jobs" in data and isinstance(data["jobs"], dict):
-                jobs = list(data["jobs"].keys())
+                # Extract job names
+                jobs = []
+                if "jobs" in data and isinstance(data["jobs"], dict):
+                    jobs = list(data["jobs"].keys())
+            else:
+                # Fallback to basic text parsing
+                with open(workflow_path, encoding="utf-8") as f:
+                    content = f.read()
+                
+                # Extract name using regex
+                name_match = re.search(r'^name:\s*(.+)$', content, re.MULTILINE)
+                name = name_match.group(1).strip().strip('"\'') if name_match else workflow_path.stem
+                
+                # Extract triggers (basic)
+                triggers = []
+                on_match = re.search(r'^on:\s*(.+)$', content, re.MULTILINE)
+                if on_match:
+                    on_line = on_match.group(1).strip()
+                    if on_line and not on_line.startswith('[') and not on_line.startswith('{'):
+                        triggers.append(on_line)
+                
+                # Extract job names (basic)
+                jobs_match = re.search(r'^jobs:\s*$', content, re.MULTILINE)
+                jobs = []
+                if jobs_match:
+                    # Find job names after jobs: line
+                    jobs_section = content[jobs_match.end():]
+                    job_matches = re.findall(r'^\s{2}([a-zA-Z_][a-zA-Z0-9_-]*):', jobs_section, re.MULTILINE)
+                    jobs = job_matches
 
-            # Check for security and quality checks (simplified)
+            # Check for security and quality checks (works for both methods)
             workflow_content = workflow_path.read_text(encoding="utf-8").lower()
             has_security_checks = any(tool in workflow_content for tool in ["bandit", "safety", "gitleaks", "semgrep"])
             has_quality_checks = any(
@@ -555,11 +716,11 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 has_quality_checks=has_quality_checks,
             )
 
-        except ImportError:
-            # If yaml is not available, return None
+        except (OSError, UnicodeDecodeError) as e:
+            # If file can't be read, return None
             return None
-        except (OSError, Exception):
-            # If file can't be read or parsed, return None
+        except Exception:
+            # For any other parsing errors, return None
             return None
 
     def _detect_python_version(self, project_path: Path, config_files: dict[str, Path]) -> str | None:

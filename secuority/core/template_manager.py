@@ -96,7 +96,12 @@ class TemplateManager(TemplateManagerInterface):
         templates = {}
 
         # Load template files
-        template_files = ["pyproject.toml.template", ".gitignore.template", ".pre-commit-config.yaml.template"]
+        template_files = [
+            "pyproject.toml.template",
+            ".gitignore.template",
+            ".pre-commit-config.yaml.template",
+            "SECURITY.md.template",
+        ]
 
         for template_file in template_files:
             template_path = templates_path / template_file
@@ -221,7 +226,12 @@ class TemplateManager(TemplateManagerInterface):
                 raise TemplateError(msg)
 
             # Template files to copy
-            template_files = ["pyproject.toml.template", ".gitignore.template", ".pre-commit-config.yaml.template"]
+            template_files = [
+                "pyproject.toml.template",
+                ".gitignore.template",
+                ".pre-commit-config.yaml.template",
+                "SECURITY.md.template",
+            ]
 
             # Copy template files
             for template_file in template_files:
