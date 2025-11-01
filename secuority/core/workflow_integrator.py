@@ -156,6 +156,7 @@ class WorkflowIntegrator:
 
         new_content = template_content.replace('["3.12", "3.13", "3.14"]', versions_json)
         new_content = new_content.replace('"$PACKAGE_NAME"', f'"{package_name}"')
+        new_content = new_content.replace("{{ package_name }}", package_name)
 
         # Read existing content for comparison
         old_content = ""
