@@ -9,24 +9,24 @@ try:
     import tomllib
 except ImportError:
     try:
-        import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+        import tomli as tomllib  # type: ignore[no-redef]
     except ImportError:
         tomllib = None  # type: ignore[assignment]
 
 try:
-    import tomli_w  # type: ignore[import-not-found]
+    import tomli_w
 except ImportError:
     tomli_w = None
 
 try:
-    import toml  # type: ignore[import-untyped]
+    import toml
 except ImportError:
-    toml = None
+    toml = None  # type: ignore[assignment]
 
 try:
-    import yaml  # type: ignore
+    import yaml
 except ImportError:
-    yaml = None
+    yaml = None  # type: ignore[assignment]
 
 from ..models.config import ApplyResult, ConfigChange, Conflict
 from ..models.exceptions import ConfigurationError, ValidationError
@@ -392,7 +392,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         return processed_content
 
-    def _extract_project_info(self, file_path: Path) -> dict:
+    def _extract_project_info(self, file_path: Path) -> dict[str, Any]:
         """Extract project information from existing pyproject.toml."""
         project_info = {}
 
@@ -443,7 +443,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         return project_info
 
-    def _format_toml_content(self, data: dict) -> str:
+    def _format_toml_content(self, data: dict[str, Any]) -> str:
         """Format TOML data as string."""
         try:
             import toml

@@ -2,6 +2,7 @@
 
 import difflib
 from pathlib import Path
+from typing import Any
 
 from ..models.config import ConfigChange
 
@@ -146,7 +147,7 @@ class DiffGenerator:
 
         return diff
 
-    def get_diff_stats(self, old_content: str, new_content: str) -> dict:
+    def get_diff_stats(self, old_content: str, new_content: str) -> dict[str, Any]:
         """Get statistics about the differences between two contents.
 
         Args:

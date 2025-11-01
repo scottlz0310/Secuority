@@ -8,8 +8,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .config import ApplyResult
     from .config import ConfigChange as ConfigChangeType
+
+# Import ApplyResult at runtime for use by other modules
+from .config import ApplyResult  # noqa: E402
+
+__all__ = ["ApplyResult"]
 
 
 class ChangeType(Enum):

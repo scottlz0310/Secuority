@@ -7,12 +7,12 @@ try:
     import tomllib
 except ImportError:
     try:
-        import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+        import tomli as tomllib  # type: ignore[no-redef]
     except ImportError:
         tomllib = None  # type: ignore[assignment]
 
 try:
-    import tomli_w  # type: ignore[import-not-found]
+    import tomli_w
 except ImportError:
     tomli_w = None
 
@@ -266,7 +266,7 @@ class SecurityToolsIntegrator:
             ConfigurationError: If TOML generation fails
         """
         try:
-            import toml  # type: ignore[import-untyped]
+            import toml
 
             result: str = toml.dumps(config)
             return result

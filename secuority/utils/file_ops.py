@@ -4,6 +4,7 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from ..models.exceptions import ConfigurationError
 
@@ -158,7 +159,7 @@ class FileOperations:
 
         return removed_count
 
-    def get_backup_info(self, file_path: Path) -> list:
+    def get_backup_info(self, file_path: Path) -> list[dict[str, Any]]:
         """Get information about available backups for a file.
 
         Args:
@@ -180,7 +181,7 @@ class FileOperations:
                 continue
 
         # Sort by creation time, newest first
-        backups.sort(key=lambda x: float(x["created"]) if isinstance(x["created"], (int, float)) else 0.0, reverse=True)
+        backups.sort(key=lambda x: float(x["created"]) if isinstance(x["created"], int | float) else 0.0, reverse=True)
         return backups
 
     def validate_file_permissions(self, file_path: Path) -> bool:

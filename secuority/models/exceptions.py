@@ -50,7 +50,7 @@ class TemplateError(SecuorityError):
 class TemplateNotFoundError(TemplateError):
     """Exception raised when a required template cannot be found."""
 
-    def __init__(self, template_name: str, search_paths: list | None = None) -> None:
+    def __init__(self, template_name: str, search_paths: list[str] | None = None) -> None:
         message = f"Template '{template_name}' not found"
         if search_paths:
             message += f" in paths: {', '.join(search_paths)}"
@@ -78,7 +78,7 @@ class GitHubAPIError(SecuorityError):
         self,
         message: str,
         status_code: int | None = None,
-        response_data: dict | None = None,
+        response_data: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(message, **kwargs)
@@ -126,7 +126,7 @@ class ConfigurationError(SecuorityError):
 class ConfigurationConflictError(ConfigurationError):
     """Exception raised when configuration conflicts cannot be resolved automatically."""
 
-    def __init__(self, message: str, conflicts: list | None = None, **kwargs: Any) -> None:
+    def __init__(self, message: str, conflicts: list[str] | None = None, **kwargs: Any) -> None:
         super().__init__(message, **kwargs)
         if conflicts:
             self.details["conflicts"] = conflicts
@@ -138,7 +138,7 @@ class ValidationError(SecuorityError):
     Used when configuration files or templates fail validation checks.
     """
 
-    def __init__(self, message: str, validation_errors: list | None = None, **kwargs: Any) -> None:
+    def __init__(self, message: str, validation_errors: list[str] | None = None, **kwargs: Any) -> None:
         super().__init__(message, **kwargs)
         if validation_errors:
             self.details["validation_errors"] = validation_errors

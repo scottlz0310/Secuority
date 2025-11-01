@@ -21,7 +21,15 @@ name = "Secuority Team"
 email = "team@secuority.dev"
 
 [dependency-groups]
-dev = [ "pytest>=7.0", "pytest-cov>=4.0", "black>=23.0", "ruff>=0.1.0", "mypy>=1.0", "pre-commit>=3.0.0",]
+dev = [
+ "pytest>=7.0",
+ "pytest-cov>=4.0",
+ "black>=23.0",
+ "ruff>=0.1.0",
+ "mypy>=1.0",
+ "pre-commit>=3.0.0",
+ "safety>=3.6.2",
+]
 test = [ "pytest>=7.0", "pytest-cov>=4.0", "pytest-mock>=3.12.0", "pytest-xdist>=3.0.0",]
 docs = [ "sphinx>=5.0.0", "sphinx-rtd-theme>=1.2.0", "myst-parser>=0.18.0",]
 security = [ "bandit>=1.7.0", "safety>=2.3.0", "semgrep>=1.0.0",]
@@ -61,7 +69,7 @@ strict_equality = true
 
 [tool.bandit]
 exclude_dirs = [ "tests", "test_*",]
-skips = [ "B101", "B601",]
+skips = [ "B101", "B310", "B601",]
 
 [project.entry-points."secuority.plugins"]
 

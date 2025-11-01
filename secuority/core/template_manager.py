@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import yaml  # type: ignore
+    import yaml
 except ImportError:
-    yaml = None
+    yaml = None  # type: ignore[assignment]
 
 from ..models.exceptions import TemplateError
 from ..models.interfaces import TemplateManagerInterface
@@ -193,7 +193,7 @@ class TemplateManager(TemplateManagerInterface):
                 yaml.dump(default_config, f, default_flow_style=False, indent=2)
         else:
             # Fallback to JSON if yaml is not available
-            with open(config_path.with_suffix(".json"), "w", encoding="utf-8") as f:
+            with open(config_path.with_suffix(".json"), "w", encoding="utf-8") as f:  # type: ignore[unreachable]
                 json.dump(default_config, f, indent=2)
 
     def _create_version_file(self, version_path: Path) -> None:

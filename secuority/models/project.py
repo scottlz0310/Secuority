@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from .exceptions import ValidationError
 from .interfaces import (
@@ -217,7 +218,7 @@ class ProjectState:
 
         self.dependency_manager = self.get_dependency_manager_from_files()
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert project state to dictionary for serialization."""
         return {
             "project_path": str(self.project_path),
@@ -253,7 +254,7 @@ class ProjectState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ProjectState":
+    def from_dict(cls, data: dict[str, Any]) -> "ProjectState":
         """Create ProjectState from dictionary."""
         # Simplified implementation for deserialization
         project_path = Path(data["project_path"])

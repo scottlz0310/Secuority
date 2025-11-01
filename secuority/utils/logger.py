@@ -228,7 +228,7 @@ class SecuorityLogger:
         file_path: str,
         analysis_type: str,
         result: dict[str, Any],
-        recommendations: list | None = None,
+        recommendations: list[str] | None = None,
     ) -> None:
         """Log analysis results in a structured format.
 

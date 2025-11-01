@@ -1,5 +1,6 @@
 """Main CLI entry point for Secuority."""
 
+from collections.abc import Callable
 from pathlib import Path
 
 import typer
@@ -39,7 +40,7 @@ def _get_core_engine() -> CoreEngine:
     )
 
 
-@app.command()
+@app.command()  # type: ignore[misc]
 def check(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed analysis information"),  # noqa: B008
     project_path: Path | None = typer.Option(  # noqa: B008
@@ -409,7 +410,8 @@ def check(
                     if workflows:
                         console.print(f"  • Remote workflows: {len(workflows)}")
                         for workflow in workflows[:3]:  # Show first 3
-                            console.print(f"    - {workflow.get('name', 'Unknown')}")
+                            workflow_dict = workflow if isinstance(workflow, dict) else {}
+                            console.print(f"    - {workflow_dict.get('name', 'Unknown')}")
 
                 # Show template information
                 try:
@@ -440,7 +442,7 @@ def check(
         raise typer.Exit(1) from e
 
 
-@app.command()
+@app.command()  # type: ignore[misc]
 def apply(
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Show changes without applying them"),  # noqa: B008
     force: bool = typer.Option(False, "--force", "-f", help="Apply changes without confirmation"),  # noqa: B008
@@ -887,7 +889,7 @@ template_app = typer.Typer(name="template", help="Manage configuration templates
 app.add_typer(template_app)
 
 
-@template_app.command("list")
+@template_app.command("list")  # type: ignore[misc]
 def template_list(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
     structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
@@ -969,7 +971,7 @@ def template_list(
         raise typer.Exit(1) from None
 
 
-@template_app.command("update")
+@template_app.command("update")  # type: ignore[misc]
 def template_update(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
     structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
@@ -1039,7 +1041,7 @@ def template_update(
         raise typer.Exit(1) from None
 
 
-@app.command()
+@app.command()  # type: ignore[misc]
 def init(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
     structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
@@ -1060,11 +1062,14 @@ def init(
             console.print(f"[dim]Template directory: {template_dir}[/dim]\n")
 
         # Initialize templates
-        steps = [
+        def verify_installation() -> None:
+            core_engine.template_manager.load_templates()
+
+        steps: list[tuple[str, Callable[[], None]]] = [
             ("Creating template directory", lambda: None),
             ("Installing default templates", lambda: core_engine.template_manager.initialize_templates()),
             ("Setting up configuration", lambda: None),
-            ("Verifying installation", lambda: core_engine.template_manager.load_templates()),
+            ("Verifying installation", verify_installation),
         ]
 
         for i, (step_name, step_func) in enumerate(steps, 1):

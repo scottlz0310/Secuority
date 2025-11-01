@@ -5,7 +5,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-import structlog  # type: ignore[import-not-found]
+import structlog
 
 from ..models.exceptions import GitHubAPIError, ProjectAnalysisError
 from ..models.interfaces import (

@@ -1,6 +1,7 @@
 """Core engine that coordinates all Secuority components."""
 
 from pathlib import Path
+from typing import Any
 
 from ..models.interfaces import (
     ApplyResult,
@@ -61,7 +62,7 @@ class CoreEngine:
         """Analyze the project and return its current state."""
         return self.analyzer.analyze_project(project_path)
 
-    def generate_recommendations(self, project_state: ProjectState) -> list:
+    def generate_recommendations(self, project_state: ProjectState) -> list[Any]:
         """Generate configuration recommendations based on project state."""
         # This will be implemented in later tasks
         return []
@@ -73,7 +74,7 @@ class CoreEngine:
         recommendations = self.generate_recommendations(project_state)
         return self.applier.apply_changes(recommendations, dry_run)
 
-    def check_github_integration(self, repo: str) -> dict:
+    def check_github_integration(self, repo: str) -> dict[str, Any]:
         """Check GitHub repository settings if client is available.
 
         Args:
