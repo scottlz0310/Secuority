@@ -110,9 +110,15 @@ jobs:
 
       - name: Set up Python
         run: |
-          # Install Python 3.12 for pre-commit (3.13 not yet widely supported)
-          uv python install 3.12
-          uv python pin 3.12
+          # Detect Python version from pyproject.toml
+          if [ -f "pyproject.toml" ]; then
+            PYTHON_VERSION=$(uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); classifiers=data.get('project',{}).get('classifiers',[]); versions=[c.split(' :: ')[-1] for c in classifiers if c.startswith('Programming Language :: Python :: 3.') and c.count('.')==3]; print(sorted(versions)[-1] if versions else '3.13')" 2>/dev/null || echo "3.13")
+          else
+            PYTHON_VERSION="3.13"
+          fi
+          echo "Installing Python $PYTHON_VERSION for pre-commit"
+          uv python install $PYTHON_VERSION
+          uv python pin $PYTHON_VERSION
 
       - name: Install pre-commit
         run: |
