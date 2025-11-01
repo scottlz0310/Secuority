@@ -253,7 +253,7 @@ class TestProjectAnalyzer:
         """Test detecting gitleaks in pre-commit config."""
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         precommit_path.write_text(
-            "repos:\n" "  - repo: https://github.com/gitleaks/gitleaks\n" "    hooks:\n" "      - id: gitleaks\n",
+            "repos:\n  - repo: https://github.com/gitleaks/gitleaks\n    hooks:\n      - id: gitleaks\n",
         )
 
         config_files = {".pre-commit-config.yaml": precommit_path}
@@ -418,7 +418,7 @@ class TestProjectAnalyzer:
         """Test parsing basic GitHub workflow."""
         workflow_path = tmp_path / "test.yml"
         workflow_path.write_text(
-            "name: Test Workflow\n" "on: push\n" "jobs:\n" "  test:\n" "    runs-on: ubuntu-latest\n",
+            "name: Test Workflow\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n",
         )
 
         workflow = analyzer._parse_github_workflow(workflow_path)
@@ -540,7 +540,7 @@ class TestProjectAnalyzer:
         """Test detecting safety in pre-commit config."""
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         precommit_path.write_text(
-            "repos:\n" "  - repo: https://github.com/pyupio/safety\n" "    hooks:\n" "      - id: safety\n",
+            "repos:\n  - repo: https://github.com/pyupio/safety\n    hooks:\n      - id: safety\n",
         )
 
         tools = analyzer._check_tools_in_precommit(precommit_path)
@@ -555,7 +555,7 @@ class TestProjectAnalyzer:
         """Test detecting bandit in pre-commit config."""
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         precommit_path.write_text(
-            "repos:\n" "  - repo: https://github.com/pycqa/bandit\n" "    hooks:\n" "      - id: bandit\n",
+            "repos:\n  - repo: https://github.com/pycqa/bandit\n    hooks:\n      - id: bandit\n",
         )
 
         tools = analyzer._check_tools_in_precommit(precommit_path)
@@ -969,7 +969,7 @@ class TestProjectAnalyzer:
         # Create pyproject.toml with modern tools
         pyproject_path = tmp_path / "pyproject.toml"
         pyproject_path.write_text(
-            '[project]\nname = "test"\n\n' "[tool.ruff]\nline-length = 120\n\n" "[tool.mypy]\nstrict = true\n",
+            '[project]\nname = "test"\n\n[tool.ruff]\nline-length = 120\n\n[tool.mypy]\nstrict = true\n',
         )
 
         # Create existing security and quality workflows
@@ -1063,7 +1063,7 @@ class TestProjectAnalyzer:
         """Test recommendations when some security tools are configured."""
         # Create project with only Bandit configured
         pyproject_path = tmp_path / "pyproject.toml"
-        pyproject_path.write_text('[project]\nname = "test"\n\n' '[tool.bandit]\nskip = ["B101"]\n')
+        pyproject_path.write_text('[project]\nname = "test"\n\n[tool.bandit]\nskip = ["B101"]\n')
 
         config_files = {"pyproject.toml": pyproject_path}
         security_tools = analyzer._check_security_tools(tmp_path, config_files)
@@ -1248,13 +1248,7 @@ class TestProjectAnalyzer:
 
         # Create valid workflow
         (workflows_dir / "valid.yml").write_text(
-            "name: Valid\n"
-            "on: push\n"
-            "jobs:\n"
-            "  test:\n"
-            "    runs-on: ubuntu-latest\n"
-            "    steps:\n"
-            "      - run: pytest\n",
+            "name: Valid\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pytest\n",
         )
 
         # Create invalid workflow with YAML syntax error

@@ -28,11 +28,11 @@ class TestEndToEndWorkflows:
     def legacy_project(self, tmp_path: Path) -> Path:
         """Create a legacy Python project with old-style configuration."""
         # Old-style requirements.txt
-        (tmp_path / "requirements.txt").write_text("requests==2.31.0\n" "pytest>=7.0.0\n" "black==23.0.0\n")
+        (tmp_path / "requirements.txt").write_text("requests==2.31.0\npytest>=7.0.0\nblack==23.0.0\n")
 
         # Basic setup.py
         (tmp_path / "setup.py").write_text(
-            "from setuptools import setup\n" 'setup(name="legacy-project", version="0.1.0")\n',
+            'from setuptools import setup\nsetup(name="legacy-project", version="0.1.0")\n',
         )
 
         # Minimal .gitignore
@@ -65,7 +65,7 @@ class TestEndToEndWorkflows:
         )
 
         # Comprehensive .gitignore
-        (tmp_path / ".gitignore").write_text("*.pyc\n" "__pycache__/\n" ".venv/\n" ".env\n" "dist/\n" "*.egg-info/\n")
+        (tmp_path / ".gitignore").write_text("*.pyc\n__pycache__/\n.venv/\n.env\ndist/\n*.egg-info/\n")
 
         # Source code
         src_dir = tmp_path / "src" / "modern_project"
@@ -82,11 +82,11 @@ class TestEndToEndWorkflows:
         git_dir = tmp_path / ".git"
         git_dir.mkdir()
         (git_dir / "config").write_text(
-            "[core]\n" "repositoryformatversion = 0\n" '[remote "origin"]\n' "url = https://github.com/test/repo.git\n",
+            '[core]\nrepositoryformatversion = 0\n[remote "origin"]\nurl = https://github.com/test/repo.git\n',
         )
 
         # Basic project files
-        (tmp_path / "pyproject.toml").write_text("[project]\n" 'name = "git-project"\n' 'version = "0.1.0"\n')
+        (tmp_path / "pyproject.toml").write_text('[project]\nname = "git-project"\nversion = "0.1.0"\n')
         (tmp_path / "main.py").write_text('print("Git project")\n')
 
         return tmp_path
@@ -552,7 +552,7 @@ class TestRealWorldScenarios:
         # Add typical open-source files
         (project / "README.md").write_text("# My Project\n")
         (project / "LICENSE").write_text("MIT License\n")
-        (project / "pyproject.toml").write_text("[project]\n" 'name = "opensource-project"\n' 'version = "1.0.0"\n')
+        (project / "pyproject.toml").write_text('[project]\nname = "opensource-project"\nversion = "1.0.0"\n')
 
         src = project / "src" / "myproject"
         src.mkdir(parents=True)
@@ -580,7 +580,7 @@ class TestRealWorldScenarios:
         project = tmp_path / "private_project"
         project.mkdir()
 
-        (project / "pyproject.toml").write_text("[project]\n" 'name = "private-project"\n' 'version = "0.1.0"\n')
+        (project / "pyproject.toml").write_text('[project]\nname = "private-project"\nversion = "0.1.0"\n')
         (project / "main.py").write_text('print("Private")\n')
 
         # Add .env file (should be ignored)
@@ -605,7 +605,7 @@ class TestRealWorldScenarios:
         # Subproject
         subproject = monorepo / "services" / "api"
         subproject.mkdir(parents=True)
-        (subproject / "pyproject.toml").write_text("[project]\n" 'name = "api-service"\n' 'version = "0.1.0"\n')
+        (subproject / "pyproject.toml").write_text('[project]\nname = "api-service"\nversion = "0.1.0"\n')
         (subproject / "main.py").write_text('print("API")\n')
 
         # Run on subproject
@@ -665,11 +665,7 @@ class TestRealWorldScenarios:
         )
 
         (project / ".pre-commit-config.yaml").write_text(
-            "repos:\n"
-            "  - repo: https://github.com/psf/black\n"
-            "    rev: 23.0.0\n"
-            "    hooks:\n"
-            "      - id: black\n",
+            "repos:\n  - repo: https://github.com/psf/black\n    rev: 23.0.0\n    hooks:\n      - id: black\n",
         )
 
         # Should merge with existing configuration

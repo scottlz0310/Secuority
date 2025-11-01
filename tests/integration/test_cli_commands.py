@@ -138,7 +138,7 @@ class TestCLICommands:
         # Create .git directory to simulate git repo
         git_dir = sample_project / ".git"
         git_dir.mkdir()
-        (git_dir / "config").write_text('[remote "origin"]\n' "url = https://github.com/test/repo.git\n")
+        (git_dir / "config").write_text('[remote "origin"]\nurl = https://github.com/test/repo.git\n')
 
         # Mock GitHub client to avoid actual API calls
         with patch("secuority.core.github_client.GitHubClient.is_authenticated") as mock_auth:

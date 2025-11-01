@@ -531,7 +531,7 @@ class TestRecommendationAccuracy:
 
         # Set up only Bandit
         pyproject_path = sample_project / "pyproject.toml"
-        pyproject_path.write_text('[project]\nname = "test"\n\n' '[tool.bandit]\nskip = ["B101"]\n')
+        pyproject_path.write_text('[project]\nname = "test"\n\n[tool.bandit]\nskip = ["B101"]\n')
 
         # Analyze project
         state = analyzer.analyze_project(sample_project)
@@ -707,13 +707,7 @@ class TestRecommendationAccuracy:
 
         # Create valid workflow
         (workflows_dir / "valid.yml").write_text(
-            "name: Valid\n"
-            "on: push\n"
-            "jobs:\n"
-            "  test:\n"
-            "    runs-on: ubuntu-latest\n"
-            "    steps:\n"
-            "      - run: pytest\n",
+            "name: Valid\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pytest\n",
         )
 
         # Create invalid workflow
