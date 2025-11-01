@@ -47,7 +47,42 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run pytest tests/ --cov=secuority --cov-report=xml --cov-report=term-missing
+          # Detect package name from pyproject.toml
+          if [ -f "pyproject.toml" ]; then
+            PACKAGE_NAME=$(uv run python -c "
+import tomllib
+with open('pyproject.toml', 'rb') as f:
+    data = tomllib.load(f)
+    # Try to get package name from project.name
+    name = data.get('project', {}).get('name', '')
+    if name:
+        # Convert hyphens to underscores for package directory
+        print(name.replace('-', '_'))
+    else:
+        # Fallback: try to find from setuptools.packages.find
+        packages = data.get('tool', {}).get('setuptools', {}).get('packages', {}).get('find', {})
+        include = packages.get('include', [])
+        if include:
+            # Get first package pattern and remove wildcard
+            print(include[0].rstrip('*'))
+        else:
+            print('src')
+" 2>/dev/null || echo "src")
+            
+            # Run tests with detected package
+            if [ -d "tests" ]; then
+              uv run pytest tests/ --cov="$PACKAGE_NAME" --cov-report=xml --cov-report=term-missing
+            else
+              uv run pytest --cov="$PACKAGE_NAME" --cov-report=xml --cov-report=term-missing
+            fi
+          else
+            # Fallback for projects without pyproject.toml
+            if [ -d "tests" ]; then
+              uv run pytest tests/ --cov-report=xml --cov-report=term-missing
+            else
+              uv run pytest --cov-report=xml --cov-report=term-missing
+            fi
+          fi
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
