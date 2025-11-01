@@ -5,6 +5,8 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+import structlog
+
 from ..models.exceptions import GitHubAPIError, ProjectAnalysisError
 from ..models.interfaces import (
     DependencyAnalysis,
@@ -19,6 +21,8 @@ from ..models.interfaces import (
     validate_project_path,
 )
 from .github_client import GitHubClient
+
+logger = structlog.get_logger(__name__)
 
 
 class ProjectAnalyzer(ProjectAnalyzerInterface):
@@ -543,12 +547,14 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                     content = f.read().lower()
                     return "gitleaks" in content
 
-        except (OSError, UnicodeDecodeError):
+        except (OSError, UnicodeDecodeError) as e:
             # If file can't be read, return False
-            pass
-        except Exception:
+            logger.debug(f"Failed to read pre-commit config: {e}")
+            return False
+        except Exception as e:
             # For any other errors, return False
-            pass
+            logger.debug(f"Unexpected error checking gitleaks in pre-commit: {e}")
+            return False
 
         return False
 
@@ -612,12 +618,14 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                         if tool_name in content:
                             tools.append(tool_name)
 
-        except (OSError, UnicodeDecodeError):
+        except (OSError, UnicodeDecodeError) as e:
             # If file can't be read, return empty list
-            pass
-        except Exception:
+            logger.debug(f"Failed to read pre-commit config for tools: {e}")
+            return []
+        except Exception as e:
             # For any other errors, return empty list
-            pass
+            logger.debug(f"Unexpected error checking tools in pre-commit: {e}")
+            return []
 
         return list(set(tools))  # Remove duplicates
 

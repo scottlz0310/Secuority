@@ -16,7 +16,7 @@ from ..models.interfaces import ChangeType
 class WorkflowIntegrator:
     """Integrates CI/CD workflows with security checks."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize workflow integrator."""
         # Note: YAML functionality will be limited if PyYAML is not available
         pass

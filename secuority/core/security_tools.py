@@ -24,7 +24,7 @@ from ..models.interfaces import ChangeType
 class SecurityToolsIntegrator:
     """Integrates security tools configuration into project files."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize security tools integrator."""
         pass
 

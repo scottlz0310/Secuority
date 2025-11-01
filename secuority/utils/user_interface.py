@@ -12,7 +12,7 @@ from .diff import DiffGenerator
 class UserApprovalInterface:
     """Handles user interaction for approving configuration changes."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize user approval interface."""
         self.diff_generator = DiffGenerator()
         self.console = Console()

@@ -32,10 +32,10 @@ class GitHubErrorHandler:
     def handle_api_call(
         self,
         func: Callable[..., T],
-        *args,
+        *args: Any,
         fallback_value: T | None = None,
         operation_name: str = "GitHub API operation",
-        **kwargs,
+        **kwargs: Any,
     ) -> T | None:
         """Execute a GitHub API call with error handling.
 
@@ -179,7 +179,7 @@ def with_github_error_handling(
     show_warnings: bool = True,
     fallback_value: Any = None,
     operation_name: str = "GitHub operation",
-):
+) -> Callable[[Callable[..., T]], Callable[..., T | Any]]:
     """Decorator for GitHub API operations with error handling.
 
     Args:
@@ -190,7 +190,7 @@ def with_github_error_handling(
     """
 
     def decorator(func: Callable[..., T]) -> Callable[..., T | Any]:
-        def wrapper(*args, **kwargs) -> T | Any:
+        def wrapper(*args: Any, **kwargs: Any) -> T | Any:
             handler = GitHubErrorHandler(continue_on_error, show_warnings)
             return handler.handle_api_call(
                 func,
@@ -208,11 +208,11 @@ def with_github_error_handling(
 # Convenience functions for common GitHub operations
 def safe_github_call(
     func: Callable[..., T],
-    *args,
+    *args: Any,
     fallback_value: T | None = None,
     operation_name: str = "GitHub API call",
     show_warnings: bool = True,
-    **kwargs,
+    **kwargs: Any,
 ) -> T | None:
     """Safely execute a GitHub API call with error handling.
 

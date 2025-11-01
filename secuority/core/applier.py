@@ -46,7 +46,7 @@ from .workflow_integrator import WorkflowIntegrator
 class ConfigurationMerger:
     """Handles merging of configuration files with conflict detection."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.diff_generator = DiffGenerator()
 
     def merge_toml_configs(
@@ -363,7 +363,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         }
 
         # Process template variables with default values
-        def replace_variable(match):
+        def replace_variable(match: re.Match[str]) -> str:
             # Check if this is a GitHub Actions variable (preceded by $)
             # If so, return it unchanged
             if match.group(0).startswith("${{"):

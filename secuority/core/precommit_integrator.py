@@ -16,7 +16,7 @@ from ..models.interfaces import ChangeType
 class PreCommitIntegrator:
     """Integrates pre-commit hooks configuration with security tools."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize pre-commit integrator."""
         # Note: YAML functionality will be limited if PyYAML is not available
         pass

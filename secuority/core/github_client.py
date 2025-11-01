@@ -174,7 +174,7 @@ class GitHubClient:
 
             # Check repository visibility
             is_private = repo_data.get("private", False)
-            
+
             return {
                 "secret_scanning": security_analysis.get("secret_scanning", {}).get("status") == "enabled",
                 "secret_scanning_push_protection": security_analysis.get("secret_scanning_push_protection", {}).get(

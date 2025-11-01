@@ -243,7 +243,7 @@ def check(
                     github_table.add_row("Security Policy", sp_status)
 
                 console.print(github_table)
-                
+
                 # Add note for public repositories
                 is_private = security_settings.get("is_private", False)
                 if not is_private:
@@ -251,7 +251,7 @@ def check(
                         "[dim]Note: Some security features (Secret Scanning, Push Protection) "
                         "require GitHub Advanced Security for public repositories.[/dim]"
                     )
-                
+
                 console.print()
             elif github_analysis.get("authenticated", False):
                 console.print("[yellow]⚠ GitHub integration available but analysis failed[/yellow]")
