@@ -63,12 +63,8 @@ jobs:
       if: env.has_updates == 'true'
       run: |
         if [ -f "pyproject.toml" ]; then
-          # Check if dependency-groups are defined
-          if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data else 1)" 2>/dev/null; then
-            uv sync --group test
-          else
-            uv sync --extra test
-          fi
+          # Use uv sync to install all dependencies
+          uv sync --all-extras || uv sync
         elif [ -f "requirements.txt" ]; then
           uv venv
           source .venv/bin/activate

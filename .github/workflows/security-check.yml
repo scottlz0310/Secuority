@@ -40,13 +40,8 @@ jobs:
     - name: Install security tools and dependencies
       run: |
         if [ -f "pyproject.toml" ]; then
-          # Check if dependency-groups are defined
-          if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data else 1)" 2>/dev/null; then
-            uv sync --group dev --group test
-          else
-            # Fallback to extras if dependency-groups not found
-            uv sync --extra dev --extra test
-          fi
+          # Use uv sync to install all dependencies
+          uv sync --all-extras || uv sync
         elif [ -f "requirements.txt" ]; then
           uv venv
           source .venv/bin/activate

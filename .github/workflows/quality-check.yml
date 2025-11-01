@@ -35,13 +35,8 @@ jobs:
       run: |
         # Install project dependencies
         if [ -f "pyproject.toml" ]; then
-          # Check if dependency-groups are defined
-          if uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); exit(0 if 'dependency-groups' in data else 1)" 2>/dev/null; then
-            uv sync --group dev --group test --group lint
-          else
-            # Fallback to extras if dependency-groups not found
-            uv sync --extra dev --extra test
-          fi
+          # Use uv sync to install all dependencies including optional groups
+          uv sync --all-extras || uv sync
         elif [ -f "requirements.txt" ]; then
           # Create virtual environment and install dependencies
           uv venv
@@ -88,14 +83,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Install uv
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"
 
     - name: Set up Python
-      run: uv python install 3.11
+      run: |
+        # Install Python 3.12 for pre-commit (3.13 not yet widely supported)
+        uv python install 3.12
+        uv python pin 3.12
 
     - name: Install pre-commit
       run: |
@@ -155,11 +153,12 @@ jobs:
         fi
 
     - name: Deploy to GitHub Pages
-      if: success()
+      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: peaceiris/actions-gh-pages@v4
       with:
-        GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./docs/_build/html
+      continue-on-error: true
 
   dependency-review:
     runs-on: ubuntu-latest
