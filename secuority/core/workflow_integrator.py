@@ -2,6 +2,7 @@
 
 import importlib.resources
 from pathlib import Path
+from typing import Any
 
 try:
     import yaml
@@ -21,12 +22,53 @@ class WorkflowIntegrator:
         # Note: YAML functionality will be limited if PyYAML is not available
         pass
 
+    def _load_pyproject_config(self, project_path: Path) -> dict[str, Any]:
+        """Load pyproject.toml configuration."""
+        pyproject_path = project_path / "pyproject.toml"
+        if not pyproject_path.exists():
+            return {}
+
+        try:
+            import tomllib
+        except ImportError:
+            try:
+                import tomli as tomllib  # type: ignore[no-redef]
+            except ImportError:
+                return {}
+
+        try:
+            with open(pyproject_path, "rb") as f:
+                return tomllib.load(f)
+        except Exception:
+            return {}
+
+    def _get_python_versions_from_pyproject(self, project_path: Path) -> list[str]:
+        """Extract Python versions from pyproject.toml classifiers."""
+        data = self._load_pyproject_config(project_path)
+        if not data:
+            return ["3.12", "3.13", "3.14"]
+
+        classifiers = data.get("project", {}).get("classifiers", [])
+        versions = []
+        for classifier in classifiers:
+            if classifier.startswith("Programming Language :: Python :: 3."):
+                version = classifier.split(" :: ")[-1]
+                if version.count(".") == 1:
+                    versions.append(version)
+
+        return sorted(set(versions)) if versions else ["3.12", "3.13", "3.14"]
+
+    def _get_package_name_from_pyproject(self, project_path: Path) -> str:
+        """Extract package name from pyproject.toml."""
+        data = self._load_pyproject_config(project_path)
+        return data.get("project", {}).get("name", "").replace("-", "_") or "src"
+
     def generate_security_workflow(self, project_path: Path, python_versions: list[str] | None = None) -> ConfigChange:
         """Generate GitHub Actions security workflow.
 
         Args:
             project_path: Path to the project directory
-            python_versions: List of Python versions to test (default: ["3.12", "3.13", "3.14"])
+            python_versions: List of Python versions to test (default: read from pyproject.toml)
 
         Returns:
             ConfigChange for security workflow creation
@@ -34,6 +76,9 @@ class WorkflowIntegrator:
         Raises:
             ConfigurationError: If workflow generation fails
         """
+        if python_versions is None:
+            python_versions = self._get_python_versions_from_pyproject(project_path)
+
         workflows_dir = project_path / ".github" / "workflows"
         security_workflow_path = workflows_dir / "security-check.yml"
 
@@ -47,7 +92,11 @@ class WorkflowIntegrator:
         except Exception as e:
             raise ConfigurationError(f"Failed to load security workflow template: {e}") from e
 
-        new_content = template_content
+        # Replace placeholders in template
+        import json
+
+        versions_json = json.dumps(python_versions)
+        new_content = template_content.replace('["3.12", "3.13", "3.14"]', versions_json)
 
         # Read existing content for comparison
         old_content = ""
@@ -75,7 +124,7 @@ class WorkflowIntegrator:
 
         Args:
             project_path: Path to the project directory
-            python_versions: List of Python versions to test (default: ["3.12", "3.13", "3.14"])
+            python_versions: List of Python versions to test (default: read from pyproject.toml)
 
         Returns:
             ConfigChange for quality workflow creation
@@ -83,6 +132,9 @@ class WorkflowIntegrator:
         Raises:
             ConfigurationError: If workflow generation fails
         """
+        if python_versions is None:
+            python_versions = self._get_python_versions_from_pyproject(project_path)
+
         workflows_dir = project_path / ".github" / "workflows"
         quality_workflow_path = workflows_dir / "quality-check.yml"
 
@@ -96,7 +148,14 @@ class WorkflowIntegrator:
         except Exception as e:
             raise ConfigurationError(f"Failed to load quality workflow template: {e}") from e
 
-        new_content = template_content
+        # Replace placeholders in template
+        import json
+
+        versions_json = json.dumps(python_versions)
+        package_name = self._get_package_name_from_pyproject(project_path)
+
+        new_content = template_content.replace('["3.12", "3.13", "3.14"]', versions_json)
+        new_content = new_content.replace('"$PACKAGE_NAME"', f'"{package_name}"')
 
         # Read existing content for comparison
         old_content = ""
@@ -124,7 +183,7 @@ class WorkflowIntegrator:
 
         Args:
             project_path: Path to the project directory
-            python_versions: List of Python versions to test (default: ["3.12", "3.13", "3.14"])
+            python_versions: List of Python versions to test (default: read from pyproject.toml)
 
         Returns:
             ConfigChange for CI/CD workflow creation
@@ -132,6 +191,9 @@ class WorkflowIntegrator:
         Raises:
             ConfigurationError: If workflow generation fails
         """
+        if python_versions is None:
+            python_versions = self._get_python_versions_from_pyproject(project_path)
+
         workflows_dir = project_path / ".github" / "workflows"
         cicd_workflow_path = workflows_dir / "ci-cd.yml"
 
@@ -145,7 +207,14 @@ class WorkflowIntegrator:
         except Exception as e:
             raise ConfigurationError(f"Failed to load CI/CD workflow template: {e}") from e
 
-        new_content = template_content
+        # Replace placeholders in template
+        import json
+
+        versions_json = json.dumps(python_versions)
+        package_name = self._get_package_name_from_pyproject(project_path)
+
+        new_content = template_content.replace('["3.12", "3.13", "3.14"]', versions_json)
+        new_content = new_content.replace("$PACKAGE_NAME", package_name)
 
         # Read existing content for comparison
         old_content = ""

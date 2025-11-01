@@ -53,6 +53,7 @@ jobs:
 
       - name: Lint with Ruff
         run: |
+          # Ruff will use pyproject.toml configuration automatically
           # Stop the build if there are Python syntax errors or undefined names
           uv run ruff check . --output-format=github --select=E9,F63,F7,F82 --show-source
           # Default set of ruff rules with GitHub Actions annotations
@@ -60,10 +61,12 @@ jobs:
 
       - name: Format check with Ruff
         run: |
+          # Ruff will use pyproject.toml configuration automatically
           uv run ruff format --check .
 
       - name: Type check with MyPy
         run: |
+          # MyPy will use pyproject.toml configuration automatically
           uv run mypy . --show-error-codes --show-error-context
 
       - name: Test with pytest
@@ -73,9 +76,9 @@ jobs:
             PACKAGE_NAME=$(uv run python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); name=data.get('project',{}).get('name',''); print(name.replace('-','_') if name else 'src')" 2>/dev/null || echo "src")
             # Run tests with detected package
             if [ -d "tests" ]; then
-              uv run pytest tests/ --cov="$PACKAGE_NAME" --cov-report=xml --cov-report=term-missing
+              uv run pytest tests/ --cov="secuority" --cov-report=xml --cov-report=term-missing
             else
-              uv run pytest --cov="$PACKAGE_NAME" --cov-report=xml --cov-report=term-missing
+              uv run pytest --cov="secuority" --cov-report=xml --cov-report=term-missing
             fi
           else
             # Fallback for projects without pyproject.toml
