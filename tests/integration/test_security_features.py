@@ -342,7 +342,7 @@ class TestWorkflowGeneration:
         assert "jobs:" in content
         assert "steps:" in content
         assert "actions/checkout" in content
-        assert "actions/setup-python" in content
+        assert "astral-sh/setup-uv" in content or "actions/setup-python" in content
 
     def test_quality_workflow_structure(
         self,
