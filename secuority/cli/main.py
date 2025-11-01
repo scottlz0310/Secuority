@@ -147,10 +147,33 @@ def check(
             quality_table = Table(title="Quality Tools", show_header=True, header_style="bold blue")
             quality_table.add_column("Tool", style="cyan")
             quality_table.add_column("Status", justify="center")
+            quality_table.add_column("Notes", style="dim")
+
+            # Define modern and legacy tools
+            modern_tools = {"ruff", "mypy"}
+            legacy_tools = {"black", "isort", "flake8", "pylint"}
 
             for tool, configured in project_state.quality_tools.items():
-                status = "[green]✓ Configured[/green]" if configured else "[red]✗ Not configured[/red]"
-                quality_table.add_row(tool.value, status)
+                tool_name = tool.value.lower()
+
+                if tool_name in modern_tools:
+                    # Modern tools - show configured/not configured
+                    status = "[green]✓ Configured[/green]" if configured else "[red]✗ Not configured[/red]"
+                    note = "Modern tool" if configured else "Recommended"
+                elif tool_name in legacy_tools:
+                    # Legacy tools - show not used (green) if not configured
+                    if configured:
+                        status = "[yellow]⚠ Configured[/yellow]"
+                        note = "Consider migrating to ruff"
+                    else:
+                        status = "[green]✓ Not used[/green]"
+                        note = "Legacy tool (ruff replaces this)"
+                else:
+                    # Other tools
+                    status = "[green]✓ Configured[/green]" if configured else "[red]✗ Not configured[/red]"
+                    note = ""
+
+                quality_table.add_row(tool.value, status, note)
 
             console.print(quality_table)
             console.print()
@@ -209,7 +232,8 @@ def check(
                 # Security Settings
                 security_settings = github_analysis.get("security_settings", {})
                 if security_settings:
-                    vuln_alerts = security_settings.get("vulnerability_alerts", {}).get("enabled", False)
+                    # Vulnerability Alerts (dependency_graph in API response)
+                    vuln_alerts = security_settings.get("dependency_graph", False)
                     va_status = "[green]✓ Enabled[/green]" if vuln_alerts else "[red]✗ Disabled[/red]"
                     github_table.add_row("Vulnerability Alerts", va_status)
 
@@ -219,6 +243,15 @@ def check(
                     github_table.add_row("Security Policy", sp_status)
 
                 console.print(github_table)
+                
+                # Add note for public repositories
+                is_private = security_settings.get("is_private", False)
+                if not is_private:
+                    console.print(
+                        "[dim]Note: Some security features (Secret Scanning, Push Protection) "
+                        "require GitHub Advanced Security for public repositories.[/dim]"
+                    )
+                
                 console.print()
             elif github_analysis.get("authenticated", False):
                 console.print("[yellow]⚠ GitHub integration available but analysis failed[/yellow]")

@@ -172,6 +172,9 @@ class GitHubClient:
                 # SECURITY.md doesn't exist
                 pass
 
+            # Check repository visibility
+            is_private = repo_data.get("private", False)
+            
             return {
                 "secret_scanning": security_analysis.get("secret_scanning", {}).get("status") == "enabled",
                 "secret_scanning_push_protection": security_analysis.get("secret_scanning_push_protection", {}).get(
@@ -184,6 +187,7 @@ class GitHubClient:
                 )
                 == "enabled",
                 "security_policy": has_security_policy,
+                "is_private": is_private,
             }
         except GitHubAPIError:
             raise
