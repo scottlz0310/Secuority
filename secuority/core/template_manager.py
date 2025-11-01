@@ -192,7 +192,6 @@ class TemplateManager(TemplateManagerInterface):
             with open(config_path, "w", encoding="utf-8") as f:
                 yaml.dump(default_config, f, default_flow_style=False, indent=2)
         else:
-            # Fallback to JSON if yaml is not available
             with open(config_path.with_suffix(".json"), "w", encoding="utf-8") as f:  # type: ignore[unreachable]
                 json.dump(default_config, f, indent=2)
 

@@ -6,7 +6,7 @@ from typing import Any
 try:
     import yaml
 except ImportError:
-    yaml = None  # type: ignore[assignment]
+    yaml = None  # type: ignore[assignment,unused-ignore]
 
 from ..models.config import ConfigChange, Conflict
 from ..models.exceptions import ConfigurationError

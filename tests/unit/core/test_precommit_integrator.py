@@ -116,7 +116,7 @@ class TestPreCommitIntegrator:
         """Test integrating security hooks with existing configuration."""
         # Create existing file
         precommit_path = tmp_path / ".pre-commit-config.yaml"
-        import yaml
+        import yaml  # type: ignore[import-untyped]
 
         with open(precommit_path, "w") as f:
             yaml.dump(sample_precommit_config, f)
@@ -164,7 +164,7 @@ class TestPreCommitIntegrator:
     ) -> None:
         """Test loading existing pre-commit config."""
         precommit_path = tmp_path / ".pre-commit-config.yaml"
-        import yaml
+        import yaml  # type: ignore[import-untyped]
 
         with open(precommit_path, "w") as f:
             yaml.dump(sample_precommit_config, f)
@@ -392,7 +392,7 @@ class TestPreCommitIntegrator:
         }
 
         precommit_path = tmp_path / ".pre-commit-config.yaml"
-        import yaml
+        import yaml  # type: ignore[import-untyped]
 
         with open(precommit_path, "w") as f:
             yaml.dump(config, f)
@@ -448,7 +448,7 @@ class TestPreCommitIntegrator:
         """Test that merging preserves existing structure."""
         # Create existing file
         precommit_path = tmp_path / ".pre-commit-config.yaml"
-        import yaml
+        import yaml  # type: ignore[import-untyped]
 
         with open(precommit_path, "w") as f:
             yaml.dump(sample_precommit_config, f)

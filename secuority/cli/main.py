@@ -40,7 +40,7 @@ def _get_core_engine() -> CoreEngine:
     )
 
 
-@app.command()  # type: ignore[misc]
+@app.command()
 def check(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed analysis information"),  # noqa: B008
     project_path: Path | None = typer.Option(  # noqa: B008
@@ -442,7 +442,7 @@ def check(
         raise typer.Exit(1) from e
 
 
-@app.command()  # type: ignore[misc]
+@app.command()
 def apply(
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Show changes without applying them"),  # noqa: B008
     force: bool = typer.Option(False, "--force", "-f", help="Apply changes without confirmation"),  # noqa: B008
@@ -874,7 +874,7 @@ template_app = typer.Typer(name="template", help="Manage configuration templates
 app.add_typer(template_app)
 
 
-@template_app.command("list")  # type: ignore[misc]
+@template_app.command("list")
 def template_list(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
     structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
@@ -956,7 +956,7 @@ def template_list(
         raise typer.Exit(1) from None
 
 
-@template_app.command("update")  # type: ignore[misc]
+@template_app.command("update")
 def template_update(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
     structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
@@ -1026,7 +1026,7 @@ def template_update(
         raise typer.Exit(1) from None
 
 
-@app.command()  # type: ignore[misc]
+@app.command()
 def init(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
     structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),

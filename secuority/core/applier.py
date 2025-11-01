@@ -16,7 +16,7 @@ except ImportError:
 try:
     import tomli_w
 except ImportError:
-    tomli_w = None
+    tomli_w = None  # type: ignore[assignment]
 
 try:
     import toml
@@ -335,14 +335,11 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         # Extract project information from existing pyproject.toml if available
         project_info = self._extract_project_info(file_path)
 
-        # Define template variable mappings
         # Resolve absolute path to get proper directory name
         abs_path = file_path.resolve()
         if file_path.name in ["pyproject.toml", ".gitignore", ".pre-commit-config.yaml"]:
-            # For project root files, use the parent directory name
             project_dir_name = abs_path.parent.name
         else:
-            # For other files, use the project root directory name
             project_dir_name = (
                 abs_path.parent.parent.name if abs_path.parent.name == "workflows" else abs_path.parent.name
             )

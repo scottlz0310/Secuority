@@ -14,7 +14,7 @@ except ImportError:
 try:
     import tomli_w
 except ImportError:
-    tomli_w = None
+    tomli_w = None  # type: ignore[assignment]
 
 from ..models.config import ConfigChange
 from ..models.exceptions import ConfigurationError
