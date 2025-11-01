@@ -479,15 +479,14 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                                 # Check lint.select rules (newer ruff format)
                                 lint_config = ruff_config.get("lint", {})
                                 lint_select = lint_config.get("select", []) if isinstance(lint_config, dict) else []
-                                
+
                                 all_rules = select_rules + lint_select
-                                
+
                                 # Check for import sorting rules (I001, etc.)
                                 has_import_rules = any(
-                                    rule.startswith("I") for rule in all_rules 
-                                    if isinstance(rule, str)
+                                    rule.startswith("I") for rule in all_rules if isinstance(rule, str)
                                 )
-                                
+
                                 if has_import_rules:
                                     quality_tools[QualityTool.ISORT] = True
             except (tomllib.TOMLDecodeError, OSError):
@@ -507,7 +506,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                     "flake8": QualityTool.FLAKE8,
                     "pylint": QualityTool.PYLINT,
                 }
-                
+
                 for tool_name, tool_enum in tool_mapping.items():
                     if tool_name in precommit_tools:
                         quality_tools[tool_enum] = True
@@ -520,6 +519,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             # Try to import yaml, if not available, fall back to text search
             try:
                 import yaml  # type: ignore
+
                 yaml_available = True
             except ImportError:
                 yaml_available = False
@@ -555,11 +555,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
     def _check_tools_in_precommit(self, precommit_path: Path) -> list[str]:
         """Check which tools are configured in pre-commit config."""
         tools = []
-        
+
         try:
             # Try to import yaml, if not available, fall back to text search
             try:
                 import yaml  # type: ignore
+
                 yaml_available = True
             except ImportError:
                 yaml_available = False
@@ -574,7 +575,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                         if isinstance(repo, dict):
                             # Check repo URL for tool names
                             repo_url = repo.get("repo", "").lower()
-                            
+
                             # Common tool patterns in repo URLs
                             tool_patterns = {
                                 "ruff": ["ruff", "astral-sh/ruff"],
@@ -587,11 +588,11 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                                 "safety": ["safety", "pyupio/safety"],
                                 "gitleaks": ["gitleaks", "zricethezav/gitleaks"],
                             }
-                            
+
                             for tool_name, patterns in tool_patterns.items():
                                 if any(pattern in repo_url for pattern in patterns):
                                     tools.append(tool_name)
-                            
+
                             # Check hooks for tool names
                             hooks = repo.get("hooks", [])
                             for hook in hooks:
@@ -604,7 +605,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 # Fallback to text search
                 with open(precommit_path, encoding="utf-8") as f:
                     content = f.read().lower()
-                    
+
                     # Search for common tool names in the content
                     tool_names = ["ruff", "mypy", "black", "isort", "flake8", "pylint", "bandit", "safety", "gitleaks"]
                     for tool_name in tool_names:
@@ -645,6 +646,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             # Try to import yaml, if not available, fall back to basic parsing
             try:
                 import yaml  # type: ignore
+
                 yaml_available = True
             except ImportError:
                 yaml_available = False
@@ -678,26 +680,26 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 # Fallback to basic text parsing
                 with open(workflow_path, encoding="utf-8") as f:
                     content = f.read()
-                
+
                 # Extract name using regex
-                name_match = re.search(r'^name:\s*(.+)$', content, re.MULTILINE)
-                name = name_match.group(1).strip().strip('"\'') if name_match else workflow_path.stem
-                
+                name_match = re.search(r"^name:\s*(.+)$", content, re.MULTILINE)
+                name = name_match.group(1).strip().strip("\"'") if name_match else workflow_path.stem
+
                 # Extract triggers (basic)
                 triggers = []
-                on_match = re.search(r'^on:\s*(.+)$', content, re.MULTILINE)
+                on_match = re.search(r"^on:\s*(.+)$", content, re.MULTILINE)
                 if on_match:
                     on_line = on_match.group(1).strip()
-                    if on_line and not on_line.startswith('[') and not on_line.startswith('{'):
+                    if on_line and not on_line.startswith("[") and not on_line.startswith("{"):
                         triggers.append(on_line)
-                
+
                 # Extract job names (basic)
-                jobs_match = re.search(r'^jobs:\s*$', content, re.MULTILINE)
+                jobs_match = re.search(r"^jobs:\s*$", content, re.MULTILINE)
                 jobs = []
                 if jobs_match:
                     # Find job names after jobs: line
-                    jobs_section = content[jobs_match.end():]
-                    job_matches = re.findall(r'^\s{2}([a-zA-Z_][a-zA-Z0-9_-]*):', jobs_section, re.MULTILINE)
+                    jobs_section = content[jobs_match.end() :]
+                    job_matches = re.findall(r"^\s{2}([a-zA-Z_][a-zA-Z0-9_-]*):", jobs_section, re.MULTILINE)
                     jobs = job_matches
 
             # Check for security and quality checks (works for both methods)
@@ -716,7 +718,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 has_quality_checks=has_quality_checks,
             )
 
-        except (OSError, UnicodeDecodeError) as e:
+        except (OSError, UnicodeDecodeError):
             # If file can't be read, return None
             return None
         except Exception:

@@ -212,7 +212,7 @@ def check(
                     vuln_alerts = security_settings.get("vulnerability_alerts", {}).get("enabled", False)
                     va_status = "[green]✓ Enabled[/green]" if vuln_alerts else "[red]✗ Disabled[/red]"
                     github_table.add_row("Vulnerability Alerts", va_status)
-                    
+
                     # Security Policy
                     security_policy = security_settings.get("security_policy", False)
                     sp_status = "[green]✓ Enabled[/green]" if security_policy else "[red]✗ Disabled[/red]"
@@ -253,20 +253,18 @@ def check(
             # Check for essential modern tools
             essential_tools = ["ruff", "mypy"]
             missing_essential = []
-            
+
             for tool, configured in project_state.quality_tools.items():
                 tool_name = tool.value.lower()
                 if tool_name in essential_tools and not configured:
                     missing_essential.append(tool.value)
-            
+
             if missing_essential:
                 recommendations.append(f"Configure essential quality tools: {', '.join(missing_essential)}")
-            
+
             # Check for tool redundancy and suggest modern alternatives
-            ruff_configured = any(
-                t.value.lower() == "ruff" for t, c in project_state.quality_tools.items() if c
-            )
-            
+            ruff_configured = any(t.value.lower() == "ruff" for t, c in project_state.quality_tools.items() if c)
+
             if ruff_configured:
                 # Check if using redundant tools that ruff can replace
                 redundant_tools = []
@@ -275,10 +273,10 @@ def check(
                     if tool_name in ["black", "flake8", "isort"] and configured:
                         # Only suggest if it's configured separately from ruff
                         redundant_tools.append(tool.value)
-                
+
                 if redundant_tools:
                     recommendations.append(
-                        f"Consider removing redundant tools (ruff already handles: {', '.join(redundant_tools)})"
+                        f"Consider removing redundant tools (ruff already handles: {', '.join(redundant_tools)})",
                     )
             else:
                 # Ruff not configured, suggest it as replacement for legacy tools
@@ -287,11 +285,9 @@ def check(
                     tool_name = tool.value.lower()
                     if tool_name in ["black", "flake8", "pylint"] and configured:
                         legacy_in_use.append(tool.value)
-                
+
                 if legacy_in_use:
-                    recommendations.append(
-                        f"Consider migrating to ruff (can replace: {', '.join(legacy_in_use)})"
-                    )
+                    recommendations.append(f"Consider migrating to ruff (can replace: {', '.join(legacy_in_use)})")
 
         # Check CI workflows - only recommend if no workflows exist
         if not project_state.ci_workflows:

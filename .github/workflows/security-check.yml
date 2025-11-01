@@ -79,11 +79,11 @@ jobs:
           import json
           import sys
           from sarif_om import SarifLog, Run, Tool, Result, Location, PhysicalLocation, ArtifactLocation, Message
-          
+
           try:
               with open('bandit-report.json', 'r') as f:
                   bandit_data = json.load(f)
-              
+
               sarif_log = SarifLog(
                   version='2.1.0',
                   runs=[
@@ -107,7 +107,7 @@ jobs:
                       )
                   ]
               )
-              
+
               with open('bandit.sarif', 'w') as f:
                   json.dump(sarif_log.to_dict(), f, indent=2)
           except Exception as e:
@@ -139,40 +139,40 @@ jobs:
         script: |
           const fs = require('fs');
           let comment = '## 🔒 Security Scan Results\n\n';
-          
+
           try {
             const banditReport = JSON.parse(fs.readFileSync('bandit-report.json', 'utf8'));
             const highIssues = banditReport.metrics._totals.SEVERITY.HIGH || 0;
             const mediumIssues = banditReport.metrics._totals.SEVERITY.MEDIUM || 0;
             const lowIssues = banditReport.metrics._totals.SEVERITY.LOW || 0;
-            
+
             comment += `### 🛡️ Bandit Security Linter\n`;
             comment += `- **High severity issues**: ${highIssues} ${highIssues > 0 ? '❌' : '✅'}\n`;
             comment += `- **Medium severity issues**: ${mediumIssues} ${mediumIssues > 0 ? '⚠️' : '✅'}\n`;
             comment += `- **Low severity issues**: ${lowIssues} ${lowIssues > 0 ? '⚠️' : '✅'}\n\n`;
-            
+
             if (highIssues > 0 || mediumIssues > 0) {
               comment += `⚠️ **Action Required**: Please review and fix security issues before merging.\n\n`;
             }
           } catch (e) {
             comment += '### 🛡️ Bandit Security Linter\n❓ Report not available\n\n';
           }
-          
+
           try {
             const safetyReport = JSON.parse(fs.readFileSync('safety-report.json', 'utf8'));
             const vulnCount = safetyReport.vulnerabilities?.length || 0;
             comment += `### 🔍 Safety Dependency Scanner\n`;
             comment += `- **Vulnerabilities found**: ${vulnCount} ${vulnCount > 0 ? '❌' : '✅'}\n\n`;
-            
+
             if (vulnCount > 0) {
               comment += `⚠️ **Action Required**: Please update vulnerable dependencies before merging.\n\n`;
             }
           } catch (e) {
             comment += '### 🔍 Safety Dependency Scanner\n❓ Report not available\n\n';
           }
-          
+
           comment += `---\n*Security scan completed for Python ${{ matrix.python-version }}*`;
-          
+
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
