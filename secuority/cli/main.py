@@ -556,21 +556,6 @@ def apply(
                 except Exception as e:
                     logger.warning("Failed to generate SECURITY.md change", error=str(e))
 
-            # Add workflow templates if they exist
-            workflow_templates = [name for name in templates.keys() if name.startswith("workflows/")]
-            for workflow_template in workflow_templates:
-                workflow_path = project_path / ".github" / workflow_template
-                if not workflow_path.exists():
-                    try:
-                        change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
-                            workflow_path,
-                            templates[workflow_template],
-                        )
-                        changes.append(change)
-                        logger.debug("Added workflow template change", workflow=workflow_template)
-                    except Exception as e:
-                        logger.warning("Failed to generate workflow change", workflow=workflow_template, error=str(e))
-
         # Add security tools integration if needed
         if apply_security and project_state.security_tools:
             missing_security_tools = [
@@ -633,11 +618,11 @@ def apply(
                 logger.warning("Failed to generate dependency migration change", error=str(e))
 
         # Add CI/CD workflows if needed
-        if apply_templates and not project_state.ci_workflows:
+        if apply_templates:
             try:
                 workflow_changes = core_engine.applier.get_workflow_integration_changes(  # type: ignore[attr-defined]
                     project_path,
-                    ["security", "quality"],
+                    ["security", "quality", "cicd", "dependency"],
                 )
                 changes.extend(workflow_changes)
                 logger.debug("Added CI/CD workflow changes", count=len(workflow_changes))

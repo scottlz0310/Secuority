@@ -886,7 +886,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         Args:
             project_path: Path to the project directory
-            workflows: List of workflows to generate (default: ['security', 'quality'])
+            workflows: List of workflows to generate (default: ['security', 'quality', 'cicd', 'dependency'])
             python_versions: List of Python versions to test
             dry_run: Whether to perform a dry run
 
@@ -894,7 +894,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             ApplyResult with workflow generation results
         """
         if workflows is None:
-            workflows = ["security", "quality"]
+            workflows = ["security", "quality", "cicd", "dependency"]
 
         # Generate CI/CD workflow configuration changes
         changes = self.workflow_integrator.generate_workflows(project_path, workflows, python_versions)
@@ -912,14 +912,14 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         Args:
             project_path: Path to the project directory
-            workflows: List of workflows to generate (default: ['security', 'quality'])
+            workflows: List of workflows to generate (default: ['security', 'quality', 'cicd', 'dependency'])
             python_versions: List of Python versions to test
 
         Returns:
             List of ConfigChange objects for workflow integration
         """
         if workflows is None:
-            workflows = ["security", "quality"]
+            workflows = ["security", "quality", "cicd", "dependency"]
 
         return self.workflow_integrator.generate_workflows(project_path, workflows, python_versions)
 
@@ -961,7 +961,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         # Get workflow integration changes
         if workflows is None:
-            workflows = ["security", "quality"]
+            workflows = ["security", "quality", "cicd", "dependency"]
         workflow_changes = self.get_workflow_integration_changes(project_path, workflows, python_versions)
         all_changes.extend(workflow_changes)
 

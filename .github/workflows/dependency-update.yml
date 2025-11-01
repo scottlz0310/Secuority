@@ -6,7 +6,7 @@ name: Dependency Updates
 on:
   schedule:
     # Run weekly on Mondays at 9 AM UTC
-    - cron: '0 9 * * 1'
+    - cron: "0 9 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -17,98 +17,98 @@ jobs:
   update-dependencies:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        version: "latest"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
 
-    - name: Set up Python
-      run: uv python install 3.11
+      - name: Set up Python
+        run: uv python install 3.13
 
-    - name: Update dependencies
-      run: |
-        if [ -f "pyproject.toml" ]; then
-          # Update uv.lock file
-          uv lock --upgrade
+      - name: Update dependencies
+        run: |
+          if [ -f "pyproject.toml" ]; then
+            # Update uv.lock file
+            uv lock --upgrade
 
-          # Check if there are changes
-          if git diff --quiet uv.lock; then
-            echo "No dependency updates available"
-            echo "has_updates=false" >> $GITHUB_ENV
+            # Check if there are changes
+            if git diff --quiet uv.lock; then
+              echo "No dependency updates available"
+              echo "has_updates=false" >> $GITHUB_ENV
+            else
+              echo "Dependencies updated"
+              echo "has_updates=true" >> $GITHUB_ENV
+            fi
+          elif [ -f "requirements.txt" ]; then
+            # For requirements.txt projects, create updated requirements
+            uv pip compile requirements.txt --upgrade --output-file requirements-updated.txt
+
+            if diff requirements.txt requirements-updated.txt > /dev/null; then
+              echo "No dependency updates available"
+              echo "has_updates=false" >> $GITHUB_ENV
+              rm requirements-updated.txt
+            else
+              mv requirements-updated.txt requirements.txt
+              echo "Dependencies updated"
+              echo "has_updates=true" >> $GITHUB_ENV
+            fi
           else
-            echo "Dependencies updated"
-            echo "has_updates=true" >> $GITHUB_ENV
-          fi
-        elif [ -f "requirements.txt" ]; then
-          # For requirements.txt projects, create updated requirements
-          uv pip compile requirements.txt --upgrade --output-file requirements-updated.txt
-
-          if diff requirements.txt requirements-updated.txt > /dev/null; then
-            echo "No dependency updates available"
+            echo "No dependency files found"
             echo "has_updates=false" >> $GITHUB_ENV
-            rm requirements-updated.txt
-          else
-            mv requirements-updated.txt requirements.txt
-            echo "Dependencies updated"
-            echo "has_updates=true" >> $GITHUB_ENV
           fi
-        else
-          echo "No dependency files found"
-          echo "has_updates=false" >> $GITHUB_ENV
-        fi
 
-    - name: Run tests with updated dependencies
-      if: env.has_updates == 'true'
-      run: |
-        if [ -f "pyproject.toml" ]; then
-          # Use uv sync to install all dependencies
-          uv sync --all-extras || uv sync
-        elif [ -f "requirements.txt" ]; then
-          uv venv
-          source .venv/bin/activate
-          uv pip install -r requirements.txt
-          uv pip install pytest
-        fi
+      - name: Run tests with updated dependencies
+        if: env.has_updates == 'true'
+        run: |
+          if [ -f "pyproject.toml" ]; then
+            # Use uv sync to install all dependencies
+            uv sync --all-extras || uv sync
+          elif [ -f "requirements.txt" ]; then
+            uv venv
+            source .venv/bin/activate
+            uv pip install -r requirements.txt
+            uv pip install pytest
+          fi
 
-        # Run tests if they exist
-        if [ -d "tests" ] || [ -f "test_*.py" ] || find . -name "*_test.py" -type f | grep -q .; then
-          uv run pytest -v
-        else
-          echo "No tests found, skipping test execution"
-        fi
+          # Run tests if they exist
+          if [ -d "tests" ] || [ -f "test_*.py" ] || find . -name "*_test.py" -type f | grep -q .; then
+            uv run pytest -v
+          else
+            echo "No tests found, skipping test execution"
+          fi
 
-    - name: Create Pull Request
-      if: env.has_updates == 'true'
-      uses: peter-evans/create-pull-request@v6
-      with:
-        token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
-        commit-message: |
-          chore: update dependencies
+      - name: Create Pull Request
+        if: env.has_updates == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
+          commit-message: |
+            chore: update dependencies
 
-          - Updated Python dependencies to latest versions
-          - All tests passing with updated dependencies
-        title: 'chore: automated dependency updates'
-        body: |
-          ## 🔄 Automated Dependency Updates
+            - Updated Python dependencies to latest versions
+            - All tests passing with updated dependencies
+          title: "chore: automated dependency updates"
+          body: |
+            ## 🔄 Automated Dependency Updates
 
-          This PR contains automated updates to Python dependencies.
+            This PR contains automated updates to Python dependencies.
 
-          ### Changes
-          - Updated dependencies to their latest compatible versions
-          - All existing tests pass with the updated dependencies
+            ### Changes
+            - Updated dependencies to their latest compatible versions
+            - All existing tests pass with the updated dependencies
 
-          ### Review Checklist
-          - [ ] Review the dependency changes
-          - [ ] Ensure all tests pass
-          - [ ] Check for any breaking changes in updated packages
-          - [ ] Verify security vulnerabilities are addressed
+            ### Review Checklist
+            - [ ] Review the dependency changes
+            - [ ] Ensure all tests pass
+            - [ ] Check for any breaking changes in updated packages
+            - [ ] Verify security vulnerabilities are addressed
 
-          ---
-          *This PR was created automatically by the dependency update workflow.*
-        branch: automated-dependency-updates
-        delete-branch: true
-        labels: |
-          dependencies
-          automated
+            ---
+            *This PR was created automatically by the dependency update workflow.*
+          branch: automated-dependency-updates
+          delete-branch: true
+          labels: |
+            dependencies
+            automated
