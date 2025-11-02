@@ -8,8 +8,8 @@
   ],
   "timezone": "Asia/Tokyo",
   "labels": ["dependencies"],
-  "assignees": ["@hiro"],
-  "reviewers": ["@hiro"],
+  "assignees": ["@scottlz0310"],
+  "reviewers": ["@scottlz0310"],
   "packageRules": [
     {
       "description": "Pre-commit hooks - weekly updates",
@@ -40,8 +40,8 @@
   ],
   "vulnerabilityAlerts": {
     "labels": ["security"],
-    "assignees": ["@hiro"],
-    "reviewers": ["@hiro"]
+    "assignees": ["@scottlz0310"],
+    "reviewers": ["@scottlz0310"]
   },
   "lockFileMaintenance": {
     "enabled": true,
