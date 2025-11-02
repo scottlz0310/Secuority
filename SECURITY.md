@@ -69,7 +69,8 @@ When using this project, we recommend:
 
 This project includes the following security measures:
 
-- Automated dependency vulnerability scanning with Safety and Dependabot
+- Automated dependency vulnerability scanning with Safety
+- Automated dependency updates with Renovate
 - Static code analysis with Bandit
 - Secret scanning with gitleaks
 - Regular security audits

@@ -100,8 +100,67 @@ class GitHubClient(GitHubClientInterface):
         except GitHubAPIError:
             raise
 
+    def get_renovate_config(self, owner: str, repo: str) -> dict[str, Any]:
+        """Get Renovate configuration for the repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            Dictionary containing Renovate configuration
+
+        Raises:
+            GitHubAPIError: If API request fails
+        """
+        # Try to get Renovate configuration file (renovate.json)
+        config_endpoint = f"/repos/{owner}/{repo}/contents/renovate.json"
+        try:
+            config_data = self._make_request(config_endpoint)
+            return {
+                "enabled": True,
+                "config_file": "renovate.json",
+                "config_file_exists": True,
+                "config_content": config_data.get("content", ""),
+            }
+        except GitHubAPIError:
+            pass
+
+        # Try renovate.json5 as alternative
+        config5_endpoint = f"/repos/{owner}/{repo}/contents/renovate.json5"
+        try:
+            config_data = self._make_request(config5_endpoint)
+            return {
+                "enabled": True,
+                "config_file": "renovate.json5",
+                "config_file_exists": True,
+                "config_content": config_data.get("content", ""),
+            }
+        except GitHubAPIError:
+            pass
+
+        # Try .github/renovate.json
+        github_config_endpoint = f"/repos/{owner}/{repo}/contents/.github/renovate.json"
+        try:
+            config_data = self._make_request(github_config_endpoint)
+            return {
+                "enabled": True,
+                "config_file": ".github/renovate.json",
+                "config_file_exists": True,
+                "config_content": config_data.get("content", ""),
+            }
+        except GitHubAPIError:
+            return {
+                "enabled": False,
+                "config_file": None,
+                "config_file_exists": False,
+                "config_content": "",
+            }
+
     def get_dependabot_config(self, owner: str, repo: str) -> dict[str, Any]:
         """Get Dependabot configuration for the repository.
+
+        DEPRECATED: Use get_renovate_config instead for modern dependency management.
 
         Args:
             owner: Repository owner
@@ -131,7 +190,11 @@ class GitHubClient(GitHubClientInterface):
                 "config_content": config_data.get("content", ""),
             }
         except GitHubAPIError:
-            return {"enabled": dependabot_enabled, "config_file_exists": False, "config_content": ""}
+            return {
+                "enabled": dependabot_enabled,
+                "config_file_exists": False,
+                "config_content": "",
+            }
 
     def list_workflows(self, owner: str, repo: str) -> list[dict[str, Any]]:
         """List GitHub Actions workflows for the repository.

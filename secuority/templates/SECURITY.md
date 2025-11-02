@@ -55,7 +55,7 @@ This project implements several security measures:
 
 ### CI/CD Security
 - **Automated Security Scans**: Run on every PR and push
-- **Dependency Updates**: Automated dependency updates via Dependabot
+- **Dependency Updates**: Automated dependency updates via Renovate
 - **SARIF Integration**: Security findings uploaded to GitHub Security tab
 - **Branch Protection**: Main branch protected with required status checks
 

@@ -238,59 +238,6 @@ class WorkflowIntegrator:
             conflicts=[],
         )
 
-    def generate_dependency_workflow(
-        self,
-        project_path: Path,
-        python_versions: list[str] | None = None,
-    ) -> ConfigChange:
-        """Generate GitHub Actions dependency update workflow.
-
-        Args:
-            project_path: Path to the project directory
-            python_versions: List of Python versions to test (default: ["3.12", "3.13", "3.14"])
-
-        Returns:
-            ConfigChange for dependency workflow creation
-
-        Raises:
-            ConfigurationError: If workflow generation fails
-        """
-        workflows_dir = project_path / ".github" / "workflows"
-        dependency_workflow_path = workflows_dir / "dependency-update.yml"
-
-        # Load template from package resources
-        try:
-            template_content = (
-                importlib.resources.files("secuority.templates.workflows")
-                .joinpath("dependency-update.yml")
-                .read_text(encoding="utf-8")
-            )
-        except Exception as e:
-            raise ConfigurationError(f"Failed to load dependency workflow template: {e}") from e
-
-        new_content = template_content
-
-        # Read existing content for comparison
-        old_content = ""
-        if dependency_workflow_path.exists():
-            try:
-                with open(dependency_workflow_path, encoding="utf-8") as f:
-                    old_content = f.read()
-            except OSError as e:
-                raise ConfigurationError(f"Failed to read {dependency_workflow_path}: {e}") from e
-
-        # Determine change type
-        change_type = ChangeType.UPDATE if dependency_workflow_path.exists() else ChangeType.CREATE
-
-        return ConfigChange(
-            file_path=dependency_workflow_path,
-            change_type=change_type,
-            old_content=old_content if change_type == ChangeType.UPDATE else None,
-            new_content=new_content,
-            description="Generate GitHub Actions dependency update workflow",
-            conflicts=[],
-        )
-
     def generate_workflows(
         self,
         project_path: Path,
@@ -301,7 +248,9 @@ class WorkflowIntegrator:
 
         Args:
             project_path: Path to the project directory
-            workflows: List of workflows to generate (default: ['security', 'quality', 'cicd', 'dependency'])
+            workflows: List of workflows to generate
+                (default: ['security', 'quality', 'cicd'])
+                Note: 'dependency' is deprecated, use Renovate instead
             python_versions: List of Python versions to test
 
         Returns:
@@ -311,7 +260,7 @@ class WorkflowIntegrator:
             ConfigurationError: If workflow generation fails
         """
         if workflows is None:
-            workflows = ["security", "quality", "cicd", "dependency"]
+            workflows = ["security", "quality", "cicd"]
 
         changes = []
 
@@ -333,9 +282,9 @@ class WorkflowIntegrator:
             elif workflow_type == "cicd":
                 change = self.generate_cicd_workflow(project_path, python_versions)
                 changes.append(change)
-            elif workflow_type == "dependency":
-                change = self.generate_dependency_workflow(project_path, python_versions)
-                changes.append(change)
+            # Note: 'dependency' workflow type is deprecated
+            # Dependency management is now handled by Renovate (renovate.json)
+            # instead of GitHub Actions workflows
 
         return changes
 
@@ -404,6 +353,68 @@ class WorkflowIntegrator:
             recommendations.append("Add quality workflow with linting, type checking, and testing")
 
         if not status["security"] and not status["quality"]:
-            recommendations.append("Consider enabling GitHub's built-in security features like Dependabot and CodeQL")
+            recommendations.append("Consider enabling GitHub's built-in security features like Renovate and CodeQL")
 
         return recommendations
+
+    def detect_deprecated_dependency_files(self, project_path: Path) -> dict[str, Any]:
+        """Detect deprecated Dependabot-related files that should be migrated.
+
+        Args:
+            project_path: Path to the project directory
+
+        Returns:
+            Dictionary containing detected files and recommendations
+        """
+        deprecated_files: list[Path] = []
+        workflows_dir = project_path / ".github" / "workflows"
+        github_dir = project_path / ".github"
+
+        # Check for Dependabot config
+        dependabot_yml = github_dir / "dependabot.yml"
+        dependabot_yaml = github_dir / "dependabot.yaml"
+
+        if dependabot_yml.exists():
+            deprecated_files.append(dependabot_yml)
+        if dependabot_yaml.exists():
+            deprecated_files.append(dependabot_yaml)
+
+        # Check for Dependabot automerge workflow
+        if workflows_dir.exists():
+            automerge_files = [
+                "dependabot-automerge.yml",
+                "dependabot-automerge.yaml",
+                "dependabot-auto-merge.yml",
+                "dependabot-auto-merge.yaml",
+                "auto-merge.yml",
+                "auto-merge.yaml",
+            ]
+            for filename in automerge_files:
+                file_path = workflows_dir / filename
+                if file_path.exists():
+                    deprecated_files.append(file_path)
+
+        # Check for dependency-update workflow
+        dependency_update_files = [
+            "dependency-update.yml",
+            "dependency-update.yaml",
+            "dependencies.yml",
+            "dependencies.yaml",
+        ]
+        if workflows_dir.exists():
+            for filename in dependency_update_files:
+                file_path = workflows_dir / filename
+                if file_path.exists():
+                    deprecated_files.append(file_path)
+
+        recommendations = []
+        if deprecated_files:
+            recommendations.append("Migrate from Dependabot to Renovate for better dependency management")
+            recommendations.append("Remove deprecated Dependabot configuration files")
+            recommendations.append("Add renovate.json configuration file")
+
+        return {
+            "has_deprecated_files": bool(deprecated_files),
+            "deprecated_files": [str(f.relative_to(project_path)) for f in deprecated_files],
+            "recommendations": recommendations,
+        }

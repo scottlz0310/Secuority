@@ -416,12 +416,15 @@ class TestWorkflowGeneration:
         security_integrator = SecurityToolsIntegrator()
         tool_changes = security_integrator.integrate_security_tools(sample_project)
 
-        # Generate workflows
-        workflow_changes = workflow_integrator.generate_workflows(sample_project)
+        # Generate workflows (excluding deprecated 'dependency' workflow)
+        workflow_changes = workflow_integrator.generate_workflows(
+            sample_project,
+            workflows=["security", "quality", "cicd"],
+        )
 
         # Verify complete setup
         assert len(tool_changes) > 0
-        assert len(workflow_changes) > 0
+        assert len(workflow_changes) == 3  # security, quality, cicd
 
         # Check that workflows reference the security tools
         security_workflow = next(

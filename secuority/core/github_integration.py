@@ -71,9 +71,9 @@ class GitHubIntegration:
         workflow_result = self._analyze_workflows(owner, repo)
         analysis_result["workflow_analysis"] = workflow_result
 
-        # Perform Dependabot analysis
-        dependabot_result = self._analyze_dependabot(owner, repo)
-        analysis_result["dependabot_analysis"] = dependabot_result
+        # Perform dependency management analysis (Renovate/Dependabot)
+        dependency_result = self._analyze_dependency_management(owner, repo)
+        analysis_result["dependency_analysis"] = dependency_result
 
         # Collect all errors from error handler
         error_summary = self.error_handler.get_error_summary()
@@ -81,7 +81,7 @@ class GitHubIntegration:
         analysis_result["total_errors"] = error_summary["total_errors"]
 
         # Mark analysis as complete if we got some results
-        analysis_result["analysis_complete"] = bool(security_result) or bool(workflow_result) or bool(dependabot_result)
+        analysis_result["analysis_complete"] = bool(security_result) or bool(workflow_result) or bool(dependency_result)
 
         return analysis_result
 
@@ -186,13 +186,44 @@ class GitHubIntegration:
             "recommendations": self._get_workflow_recommendations(bool(security_workflows), bool(quality_workflows)),
         }
 
-    def _analyze_dependabot(self, owner: str, repo: str) -> dict[str, Any]:
-        """Analyze Dependabot configuration with error handling."""
+    def _analyze_dependency_management(self, owner: str, repo: str) -> dict[str, Any]:
+        """Analyze dependency management (Renovate/Dependabot) with error handling."""
+        # Check for Renovate first (preferred)
+        renovate_config_result = safe_github_call(
+            self.client.get_renovate_config,
+            owner,
+            repo,
+            fallback_value={
+                "enabled": False,
+                "config_file": None,
+                "config_file_exists": False,
+                "config_content": "",
+            },
+            operation_name="Renovate configuration check",
+            show_warnings=self.show_warnings,
+        )
+
+        renovate_config: dict[str, Any] = (
+            renovate_config_result
+            if renovate_config_result is not None
+            else {
+                "enabled": False,
+                "config_file": None,
+                "config_file_exists": False,
+                "config_content": "",
+            }
+        )
+
+        # Check for Dependabot as fallback
         dependabot_config_result = safe_github_call(
             self.client.get_dependabot_config,
             owner,
             repo,
-            fallback_value={"enabled": False, "config_file_exists": False, "config_content": ""},
+            fallback_value={
+                "enabled": False,
+                "config_file_exists": False,
+                "config_content": "",
+            },
             operation_name="Dependabot configuration check",
             show_warnings=self.show_warnings,
         )
@@ -208,13 +239,25 @@ class GitHubIntegration:
         )
 
         recommendations = []
-        if not dependabot_config.get("enabled", False):
-            recommendations.append("Enable Dependabot for automated dependency updates")
+        has_renovate = renovate_config.get("enabled", False)
+        has_dependabot = dependabot_config.get("enabled", False)
 
-        if not dependabot_config.get("config_file_exists", False):
-            recommendations.append("Add .github/dependabot.yml configuration file")
+        if not has_renovate and not has_dependabot:
+            recommendations.append(
+                "Enable Renovate for automated dependency updates (modern alternative to Dependabot)",
+            )
+            recommendations.append("Add renovate.json configuration file")
+        elif has_dependabot and not has_renovate:
+            recommendations.append("Consider migrating to Renovate for better dependency management")
 
-        return {"dependabot_config": dependabot_config, "recommendations": recommendations}
+        return {
+            "renovate_config": renovate_config,
+            "dependabot_config": dependabot_config,
+            "using_renovate": has_renovate,
+            "using_dependabot": has_dependabot,
+            "should_migrate": has_dependabot and not has_renovate,
+            "recommendations": recommendations,
+        }
 
     def _is_security_workflow(self, name: str, path: str) -> bool:
         """Check if a workflow is security-related."""

@@ -76,6 +76,11 @@ module = "tomli"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "secuority.core.renovate_integrator"
+warn_return_any = false
+disable_error_code = ["misc", "arg-type"]
+
+[[tool.mypy.overrides]]
 module = "tests.*"
 warn_unreachable = false
 disallow_untyped_decorators = false

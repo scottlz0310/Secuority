@@ -10,9 +10,19 @@
 
 ## 2. GitHub 連携と認証
 
-- GitHub Push Protection/Dependabot の状態確認は `GITHUB_PERSONAL_ACCESS_TOKEN` 環境変数 (読み取りスコープ) が利用可能な場合にのみ実施する。
+- GitHub Push Protection/Renovate の状態確認は `GITHUB_PERSONAL_ACCESS_TOKEN` 環境変数 (読み取りスコープ) が利用可能な場合にのみ実施する。
 - トークンが見つからない場合はローカル情報のみで評価し、未実施の旨をレポートに残す。
 - API 呼び出しが失敗した際は CLI を失敗させず、警告として扱う。
+
+## 2.1 依存関係管理の移行（Dependabot → Renovate）
+
+- Dependabot設定ファイル（`.github/dependabot.yml`）が検出された場合、Renovateへの移行を推奨する。
+- Dependabot関連ワークフロー（`dependabot-automerge.yml`等）の検出と削除を推奨する。
+- Renovateの利点：
+  - より柔軟な設定オプション
+  - 複数の依存関係マネージャーのサポート（pep621, pre-commit, GitHub Actionsなど）
+  - グループ化とautomergeのネイティブサポート
+  - JSONベースの設定ファイルでバージョン管理が容易
 
 ## 3. テンプレート配置と上書き
 
@@ -47,6 +57,7 @@
 ## 8. ロードマップ整合性
 
 - setup.py からの移行提案は v0.1 の検出範囲に含め、v0.3 以降で自動修正オプションを提供する。
-- v0.4 で GitHub Actions/Dependabot を扱う場合、前述の認証要件をクリアしていることを条件とする。
+- v0.4 で GitHub Actions/Renovate を扱う場合、前述の認証要件をクリアしていることを条件とする。
+- Dependabot関連ファイルの検出と削除推奨は自動で行い、Renovate設定の生成を提案する。
 
 必要に応じて本ドキュメントを README から参照し、詳細を更新する。

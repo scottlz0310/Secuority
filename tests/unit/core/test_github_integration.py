@@ -114,23 +114,15 @@ class TestGitHubIntegration:
 
         assert len(result["workflows"]) == 0
 
-    def test_analyze_dependabot_success(self, integration: GitHubIntegration) -> None:
-        """Test analyzing Dependabot successfully."""
-        integration.client.get_dependabot_config = MagicMock(
+    def test_analyze_dependency_management_with_renovate(self, integration: GitHubIntegration) -> None:
+        """Test analyzing dependency management with Renovate."""
+        integration.client.get_renovate_config = MagicMock(
             return_value={
                 "enabled": True,
                 "config_file_exists": True,
-                "config_content": "version: 2",
+                "config_content": '{"extends": ["config:base"]}',
             },
         )
-
-        result = integration._analyze_dependabot("owner", "repo")
-
-        assert result["dependabot_config"]["enabled"] is True
-        assert result["dependabot_config"]["config_file_exists"] is True
-
-    def test_analyze_dependabot_not_enabled(self, integration: GitHubIntegration) -> None:
-        """Test analyzing Dependabot when not enabled."""
         integration.client.get_dependabot_config = MagicMock(
             return_value={
                 "enabled": False,
@@ -139,9 +131,35 @@ class TestGitHubIntegration:
             },
         )
 
-        result = integration._analyze_dependabot("owner", "repo")
+        result = integration._analyze_dependency_management("owner", "repo")
 
-        assert result["dependabot_config"]["enabled"] is False
+        assert result["renovate_config"]["enabled"] is True
+        assert result["using_renovate"] is True
+        assert result["using_dependabot"] is False
+
+    def test_analyze_dependency_management_with_dependabot(self, integration: GitHubIntegration) -> None:
+        """Test analyzing dependency management with Dependabot (should recommend migration)."""
+        integration.client.get_renovate_config = MagicMock(
+            return_value={
+                "enabled": False,
+                "config_file_exists": False,
+                "config_content": "",
+            },
+        )
+        integration.client.get_dependabot_config = MagicMock(
+            return_value={
+                "enabled": True,
+                "config_file_exists": True,
+                "config_content": "version: 2",
+            },
+        )
+
+        result = integration._analyze_dependency_management("owner", "repo")
+
+        assert result["dependabot_config"]["enabled"] is True
+        assert result["using_renovate"] is False
+        assert result["using_dependabot"] is True
+        assert result["should_migrate"] is True
         assert len(result["recommendations"]) > 0
 
     def test_is_security_workflow(self, integration: GitHubIntegration) -> None:

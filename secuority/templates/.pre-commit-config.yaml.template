@@ -91,13 +91,6 @@ repos:
               __pycache__/.*
           )
 
-  # Python import sorting
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        args: ["--profile", "black", "--filter-files"]
-
   # Upgrade Python syntax
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.19.0
