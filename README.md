@@ -2,6 +2,26 @@
 
 **Secuority** は、Pythonプロジェクトのコード品質とセキュリティ設定を自動化・標準化するCLIツールです。
 
+## 📦 インストール
+
+### GitHub Releasesからインストール（推奨）
+
+```bash
+# uvを使用（推奨）
+uv tool install secuority --from "https://github.com/scottlz0310/Secuority/releases/download/v0.5.0/secuority-0.5.0-py3-none-any.whl"
+
+# pipxを使用
+pipx install "https://github.com/scottlz0310/Secuority/releases/download/v0.5.0/secuority-0.5.0-py3-none-any.whl"
+```
+
+### ソースからインストール
+
+```bash
+git clone https://github.com/scottlz0310/Secuority.git
+cd Secuority
+uv tool install .
+```
+
 ## 🎯 解決する問題
 
 * **設定の分散**: プロジェクトごとに異なるlint/security設定
