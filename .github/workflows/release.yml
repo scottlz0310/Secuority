@@ -109,38 +109,44 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Prepare release notes
+        id: release_notes
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          cat <<EOF > release_notes.md
+          ${{ steps.changelog.outputs.changelog }}
+
+          ---
+
+          ## 📦 Installation
+
+          Install directly from GitHub releases using uv or pipx:
+
+          \`\`\`bash
+          # Using uv (recommended)
+          uv tool install secuority --from "https://github.com/scottlz0310/Secuority/releases/download/v${VERSION}/secuority-${VERSION}-py3-none-any.whl"
+
+          # Using pipx
+          pipx install "https://github.com/scottlz0310/Secuority/releases/download/v${VERSION}/secuority-${VERSION}-py3-none-any.whl"
+          \`\`\`
+
+          Or clone and install from source:
+
+          \`\`\`bash
+          git clone https://github.com/scottlz0310/Secuority.git
+          cd Secuority
+          git checkout v${VERSION}
+          uv tool install .
+          \`\`\`
+          EOF
+          cat release_notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          body: ${{ steps.changelog.outputs.changelog }}
+          body_path: release_notes.md
           draft: false
           prerelease: false
           generate_release_notes: true
           token: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-pypi:
-    needs: release
-    runs-on: ubuntu-latest
-    # Uncomment when PyPI credentials are configured
-    # environment:
-    #   name: pypi
-    #   url: https://pypi.org/p/secuority
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      # Uncomment when PYPI_API_TOKEN secret is configured
-      # - name: Publish to PyPI
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #   with:
-      #     password: ${{ secrets.PYPI_API_TOKEN }}
-      #     skip-existing: true
-
-      - name: Verify artifacts
-        run: |
-          ls -lh dist/
-          echo "PyPI publishing is disabled. Configure PYPI_API_TOKEN secret to enable."
