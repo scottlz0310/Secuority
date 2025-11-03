@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "secuority"
-version = "0.1.0"
+version = "0.5.0"
 description = "Automate and standardize Python project security and quality configurations"
 readme = "README.md"
 requires-python = ">=3.12"
