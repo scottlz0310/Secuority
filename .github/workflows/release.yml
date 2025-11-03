@@ -26,7 +26,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-groups
 
       - name: Run tests
         run: |
@@ -57,13 +57,17 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
+      - name: Install build dependencies
+        run: |
+          uv pip install --system twine
+
       - name: Build package
         run: |
           uv build
 
       - name: Check package
         run: |
-          uv run twine check dist/*
+          twine check dist/*
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -122,9 +126,10 @@ jobs:
   publish-pypi:
     needs: release
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/secuority
+    # Uncomment when PyPI credentials are configured
+    # environment:
+    #   name: pypi
+    #   url: https://pypi.org/p/secuority
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -132,8 +137,14 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          skip-existing: true
+      # Uncomment when PYPI_API_TOKEN secret is configured
+      # - name: Publish to PyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     password: ${{ secrets.PYPI_API_TOKEN }}
+      #     skip-existing: true
+
+      - name: Verify artifacts
+        run: |
+          ls -lh dist/
+          echo "PyPI publishing is disabled. Configure PYPI_API_TOKEN secret to enable."
