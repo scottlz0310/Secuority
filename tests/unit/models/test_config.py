@@ -40,7 +40,7 @@ class TestConflict:
         # Since Path("") doesn't raise, we skip this test or modify the implementation
         # For now, we'll test that a conflict can be created with any Path object
         conflict = Conflict(
-            file_path=Path(""),
+            file_path=Path(),
             section="tool.ruff",
             existing_value={},
             template_value={},
@@ -48,7 +48,7 @@ class TestConflict:
         )
         # The validation in __post_init__ checks if file_path is truthy
         # Path("") is truthy, so this won't raise
-        assert conflict.file_path == Path("")
+        assert conflict.file_path == Path()
 
     def test_conflict_creation_empty_section(self, tmp_path: Path) -> None:
         """Test creating Conflict with empty section raises ValidationError."""
@@ -101,12 +101,12 @@ class TestConfigChange:
         # The validation in __post_init__ checks if file_path is truthy
         # Path("") is truthy, so this won't raise ValidationError
         change = ConfigChange(
-            file_path=Path(""),
+            file_path=Path(),
             change_type=ChangeType.CREATE,
             new_content="test",
             description="Test",
         )
-        assert change.file_path == Path("")
+        assert change.file_path == Path()
 
     def test_config_change_creation_empty_description(self, tmp_path: Path) -> None:
         """Test creating ConfigChange with empty description raises ValidationError."""

@@ -19,11 +19,6 @@ except ImportError:
     tomli_w = None  # type: ignore[assignment]
 
 try:
-    import toml
-except ImportError:
-    toml = None  # type: ignore[assignment]
-
-try:
     import yaml
 except ImportError:
     yaml = None  # type: ignore[assignment]
@@ -120,7 +115,7 @@ class ConfigurationMerger:
             elif existing[key] != template_value:
                 # Value conflict
                 conflict = Conflict(
-                    file_path=Path(""),  # Will be set by caller
+                    file_path=Path(),  # Will be set by caller
                     section=full_path,
                     existing_value=existing[key],
                     template_value=template_value,
@@ -225,12 +220,11 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         # Apply the change based on type
         if change.change_type == ChangeType.CREATE:
             return self._create_file(change)
-        elif change.change_type == ChangeType.UPDATE:
+        if change.change_type == ChangeType.UPDATE:
             return self._update_file(change)
-        elif change.change_type == ChangeType.MERGE:
+        if change.change_type == ChangeType.MERGE:
             return self._merge_file(change)
-        else:
-            raise ConfigurationError(f"Unknown change type: {change.change_type}")
+        raise ConfigurationError(f"Unknown change type: {change.change_type}")
 
     def _create_file(self, change: ConfigChange) -> Path | None:
         """Create a new file."""
@@ -381,9 +375,8 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
                 result_value = variables.get(var_name, default_value)
                 return str(result_value) if result_value is not None else default_value
-            else:
-                result_value = variables.get(var_expr, "")
-                return str(result_value) if result_value is not None else ""
+            result_value = variables.get(var_expr, "")
+            return str(result_value) if result_value is not None else ""
 
         # Replace template variables (but not GitHub Actions variables like ${{ }})
         # Match {{ }} that are NOT preceded by $
@@ -398,10 +391,11 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         # If we're processing pyproject.toml, try to read existing values
         if file_path.name == "pyproject.toml" and file_path.exists():
             try:
-                import toml
+                if tomllib is None:
+                    raise ImportError("tomllib not available")
 
-                with open(file_path, encoding="utf-8") as f:
-                    existing_data = toml.load(f)
+                with open(file_path, "rb") as f:
+                    existing_data = tomllib.load(f)
 
                 project_section = existing_data.get("project", {})
                 project_info.update(
@@ -445,9 +439,10 @@ class ConfigurationApplier(ConfigurationApplierInterface):
     def _format_toml_content(self, data: dict[str, Any]) -> str:
         """Format TOML data as string."""
         try:
-            import toml
+            if tomli_w is None:
+                raise ImportError("tomli_w not available")
 
-            result: str = toml.dumps(data)
+            result: str = tomli_w.dumps(data)
             return result
         except Exception as e:
             raise ConfigurationError(f"Failed to format TOML content: {e}") from e
@@ -539,9 +534,8 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         # Get final confirmation
         if approved_changes and self.ui.confirm_final_application(approved_changes):
             return self.apply_changes(approved_changes, dry_run=False)
-        else:
-            # Return empty result if no changes approved or user cancelled
-            return ApplyResult(dry_run=False)
+        # Return empty result if no changes approved or user cancelled
+        return ApplyResult(dry_run=False)
 
     def apply_security_tools_integration(
         self,

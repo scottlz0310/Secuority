@@ -113,9 +113,8 @@ class TestGitHubClient:
             if call_count[0] == 1:
                 # First call: repo data
                 return create_mock_response(b'{"security_and_analysis": {}}')
-            else:
-                # Second call: push protection endpoint
-                return create_mock_response(b'{"enabled": true}')
+            # Second call: push protection endpoint
+            return create_mock_response(b'{"enabled": true}')
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             result = client.check_push_protection("owner", "repo")
@@ -131,9 +130,8 @@ class TestGitHubClient:
             if call_count[0] == 1:
                 # First call: repo data
                 return create_mock_response(b'{"security_and_analysis": {}}')
-            else:
-                # Second call: push protection endpoint
-                return create_mock_response(b'{"enabled": false}')
+            # Second call: push protection endpoint
+            return create_mock_response(b'{"enabled": false}')
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             result = client.check_push_protection("owner", "repo")
@@ -150,9 +148,8 @@ class TestGitHubClient:
             if call_count[0] == 1:
                 # First call: repo data
                 return create_mock_response(b'{"security_and_analysis": {"secret_scanning": {"status": "enabled"}}}')
-            else:
-                # Second call: push protection endpoint fails
-                raise HTTPError("url", 404, "Not Found", {}, None)
+            # Second call: push protection endpoint fails
+            raise HTTPError("url", 404, "Not Found", {}, None)
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             result = client.check_push_protection("owner", "repo")
@@ -169,9 +166,8 @@ class TestGitHubClient:
             if call_count[0] == 1:
                 # Vulnerability alerts endpoint
                 return create_mock_response(b"{}")
-            else:
-                # Config file endpoint
-                return create_mock_response(b'{"content": "base64content"}')
+            # Config file endpoint
+            return create_mock_response(b'{"content": "base64content"}')
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             result = client.get_dependabot_config("owner", "repo")
@@ -233,9 +229,8 @@ class TestGitHubClient:
                         },
                     ).encode(),
                 )
-            else:
-                # SECURITY.md check
-                return create_mock_response(b'{"name": "SECURITY.md"}')
+            # SECURITY.md check
+            return create_mock_response(b'{"name": "SECURITY.md"}')
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             result = client.check_security_settings("owner", "repo")
@@ -254,9 +249,8 @@ class TestGitHubClient:
             if call_count[0] == 1:
                 # Repo data
                 return create_mock_response(b'{"private": true, "security_and_analysis": {}}')
-            else:
-                # SECURITY.md doesn't exist
-                raise HTTPError("url", 404, "Not Found", {}, None)
+            # SECURITY.md doesn't exist
+            raise HTTPError("url", 404, "Not Found", {}, None)
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             result = client.check_security_settings("owner", "repo")
@@ -329,9 +323,8 @@ class TestGitHubClient:
             if call_count[0] == 1:
                 # User endpoint
                 return create_mock_response(b'{"login": "testuser"}')
-            else:
-                # Rate limit endpoint
-                return create_mock_response(b'{"rate": {"limit": 5000, "remaining": 4999}}')
+            # Rate limit endpoint
+            return create_mock_response(b'{"rate": {"limit": 5000, "remaining": 4999}}')
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             status = client.get_api_status()
@@ -362,9 +355,8 @@ class TestGitHubClient:
             if call_count[0] == 1:
                 # User endpoint fails
                 raise HTTPError("url", 401, "Unauthorized", {}, None)
-            else:
-                # Zen endpoint succeeds (API accessible)
-                return create_mock_response(b'"Keep it simple"')
+            # Zen endpoint succeeds (API accessible)
+            return create_mock_response(b'"Keep it simple"')
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             status = client.get_api_status()

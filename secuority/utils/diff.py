@@ -210,7 +210,7 @@ class DiffGenerator:
                     # Don't wrap header lines, just truncate
                     formatted_lines.append(line[:max_width] + "...")
                     continue
-                elif line.startswith(("+", "-", " ")):
+                if line.startswith(("+", "-", " ")):
                     prefix = line[0]
                     content = line[1:]
 
@@ -244,9 +244,7 @@ class DiffGenerator:
         reset = "\033[0m"
 
         for line in lines:
-            if line.startswith("+++") or line.startswith("---"):
-                highlighted_lines.append(f"{cyan}{line}{reset}")
-            elif line.startswith("@@"):
+            if line.startswith("+++") or line.startswith("---") or line.startswith("@@"):
                 highlighted_lines.append(f"{cyan}{line}{reset}")
             elif line.startswith("+"):
                 highlighted_lines.append(f"{green}{line}{reset}")

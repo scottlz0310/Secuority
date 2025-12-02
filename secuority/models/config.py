@@ -151,10 +151,10 @@ class ConfigChange:
         """Determine if this change needs a backup based on strategy."""
         if self.backup_strategy == BackupStrategy.NEVER:
             return False
-        elif self.backup_strategy == BackupStrategy.ALWAYS:
+        if self.backup_strategy == BackupStrategy.ALWAYS:
             return self.requires_backup
-        else:  # BackupStrategy.ON_CONFLICT
-            return self.requires_backup and self.has_conflicts()
+        # BackupStrategy.ON_CONFLICT
+        return self.requires_backup and self.has_conflicts()
 
     def to_dict(self) -> dict[str, Any]:
         """Convert configuration change to dictionary."""

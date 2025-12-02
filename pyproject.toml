@@ -1,6 +1,6 @@
 [build-system]
-requires = [ "setuptools>=61.0", "wheel",]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "secuority"
@@ -11,7 +11,12 @@ requires-python = ">=3.12"
 license = "MIT"
 keywords = [ "security", "quality", "python", "automation", "configuration", "linting", "pre-commit", "ci-cd",]
 classifiers = [ "Development Status :: 3 - Alpha", "Intended Audience :: Developers", "Operating System :: OS Independent", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Topic :: Software Development :: Quality Assurance", "Topic :: Security", "Topic :: Software Development :: Libraries :: Python Modules", "Environment :: Console", "Typing :: Typed",]
-dependencies = [ "typer>=0.9.0", "rich>=13.0", "toml>=0.10.0", "pyyaml>=6.0", "requests>=2.28.0", "pathlib2>=2.3.0; python_version<'3.4'",]
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0",
+    "pyyaml>=6.0",
+    "requests>=2.28.0",
+]
 [[project.authors]]
 name = "Secuority Team"
 email = "team@secuority.dev"
@@ -22,17 +27,14 @@ email = "team@secuority.dev"
 
 [dependency-groups]
 dev = [
- "pytest>=7.0",
- "pytest-cov>=4.0",
- "black>=23.0",
- "ruff>=0.1.0",
- "mypy>=1.0",
- "pre-commit>=3.0.0",
- "safety>=3.6.2",
- "types-PyYAML>=6.0",
- "types-toml>=0.10",
- "tomli>=2.0.0; python_version<'3.11'",
- "tomli-w>=1.0.0",
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.9.0",
+    "basedpyright>=1.0.0",
+    "pre-commit>=3.0.0",
+    "safety>=3.6.2",
+    "types-PyYAML>=6.0",
+    "tomli-w>=1.0.0",
 ]
 test = [ "pytest>=7.0", "pytest-cov>=4.0", "pytest-mock>=3.12.0", "pytest-xdist>=3.0.0",]
 docs = [ "sphinx>=5.0.0", "sphinx-rtd-theme>=1.2.0", "myst-parser>=0.18.0",]
@@ -48,50 +50,49 @@ Changelog = "https://github.com/secuority/secuority-cli/blob/main/CHANGELOG.md"
 [project.scripts]
 secuority = "secuority.cli.main:main"
 
-[tool.setuptools]
-zip-safe = false
-include-package-data = true
+[tool.hatch.build.targets.wheel]
+packages = ["secuority"]
 
 [tool.ruff]
 line-length = 120
 target-version = "py313"
+fix = true
+show-fixes = true
+output-format = "concise"
 
-[tool.mypy]
-python_version = "3.13"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+docstring-code-format = true
 
-[[tool.mypy.overrides]]
-module = "tomli"
-ignore_missing_imports = true
+[tool.basedpyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnusedImport = true
+reportUnusedClass = true
+reportUnusedFunction = true
+reportUnusedVariable = true
+reportDuplicateImport = true
+reportOptionalMemberAccess = true
+reportOptionalCall = true
+reportOptionalIterable = true
+reportOptionalContextManager = true
+reportUntypedFunctionDecorator = false  # Allow untyped decorators
+reportUntypedClassDecorator = false
+reportUntypedBaseClass = false
+reportPrivateUsage = false
+reportConstantRedefinition = true
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
 
-[[tool.mypy.overrides]]
-module = "secuority.core.renovate_integrator"
-warn_return_any = false
-disable_error_code = ["misc", "arg-type"]
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-warn_unreachable = false
-disallow_untyped_decorators = false
-disallow_untyped_defs = false
-warn_unused_ignores = false
-disallow_any_generics = false
-check_untyped_defs = false
-disallow_incomplete_defs = false
-no_implicit_optional = false
-strict_optional = false
-disable_error_code = ["method-assign", "index", "arg-type"]
+# Module-specific overrides (less verbose than mypy)
+[[tool.basedpyright.ignore]]
+path = "tests"
+reportUnusedVariable = false
+reportUnusedFunction = false
 
 [tool.bandit]
 exclude_dirs = [
@@ -111,15 +112,39 @@ skips = [ "B101", "B310",]
 
 [project.entry-points."secuority.plugins"]
 
-[tool.setuptools.package-data]
-secuority = [ "templates/*.template", "templates/**/*.yml", "templates/**/*.yaml", "templates/**/*.md", "py.typed",]
+[tool.hatch.build.targets.wheel.force-include]
+"secuority/templates" = "secuority/templates"
+"secuority/py.typed" = "secuority/py.typed"
 
 [tool.ruff.lint]
-select = [ "E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "T20",]
-ignore = []
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "W",      # pycodestyle warnings
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "S",      # flake8-bandit
+    "B",      # flake8-bugbear
+    "A",      # flake8-builtins
+    "C4",     # flake8-comprehensions
+    "T20",    # flake8-print
+    "RET",    # flake8-return
+    "SIM",    # flake8-simplify
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate (commented-out code)
+    "PL",     # pylint
+    "PERF",   # perflint
+    "RUF",    # ruff-specific rules
+]
+ignore = [
+    "PLR0913",  # Too many arguments
+    "PLR2004",  # Magic value used in comparison
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "S105", "S106"]
+"tests/**/*.py" = ["S101", "S105", "S106", "PLR2004", "ARG001"]
 
 [tool.bandit.assert_used]
 skips = [ "*_test.py", "test_*.py",]
@@ -137,7 +162,11 @@ full_report = true
 output = "json"
 continue_on_error = false
 
-[tool.setuptools.packages.find]
-where = [ ".",]
-include = [ "secuority*",]
-exclude = [ "tests*", "docs*",]
+[tool.uv]
+# UV-specific configuration
+constraint-dependencies = []
+override-dependencies = []
+
+[tool.uv.sources]
+# Add any custom sources here if needed
+

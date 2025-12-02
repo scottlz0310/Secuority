@@ -61,21 +61,18 @@ class TemplateManager(TemplateManagerInterface):
             appdata = os.getenv("APPDATA")
             if appdata:
                 return Path(appdata) / "secuority"
-            else:
-                # Fallback to user home
-                return Path.home() / "AppData" / "Roaming" / "secuority"
+            # Fallback to user home
+            return Path.home() / "AppData" / "Roaming" / "secuority"
 
-        elif system == "darwin":
+        if system == "darwin":
             # Use ~/Library/Application Support/secuority on macOS
             return Path.home() / "Library" / "Application Support" / "secuority"
 
-        else:
-            # Use ~/.config/secuority on Linux and other Unix-like systems
-            xdg_config = os.getenv("XDG_CONFIG_HOME")
-            if xdg_config:
-                return Path(xdg_config) / "secuority"
-            else:
-                return Path.home() / ".config" / "secuority"
+        # Use ~/.config/secuority on Linux and other Unix-like systems
+        xdg_config = os.getenv("XDG_CONFIG_HOME")
+        if xdg_config:
+            return Path(xdg_config) / "secuority"
+        return Path.home() / ".config" / "secuority"
 
     def load_templates(self) -> dict[str, str]:
         """Load configuration templates from the template directory.
@@ -274,11 +271,10 @@ class TemplateManager(TemplateManagerInterface):
 
             if source.startswith("github:"):
                 return self._update_from_github(source)
-            elif source.startswith("http"):
+            if source.startswith("http"):
                 return self._update_from_url(source)
-            else:
-                msg = f"Unsupported template source: {source}"
-                raise TemplateError(msg)
+            msg = f"Unsupported template source: {source}"
+            raise TemplateError(msg)
 
         except Exception as e:
             msg = f"Failed to update templates: {e}"
@@ -374,9 +370,8 @@ class TemplateManager(TemplateManagerInterface):
                         shutil.rmtree(backup_path)
 
                     return True
-                else:
-                    msg = "Templates directory not found in downloaded archive"
-                    raise TemplateError(msg)
+                msg = "Templates directory not found in downloaded archive"
+                raise TemplateError(msg)
 
         except Exception as e:
             # Restore backup on failure
@@ -503,7 +498,7 @@ class TemplateManager(TemplateManagerInterface):
                     },
                 )
 
-            if "last_update" in version_data and version_data["last_update"]:
+            if version_data.get("last_update"):
                 history.append(
                     {
                         "action": "updated",

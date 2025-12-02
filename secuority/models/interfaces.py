@@ -86,7 +86,7 @@ def validate_version_string(version: str) -> bool:
 def validate_tool_config(config: dict[str, Any]) -> bool:
     """Validate tool configuration dictionary."""
     # Basic validation - ensure it's a dictionary with string keys
-    return all(isinstance(key, str) for key in config.keys())
+    return all(isinstance(key, str) for key in config)
 
 
 @dataclass

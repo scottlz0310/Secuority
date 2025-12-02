@@ -54,12 +54,11 @@ class GitHubClient(GitHubClientInterface):
         except HTTPError as e:
             if e.code == 401:
                 raise GitHubAPIError("GitHub API authentication failed. Check GITHUB_PERSONAL_ACCESS_TOKEN.") from None
-            elif e.code == 403:
+            if e.code == 403:
                 raise GitHubAPIError("GitHub API rate limit exceeded or insufficient permissions.") from None
-            elif e.code == 404:
+            if e.code == 404:
                 raise GitHubAPIError("Repository not found or not accessible.") from None
-            else:
-                raise GitHubAPIError(f"GitHub API request failed: {e.code} {e.reason}") from None
+            raise GitHubAPIError(f"GitHub API request failed: {e.code} {e.reason}") from None
         except URLError as e:
             raise GitHubAPIError(f"Network error accessing GitHub API: {e.reason}") from None
         except json.JSONDecodeError as e:

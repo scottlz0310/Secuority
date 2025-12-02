@@ -56,9 +56,8 @@ class TestTemplateManager:
         manager: TemplateManager,
     ) -> None:
         """Test getting default template directory on Linux."""
-        with patch("platform.system", return_value="Linux"):
-            with patch.dict(os.environ, {}, clear=True):
-                template_dir = manager.get_template_directory()
+        with patch("platform.system", return_value="Linux"), patch.dict(os.environ, {}, clear=True):
+            template_dir = manager.get_template_directory()
 
         assert ".config/secuority" in str(template_dir)
 
@@ -67,9 +66,8 @@ class TestTemplateManager:
         manager: TemplateManager,
     ) -> None:
         """Test getting default template directory on macOS."""
-        with patch("platform.system", return_value="Darwin"):
-            with patch.dict(os.environ, {}, clear=True):
-                template_dir = manager.get_template_directory()
+        with patch("platform.system", return_value="Darwin"), patch.dict(os.environ, {}, clear=True):
+            template_dir = manager.get_template_directory()
 
         assert "Library/Application Support/secuority" in str(template_dir)
 

@@ -125,11 +125,10 @@ class SecuorityLogger:
         # Set log level
         if verbose:
             log_level = logging.DEBUG
+        elif isinstance(level, LogLevel):
+            log_level = getattr(logging, level.value)
         else:
-            if isinstance(level, LogLevel):
-                log_level = getattr(logging, level.value)
-            else:
-                log_level = getattr(logging, level.upper())
+            log_level = getattr(logging, level.upper())
 
         self.logger.setLevel(log_level)
 

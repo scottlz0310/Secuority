@@ -4,7 +4,7 @@
 repos:
   # Ruff for linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.3
+    rev: v0.9.2
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -44,22 +44,20 @@ repos:
     hooks:
       - id: gitleaks
 
-  # Type checking with mypy
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+  # Type checking with basedpyright
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.397
     hooks:
-      - id: mypy
+      - id: pyright
         additional_dependencies: [
           types-requests,
           types-pyyaml,
-          types-toml,
           pytest,
           typer,
           rich,
-          tomli,
           tomli-w,
         ]
-        args: [--config-file=pyproject.toml]
+        args: [--project=pyproject.toml]
 
   # Security linting with bandit
   - repo: https://github.com/PyCQA/bandit
@@ -70,15 +68,15 @@ repos:
         additional_dependencies: ['bandit[toml]']
         exclude: ^tests/
 
-  # Dependency vulnerability scanning with safety (adapted for uv)
-  - repo: local
+  # Dependency vulnerability scanning with osv-scanner
+  - repo: https://github.com/google/osv-scanner
+    rev: v1.9.1
     hooks:
-      - id: safety-uv
-        name: Safety vulnerability check (uv compatible)
-        entry: bash -c 'uv export --no-hashes | uv run safety check --stdin --ignore=70612'
-        language: system
+      - id: osv-scanner
+        name: OSV vulnerability scanner
+        args: ['--lockfile=uv.lock']
         pass_filenames: false
-        files: pyproject\.toml$
+        files: ^(pyproject\.toml|uv\.lock)$
 
   # Check for common security issues
   - repo: https://github.com/Yelp/detect-secrets

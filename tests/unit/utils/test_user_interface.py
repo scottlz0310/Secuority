@@ -103,9 +103,8 @@ class TestUserApprovalInterface:
         sample_change: ConfigChange,
     ) -> None:
         """Test quitting during approval."""
-        with patch("builtins.input", return_value="q"):
-            with pytest.raises(SystemExit):
-                ui.get_change_approval(sample_change)
+        with patch("builtins.input", return_value="q"), pytest.raises(SystemExit):
+            ui.get_change_approval(sample_change)
 
     def test_get_change_approval_invalid_then_valid(
         self,
@@ -181,9 +180,8 @@ class TestUserApprovalInterface:
         """Test quitting during batch approval."""
         changes = [sample_change]
 
-        with patch("builtins.input", return_value="q"):
-            with pytest.raises(SystemExit):
-                ui.get_batch_approval(changes)
+        with patch("builtins.input", return_value="q"), pytest.raises(SystemExit):
+            ui.get_batch_approval(changes)
 
     def test_get_batch_approval_with_conflicts(
         self,

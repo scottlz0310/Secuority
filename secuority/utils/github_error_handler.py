@@ -92,25 +92,24 @@ class GitHubErrorHandler:
                 "Please check your GITHUB_PERSONAL_ACCESS_TOKEN environment variable. "
                 "Continuing with local analysis only."
             )
-        elif "rate limit" in error_str or "403" in error_str:
+        if "rate limit" in error_str or "403" in error_str:
             return (
                 f"⚠️  GitHub API rate limit exceeded during {operation_name}. "
                 "Please try again later. Continuing with local analysis only."
             )
-        elif "not found" in error_str or "404" in error_str:
+        if "not found" in error_str or "404" in error_str:
             return (
                 f"⚠️  Repository not found or not accessible during {operation_name}. "
                 "This might be a private repository or the URL is incorrect. "
                 "Continuing with local analysis only."
             )
-        elif "network error" in error_str:
+        if "network error" in error_str:
             return (
                 f"⚠️  Network error during {operation_name}. "
                 "Please check your internet connection. "
                 "Continuing with local analysis only."
             )
-        else:
-            return f"⚠️  GitHub API error during {operation_name}: {error}. Continuing with local analysis only."
+        return f"⚠️  GitHub API error during {operation_name}: {error}. Continuing with local analysis only."
 
     def _log_and_warn(self, message: str) -> None:
         """Log error and display warning if configured.

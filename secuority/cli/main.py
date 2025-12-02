@@ -42,14 +42,14 @@ def _get_core_engine() -> CoreEngine:
 
 @app.command()
 def check(
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed analysis information"),  # noqa: B008
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed analysis information"),
     project_path: Path | None = typer.Option(  # noqa: B008
         None,
         "--project-path",
         "-p",
         help="Path to the project directory",
     ),
-    structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),  # noqa: B008
+    structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
 ) -> None:
     """Analyze project configuration and show recommendations."""
     # Configure logging based on CLI options
@@ -92,12 +92,11 @@ def check(
                 if is_recommended:
                     # For recommended files (pyproject.toml, .gitignore, .pre-commit-config.yaml)
                     status = "[green]✓ Found[/green]" if exists else "[red]✗ Missing[/red]"
+                # For legacy files (requirements.txt, setup.py) - not having them is good
+                elif exists:
+                    status = "[yellow]⚠ Found[/yellow]"
                 else:
-                    # For legacy files (requirements.txt, setup.py) - not having them is good
-                    if exists:
-                        status = "[yellow]⚠ Found[/yellow]"
-                    else:
-                        status = "[green]✓ Not used[/green]"
+                    status = "[green]✓ Not used[/green]"
 
                 config_table.add_row(filename, status, note)
 
@@ -444,18 +443,18 @@ def check(
 
 @app.command()
 def apply(
-    dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Show changes without applying them"),  # noqa: B008
-    force: bool = typer.Option(False, "--force", "-f", help="Apply changes without confirmation"),  # noqa: B008
+    dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Show changes without applying them"),
+    force: bool = typer.Option(False, "--force", "-f", help="Apply changes without confirmation"),
     project_path: Path | None = typer.Option(  # noqa: B008
         None,
         "--project-path",
         "-p",
         help="Path to the project directory",
     ),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),  # noqa: B008
-    structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),  # noqa: B008
-    security_only: bool = typer.Option(False, "--security-only", help="Apply only security-related configurations"),  # noqa: B008
-    templates_only: bool = typer.Option(False, "--templates-only", help="Apply only template-based configurations"),  # noqa: B008
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
+    structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
+    security_only: bool = typer.Option(False, "--security-only", help="Apply only security-related configurations"),
+    templates_only: bool = typer.Option(False, "--templates-only", help="Apply only template-based configurations"),
 ) -> None:
     """Apply configuration changes to the project."""
     # Configure logging
@@ -714,15 +713,14 @@ def apply(
                         total_conflicts=sum(len(c.conflicts) for c in conflicted_changes),
                     )
                     return
-                else:
-                    # Filter out conflicted changes when using --force
-                    console.print("\n[yellow]--force flag detected: applying non-conflicted changes only[/yellow]")
-                    changes = [c for c in changes if not c.has_conflicts()]
-                    logger.info(
-                        "Applying non-conflicted changes only due to --force flag",
-                        original_changes=len(changes) + len(conflicted_changes),
-                        applying_changes=len(changes),
-                    )
+                # Filter out conflicted changes when using --force
+                console.print("\n[yellow]--force flag detected: applying non-conflicted changes only[/yellow]")
+                changes = [c for c in changes if not c.has_conflicts()]
+                logger.info(
+                    "Applying non-conflicted changes only due to --force flag",
+                    original_changes=len(changes) + len(conflicted_changes),
+                    applying_changes=len(changes),
+                )
             else:
                 logger.warning(
                     "Configuration conflicts detected",
@@ -731,9 +729,8 @@ def apply(
                 )
                 if not force:
                     return
-                else:
-                    # Filter out conflicted changes when using --force
-                    changes = [c for c in changes if not c.has_conflicts()]
+                # Filter out conflicted changes when using --force
+                changes = [c for c in changes if not c.has_conflicts()]
 
         # Apply changes with appropriate method based on mode
         logger.info(
@@ -746,13 +743,12 @@ def apply(
         if not structured_output and not force and not dry_run:
             # Interactive mode - show diffs and get individual approvals
             result = core_engine.applier.apply_changes_interactively(changes, dry_run=dry_run, batch_mode=False)  # type: ignore[attr-defined]
-        else:
-            # Batch mode - apply all changes at once  # type: ignore[attr-defined]
-            if not structured_output and not dry_run:
-                with console.status("[bold green]Applying configuration changes..."):
-                    result = core_engine.applier.apply_changes(changes, dry_run=dry_run)
-            else:
+        # Batch mode - apply all changes at once  # type: ignore[attr-defined]
+        elif not structured_output and not dry_run:
+            with console.status("[bold green]Applying configuration changes..."):
                 result = core_engine.applier.apply_changes(changes, dry_run=dry_run)
+        else:
+            result = core_engine.applier.apply_changes(changes, dry_run=dry_run)
 
         # Log results
         for change in result.successful_changes:
@@ -819,24 +815,23 @@ def apply(
                 console.print("\n[bold]Summary:[/bold] This was a dry run - no changes were made.")
                 if changes:
                     console.print("[dim]Run without --dry-run to apply these changes.[/dim]")
+            elif result.successful_changes:
+                console.print("\n[bold]Summary:[/bold] Configuration changes applied successfully!")
+                console.print("\n[bold]Next steps:[/bold]")
+                console.print("  1. Review the applied changes")
+                console.print("  2. Run [cyan]secuority check[/cyan] to verify the configuration")
+                console.print("  3. Commit your changes to version control")
+
+                # Suggest specific next steps based on what was applied
+                has_precommit = any("pre-commit" in str(c.file_path) for c in result.successful_changes)
+                has_pyproject = any("pyproject.toml" in str(c.file_path) for c in result.successful_changes)
+
+                if has_precommit:
+                    console.print("  4. Run [cyan]pre-commit install[/cyan] to activate pre-commit hooks")
+                if has_pyproject:
+                    console.print("  4. Install development dependencies with your package manager")
             else:
-                if result.successful_changes:
-                    console.print("\n[bold]Summary:[/bold] Configuration changes applied successfully!")
-                    console.print("\n[bold]Next steps:[/bold]")
-                    console.print("  1. Review the applied changes")
-                    console.print("  2. Run [cyan]secuority check[/cyan] to verify the configuration")
-                    console.print("  3. Commit your changes to version control")
-
-                    # Suggest specific next steps based on what was applied
-                    has_precommit = any("pre-commit" in str(c.file_path) for c in result.successful_changes)
-                    has_pyproject = any("pyproject.toml" in str(c.file_path) for c in result.successful_changes)
-
-                    if has_precommit:
-                        console.print("  4. Run [cyan]pre-commit install[/cyan] to activate pre-commit hooks")
-                    if has_pyproject:
-                        console.print("  4. Install development dependencies with your package manager")
-                else:
-                    console.print("\n[bold]Summary:[/bold] No changes were applied.")
+                console.print("\n[bold]Summary:[/bold] No changes were applied.")
 
             console.print()
 

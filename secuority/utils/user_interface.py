@@ -72,9 +72,9 @@ class UserApprovalInterface:
 
             if response in ["y", "yes"]:
                 return True
-            elif response in ["n", "no"]:
+            if response in ["n", "no"]:
                 return False
-            elif response in ["s", "show"]:
+            if response in ["s", "show"]:
                 self._show_full_content(change)
             elif response in ["q", "quit"]:
                 self.console.print("Aborting configuration changes.")
@@ -114,17 +114,17 @@ class UserApprovalInterface:
                 for change in changes:
                     approvals[change.file_path] = not change.has_conflicts()
                 break
-            elif response in ["n", "no"]:
+            if response in ["n", "no"]:
                 # Reject all changes
                 for change in changes:
                     approvals[change.file_path] = False
                 break
-            elif response in ["r", "review"]:
+            if response in ["r", "review"]:
                 # Review each change individually
                 for change in changes:
                     approvals[change.file_path] = self.get_change_approval(change)
                 break
-            elif response in ["q", "quit"]:
+            if response in ["q", "quit"]:
                 self.console.print("Aborting configuration changes.")
                 sys.exit(0)
             else:
@@ -178,20 +178,19 @@ class UserApprovalInterface:
                     conflict.resolution = ConflictResolution.KEEP_EXISTING
                     self.console.print("✓ Keeping existing value")
                     break
-                elif choice in ["u", "use"]:
+                if choice in ["u", "use"]:
                     conflict.resolution = ConflictResolution.USE_TEMPLATE
                     self.console.print("✓ Using template value")
                     break
-                elif choice in ["m", "manual"]:
+                if choice in ["m", "manual"]:
                     conflict.resolution = ConflictResolution.MANUAL
                     self.console.print("⚠️  Manual resolution required")
                     break
-                elif choice in ["s", "skip"]:
+                if choice in ["s", "skip"]:
                     self.console.print("⏭️  Skipping conflict (will keep existing)")
                     conflict.resolution = ConflictResolution.KEEP_EXISTING
                     break
-                else:
-                    self.console.print("Please enter 'k', 'u', 'm', or 's'.")
+                self.console.print("Please enter 'k', 'u', 'm', or 's'.")
 
             resolved_conflicts.append(conflict)
 
@@ -273,10 +272,9 @@ class UserApprovalInterface:
 
             if response in ["y", "yes"]:
                 return True
-            elif response in ["n", "no"]:
+            if response in ["n", "no"]:
                 return False
-            else:
-                self.console.print("Please enter 'y' or 'n'.")
+            self.console.print("Please enter 'y' or 'n'.")
 
     def show_dry_run_results(self, changes: list[ConfigChange]) -> None:
         """Show results of a dry run.
