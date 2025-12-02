@@ -85,7 +85,7 @@ class WorkflowIntegrator:
         # Load template from package resources
         try:
             template_content = (
-                importlib.resources.files("secuority.templates.workflows")
+                importlib.resources.files("secuority.templates.python.workflows")
                 .joinpath("security-check.yml")
                 .read_text(encoding="utf-8")
             )
@@ -141,7 +141,7 @@ class WorkflowIntegrator:
         # Load template from package resources
         try:
             template_content = (
-                importlib.resources.files("secuority.templates.workflows")
+                importlib.resources.files("secuority.templates.python.workflows")
                 .joinpath("quality-check.yml")
                 .read_text(encoding="utf-8")
             )
@@ -201,7 +201,7 @@ class WorkflowIntegrator:
         # Load template from package resources
         try:
             template_content = (
-                importlib.resources.files("secuority.templates.workflows")
+                importlib.resources.files("secuority.templates.python.workflows")
                 .joinpath("ci-cd.yml")
                 .read_text(encoding="utf-8")
             )

@@ -18,11 +18,15 @@ class TestSecurityMdIntegration:
         manager = TemplateManager()
         manager._template_dir = tmp_path
 
-        # Create templates directory structure
+        # Create templates directory structure with new hierarchical layout
         templates_dir = tmp_path / "templates"
         templates_dir.mkdir(parents=True)
 
-        # Copy the actual SECURITY.md template
+        # Create common directory for language-agnostic templates
+        common_dir = templates_dir / "common"
+        common_dir.mkdir()
+
+        # Copy the actual SECURITY.md template to common directory
         security_template_content = """# Security Policy
 
 ## Supported Versions
@@ -121,7 +125,7 @@ We would like to thank the following individuals for responsibly disclosing secu
 
 **Note**: This security policy is subject to change. Please check back regularly for updates.
 """
-        (templates_dir / "SECURITY.md.template").write_text(security_template_content)
+        (common_dir / "SECURITY.md.template").write_text(security_template_content)
 
         return manager
 
@@ -386,10 +390,14 @@ name = "minimal"
     ) -> None:
         """Test that GitHub Actions syntax is preserved in SECURITY.md."""
         # Create custom template with GitHub Actions variables
-        manager = TemplateManager()
-        manager._template_dir = tmp_path
+        # Use a separate directory to avoid conflicts with the fixture
+        custom_dir = tmp_path / "custom"
+        custom_dir.mkdir()
 
-        templates_dir = tmp_path / "templates"
+        manager = TemplateManager()
+        manager._template_dir = custom_dir
+
+        templates_dir = custom_dir / "templates"
         templates_dir.mkdir(parents=True, exist_ok=True)
 
         template_with_actions = """# Security Policy

@@ -193,8 +193,6 @@ class LanguageAnalyzer(ABC):
         configured_tools = self.detect_tools(project_path, config_files)
         all_recommendations = self.get_recommended_tools()
 
-        missing = [
-            rec for rec in all_recommendations if not configured_tools.get(rec.tool_name, False)
-        ]
+        missing = [rec for rec in all_recommendations if not configured_tools.get(rec.tool_name, False)]
 
         return sorted(missing, key=lambda x: x.priority)

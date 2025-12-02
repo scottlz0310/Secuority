@@ -104,9 +104,9 @@ class TemplateManager(TemplateManagerInterface):
         language_path = templates_path / language
         if language_path.exists():
             templates.update(self._load_templates_from_dir(language_path, prefix=""))
-        elif language != "python":
-            # If non-Python language not found, fall back to old flat structure for backward compatibility
-            # Note: This is a best-effort fallback; missing language templates are expected during development
+        elif not common_path.exists():
+            # If neither common/ nor language directory exists, fall back to old flat structure
+            # for backward compatibility with existing installations
             templates.update(self._load_templates_from_dir(templates_path, prefix=""))
 
         # Cache the loaded templates
@@ -132,10 +132,11 @@ class TemplateManager(TemplateManagerInterface):
         for file_path in directory.iterdir():
             if file_path.is_file():
                 # Include .template files, .yml/.yaml files, and specific config files
-                if (
-                    file_path.suffix in {".template", ".yml", ".yaml", ".json", ".md"}
-                    or file_path.name in {".gitignore", "CONTRIBUTING.md", "CODEOWNERS"}
-                ):
+                if file_path.suffix in {".template", ".yml", ".yaml", ".json", ".md"} or file_path.name in {
+                    ".gitignore",
+                    "CONTRIBUTING.md",
+                    "CODEOWNERS",
+                }:
                     try:
                         with open(file_path, encoding="utf-8") as f:
                             template_key = f"{prefix}{file_path.name}" if prefix else file_path.name
