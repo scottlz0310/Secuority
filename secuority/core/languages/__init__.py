@@ -24,6 +24,7 @@ from .base import (
     LanguageDetectionResult,
     ToolRecommendation,
 )
+from .nodejs import NodeJSAnalyzer
 from .python import PythonAnalyzer
 from .registry import (
     LanguageRegistry,
@@ -31,14 +32,16 @@ from .registry import (
     register_language,
 )
 
-# Auto-register Python analyzer
+# Auto-register language analyzers
 register_language(PythonAnalyzer(), priority=10)
+register_language(NodeJSAnalyzer(), priority=10)
 
 __all__ = [
     "ConfigFile",
     "LanguageAnalyzer",
     "LanguageDetectionResult",
     "LanguageRegistry",
+    "NodeJSAnalyzer",
     "PythonAnalyzer",
     "ToolRecommendation",
     "get_global_registry",

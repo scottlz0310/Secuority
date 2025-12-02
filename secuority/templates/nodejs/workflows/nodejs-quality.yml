@@ -1,0 +1,38 @@
+name: Quality Check
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Biome check
+        run: npx @biomejs/biome check --write .
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+        if: hashFiles('tsconfig.json') != ''
+
+      - name: Check for changes
+        run: |
+          if [[ -n $(git status -s) ]]; then
+            echo "::error::Code formatting issues found. Run 'npx @biomejs/biome check --write .' locally."
+            git diff
+            exit 1
+          fi
