@@ -74,8 +74,11 @@ class TemplateManager(TemplateManagerInterface):
             return Path(xdg_config) / "secuority"
         return Path.home() / ".config" / "secuority"
 
-    def load_templates(self) -> dict[str, str]:
+    def load_templates(self, language: str = "python") -> dict[str, str]:
         """Load configuration templates from the template directory.
+
+        Args:
+            language: Programming language for which to load templates (default: "python")
 
         Returns:
             Dictionary mapping template names to their content
@@ -92,36 +95,60 @@ class TemplateManager(TemplateManagerInterface):
 
         templates = {}
 
-        # Load template files
-        template_files = [
-            "pyproject.toml.template",
-            ".gitignore.template",
-            ".pre-commit-config.yaml.template",
-            "SECURITY.md.template",
-        ]
+        # Load common templates first
+        common_path = templates_path / "common"
+        if common_path.exists():
+            templates.update(self._load_templates_from_dir(common_path, prefix=""))
 
-        for template_file in template_files:
-            template_path = templates_path / template_file
-            if template_path.exists():
-                try:
-                    with open(template_path, encoding="utf-8") as f:
-                        templates[template_file] = f.read()
-                except OSError as e:
-                    msg = f"Failed to read template {template_file}: {e}"
-                    raise TemplateError(msg) from e
+        # Load language-specific templates (may override common templates)
+        language_path = templates_path / language
+        if language_path.exists():
+            templates.update(self._load_templates_from_dir(language_path, prefix=""))
+        elif language != "python":
+            # If non-Python language not found, fall back to old flat structure for backward compatibility
+            # Note: This is a best-effort fallback; missing language templates are expected during development
+            templates.update(self._load_templates_from_dir(templates_path, prefix=""))
 
-        # Load workflow templates
-        workflows_dir = templates_path / "workflows"
-        if workflows_dir.exists():
-            for workflow_file in workflows_dir.glob("*.yml"):
-                try:
-                    with open(workflow_file, encoding="utf-8") as f:
-                        templates[f"workflows/{workflow_file.name}"] = f.read()
-                except OSError as e:
-                    msg = f"Failed to read workflow template {workflow_file.name}: {e}"
-                    raise TemplateError(msg) from e
-
+        # Cache the loaded templates
         self._templates_cache = templates
+        return templates
+
+    def _load_templates_from_dir(self, directory: Path, prefix: str = "") -> dict[str, str]:
+        """Load templates from a directory recursively.
+
+        Args:
+            directory: Directory to load templates from
+            prefix: Prefix to add to template names (for nested directories)
+
+        Returns:
+            Dictionary mapping template names to their content
+
+        Raises:
+            TemplateError: If templates cannot be loaded
+        """
+        templates = {}
+
+        # Load template files and other relevant files in this directory
+        for file_path in directory.iterdir():
+            if file_path.is_file():
+                # Include .template files, .yml/.yaml files, and specific config files
+                if (
+                    file_path.suffix in {".template", ".yml", ".yaml", ".json", ".md"}
+                    or file_path.name in {".gitignore", "CONTRIBUTING.md", "CODEOWNERS"}
+                ):
+                    try:
+                        with open(file_path, encoding="utf-8") as f:
+                            template_key = f"{prefix}{file_path.name}" if prefix else file_path.name
+                            templates[template_key] = f.read()
+                    except OSError as e:
+                        msg = f"Failed to read template {file_path.name}: {e}"
+                        raise TemplateError(msg) from e
+
+            elif file_path.is_dir() and file_path.name not in {"__pycache__", ".git"}:
+                # Recursively load templates from subdirectories
+                subdir_prefix = f"{prefix}{file_path.name}/" if prefix else f"{file_path.name}/"
+                templates.update(self._load_templates_from_dir(file_path, prefix=subdir_prefix))
+
         return templates
 
     def get_template(self, template_name: str) -> str | None:
@@ -138,6 +165,26 @@ class TemplateManager(TemplateManagerInterface):
 
         return self._templates_cache.get(template_name)
 
+    def get_available_languages(self) -> list[str]:
+        """Get list of available language templates.
+
+        Returns:
+            List of language names that have template directories
+        """
+        template_dir = self.get_template_directory()
+        templates_path = template_dir / "templates"
+
+        if not templates_path.exists():
+            return []
+
+        languages = [
+            item.name
+            for item in templates_path.iterdir()
+            if item.is_dir() and item.name not in {"common", "__pycache__", ".git"}
+        ]
+
+        return sorted(languages)
+
     def initialize_templates(self) -> None:
         """Initialize template directory with default templates.
 
@@ -148,14 +195,13 @@ class TemplateManager(TemplateManagerInterface):
         """
         template_dir = self.get_template_directory()
         templates_path = template_dir / "templates"
-        workflows_path = templates_path / "workflows"
 
         try:
             # Create directory structure
             templates_path.mkdir(parents=True, exist_ok=True)
-            workflows_path.mkdir(parents=True, exist_ok=True)
 
             # Copy default templates from package to user directory
+            # This will create the common/ and language-specific directories
             self._copy_default_templates(templates_path)
 
             # Create config.yaml if it doesn't exist
@@ -221,33 +267,30 @@ class TemplateManager(TemplateManagerInterface):
                 msg = f"Package templates directory not found: {package_templates_path}"
                 raise TemplateError(msg)
 
-            # Template files to copy
-            template_files = [
-                "pyproject.toml.template",
-                ".gitignore.template",
-                ".pre-commit-config.yaml.template",
-                "SECURITY.md.template",
-            ]
+            # Copy common templates
+            common_source = package_templates_path / "common"
+            if common_source.exists():
+                common_dest = templates_path / "common"
+                if not common_dest.exists():
+                    shutil.copytree(common_source, common_dest)
 
-            # Copy template files
-            for template_file in template_files:
-                source_path = package_templates_path / template_file
-                dest_path = templates_path / template_file
+            # Copy language-specific template directories
+            for language_dir in package_templates_path.iterdir():
+                if (
+                    language_dir.is_dir()
+                    and language_dir.name not in {"common", "__pycache__", ".git"}
+                    and not language_dir.name.startswith(".")
+                ):
+                    language_dest = templates_path / language_dir.name
+                    if not language_dest.exists():
+                        shutil.copytree(language_dir, language_dest)
 
-                if source_path.exists() and not dest_path.exists():
-                    shutil.copy2(source_path, dest_path)
-
-            # Copy workflow templates
-            workflows_source = package_templates_path / "workflows"
-            workflows_dest = templates_path / "workflows"
-
-            if workflows_source.exists():
-                workflows_dest.mkdir(exist_ok=True)
-
-                for workflow_file in workflows_source.glob("*.yml"):
-                    dest_workflow = workflows_dest / workflow_file.name
-                    if not dest_workflow.exists():
-                        shutil.copy2(workflow_file, dest_workflow)
+            # Backward compatibility: If old flat structure exists, copy those files too
+            # This ensures existing installations don't break
+            for template_file in package_templates_path.glob("*.template"):
+                dest_path = templates_path / template_file.name
+                if not dest_path.exists():
+                    shutil.copy2(template_file, dest_path)
 
         except OSError as e:
             msg = f"Failed to copy default templates: {e}"

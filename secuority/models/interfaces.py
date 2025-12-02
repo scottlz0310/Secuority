@@ -182,12 +182,16 @@ class TemplateManagerInterface(ABC):
     """Interface for template management functionality."""
 
     @abstractmethod
-    def load_templates(self) -> dict[str, str]:
-        """Load configuration templates."""
+    def load_templates(self, language: str = "python") -> dict[str, str]:
+        """Load configuration templates for a specific language."""
 
     @abstractmethod
     def get_template_directory(self) -> Path:
         """Get the directory where templates are stored."""
+
+    @abstractmethod
+    def get_available_languages(self) -> list[str]:
+        """Get list of available language templates."""
 
     @abstractmethod
     def update_templates(self) -> bool:
