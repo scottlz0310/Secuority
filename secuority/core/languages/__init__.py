@@ -24,6 +24,8 @@ from .base import (
     LanguageDetectionResult,
     ToolRecommendation,
 )
+from .cpp import CppAnalyzer
+from .csharp import CSharpAnalyzer
 from .go import GoAnalyzer
 from .nodejs import NodeJSAnalyzer
 from .python import PythonAnalyzer
@@ -39,9 +41,13 @@ register_language(PythonAnalyzer(), priority=10)
 register_language(NodeJSAnalyzer(), priority=10)
 register_language(RustAnalyzer(), priority=20)
 register_language(GoAnalyzer(), priority=20)
+register_language(CppAnalyzer(), priority=30)
+register_language(CSharpAnalyzer(), priority=30)
 
 __all__ = [
     "ConfigFile",
+    "CppAnalyzer",
+    "CSharpAnalyzer",
     "GoAnalyzer",
     "LanguageAnalyzer",
     "LanguageDetectionResult",

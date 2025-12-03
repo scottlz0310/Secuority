@@ -400,14 +400,72 @@ secuority/templates/go/
 
 ---
 
+### ✅ Phase 8: C++/C# サポート【完了: 2025-12-03】
+
+**目的**: エンタープライズ向け主要言語のサポート拡大
+
+#### C++ サポート
+- **CppAnalyzer**: CMakeLists.txt、.cpp/.cc/.cxxファイルの検出
+- **テンプレート**:
+  - .clang-format: Google スタイルベース、100文字制限
+  - .clang-tidy: clang-analyzer、cppcoreguidelines、modernize
+  - CMakeLists.txt.template: C++20、コンパイルコマンドエクスポート
+  - workflows/cpp-ci.yml: マルチOS（Ubuntu/Windows/macOS）、Debug/Release
+  - workflows/cpp-security.yml: cppcheck、osv-scanner
+
+#### C# サポート
+- **CSharpAnalyzer**: .csproj、.sln、.csファイルの検出
+- **テンプレート**:
+  - .editorconfig: 命名規則、コーディングスタイル設定
+  - Directory.Build.props: StyleCop、Roslyn Analyzers統合
+  - workflows/csharp-ci.yml: .NET 8.0/9.0マトリックス、コードカバレッジ
+  - workflows/csharp-security.yml: CodeQL、osv-scanner
+
+**新規ファイル**:
+```
+secuority/core/languages/cpp.py
+secuority/core/languages/csharp.py
+secuority/templates/cpp/
+├── .clang-format
+├── .clang-tidy
+├── CMakeLists.txt.template
+└── workflows/
+    ├── cpp-ci.yml
+    └── cpp-security.yml
+secuority/templates/csharp/
+├── .editorconfig
+├── Directory.Build.props
+└── workflows/
+    ├── csharp-ci.yml
+    └── csharp-security.yml
+```
+
+**レジストリ登録**:
+```python
+register_language(CppAnalyzer(), priority=30)
+register_language(CSharpAnalyzer(), priority=30)
+```
+
+**テスト結果**:
+- ✅ 全519テスト合格
+- ✅ C++ vcpkg.json、conanfile.txt依存解析対応
+- ✅ C# .csproj XML解析によるPackageReference抽出
+- ✅ 言語検出confidence計算正常動作
+
+**サポート対象ツール**:
+- **C++**: clang-format、clang-tidy、cppcheck、cmake、vcpkg
+- **C#**: dotnet-format、editorconfig、stylecop、dotnet analyzers
+
+---
+
 ### 将来の拡張案
 
-#### Phase 8 (オプション): 追加言語サポート
-- C++（CMakeLists.txt/clang-tidy）
-- C#（.csproj/dotnet format）
+#### Phase 9 (オプション): 追加言語サポート
 - Java（Maven/Gradle + SpotBugs）
+- Kotlin（kotlinc + detekt）
+- Swift（SwiftLint + SwiftFormat）
 
-#### Phase 8 (オプション): 高度な機能
+#### Phase 10 (オプション): 高度な機能
 - プロジェクトテンプレート機能
 - インタラクティブ設定ウィザード
 - CI/CD統合の拡張
@@ -498,14 +556,16 @@ class CppAnalyzer(LanguageAnalyzer):
 4. 🔄 **Phase 3-2: TemplateManager更新** ← 次回
 5. Phase 4: Node.js/Biome サポート
 
-### 中優先度
-6. Phase 5: CLI最適化
-7. Phase 6: モダンツール更新
+### 中優先度（完了）
+6. ✅ Phase 5: CLI最適化
+7. ✅ Phase 6: モダンツール更新
+8. ✅ Phase 7: Rust/Goサポート
+9. ✅ Phase 8: C++/C#サポート
 
 ### 低優先度（将来）
-- C++/C# サポート
-- Rust サポート
-- Go サポート
+- Java/Kotlin サポート
+- Swift サポート
+- インタラクティブ設定ウィザード
 
 ---
 
