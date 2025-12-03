@@ -33,7 +33,7 @@ class StubAnalyzer(LanguageAnalyzer):
                 description="stub",
                 config_section="config",
                 priority=1,
-            )
+            ),
         ]
         self._missing = missing if missing is not None else self._recommended[:1]
 
@@ -108,7 +108,7 @@ class TestLanguageRegistry:
                 description="stub",
                 config_section="config",
                 priority=1,
-            )
+            ),
         ]
         registry = LanguageRegistry()
         registry.register(StubAnalyzer("nodeish", confidence=0.9, missing=missing), priority=20)
@@ -116,9 +116,10 @@ class TestLanguageRegistry:
         recommendations = registry.get_all_recommendations(tmp_path)
 
         assert recommendations["nodeish"]["missing_tools"] == missing
-        assert recommendations["nodeish"]["all_recommendations"] == registry.get_analyzer(
-            "nodeish"
-        ).get_recommended_tools()
+        assert (
+            recommendations["nodeish"]["all_recommendations"]
+            == registry.get_analyzer("nodeish").get_recommended_tools()
+        )
 
     def test_unregister_and_language_name_tracking(self) -> None:
         registry = LanguageRegistry()

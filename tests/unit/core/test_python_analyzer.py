@@ -56,7 +56,7 @@ class TestPythonAnalyzer:
             [tool.black]
             [tool.poetry]
             [tool.uv]
-            """
+            """,
         ).strip()
         (tmp_path / "pyproject.toml").write_text(pyproject_content, encoding="utf-8")
 
@@ -101,7 +101,7 @@ class TestPythonAnalyzer:
                     "requests>=2.0",
                     "pytest==8.0",
                 ]
-                """
+                """,
             ).strip(),
             encoding="utf-8",
         )
@@ -110,7 +110,7 @@ class TestPythonAnalyzer:
                 """
                 requests==2.31.0
                 flask==3.0.0
-                """
+                """,
             ).strip(),
             encoding="utf-8",
         )

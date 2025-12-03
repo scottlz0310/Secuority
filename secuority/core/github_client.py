@@ -227,7 +227,7 @@ class GitHubClient(GitHubClientInterface):
                         path=str(workflow.get("path", "")),
                         state=str(workflow.get("state", "")),
                         html_url=str(workflow.get("html_url", "")),
-                    )
+                    ),
                 )
             return workflows
         except GitHubAPIError:

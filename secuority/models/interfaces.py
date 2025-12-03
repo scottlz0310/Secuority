@@ -411,6 +411,8 @@ class CLIInterface(ABC):
     @abstractmethod
     def init(self) -> None:
         """Initialize Secuority configuration."""
+
+
 class PyprojectTools(TypedDict, total=False):
     """Typed representation of pyproject tool section."""
 

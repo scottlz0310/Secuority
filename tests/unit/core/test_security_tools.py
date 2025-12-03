@@ -29,13 +29,13 @@ class TestSecurityToolsIntegrator:
     def test_integrate_bandit_merges_existing_config(self, tmp_path: Path) -> None:
         integrator = SecurityToolsIntegrator()
         pyproject_path = tmp_path / "pyproject.toml"
-        pyproject_path.write_text("[tool.bandit]\nseverity = \"LOW\"\n", encoding="utf-8")
+        pyproject_path.write_text('[tool.bandit]\nseverity = "LOW"\n', encoding="utf-8")
         existing = {"tool": {"bandit": {"skips": ["B900"]}}}
 
         change = integrator.integrate_bandit_config(tmp_path, existing_config=existing)
 
         assert change.change_type == ChangeType.UPDATE
-        assert change.old_content == "[tool.bandit]\nseverity = \"LOW\"\n"
+        assert change.old_content == '[tool.bandit]\nseverity = "LOW"\n'
         config = tomllib.loads(change.new_content or "")
         assert config["tool"]["bandit"]["skips"] == ["B900"]
         assert "exclude_dirs" in config["tool"]["bandit"]
@@ -91,8 +91,7 @@ class TestSecurityToolsIntegrator:
         integrator = SecurityToolsIntegrator()
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text(
-            "[tool.bandit]\n"
-            "[tool.secuority.safety]\nignore_vulns = []\n",
+            "[tool.bandit]\n[tool.secuority.safety]\nignore_vulns = []\n",
             encoding="utf-8",
         )
 
@@ -113,8 +112,7 @@ class TestSecurityToolsIntegrator:
         integrator = SecurityToolsIntegrator()
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text(
-            "[tool.bandit]\n"
-            "[tool.secuority.safety]\nignore_vulns = []\n",
+            "[tool.bandit]\n[tool.secuority.safety]\nignore_vulns = []\n",
             encoding="utf-8",
         )
         (tmp_path / ".pre-commit-config.yaml").write_text("", encoding="utf-8")

@@ -13,7 +13,7 @@ class TestRustAnalyzer:
 
     def test_detect_collects_primary_indicators(self, tmp_path: Path) -> None:
         analyzer = RustAnalyzer()
-        (tmp_path / "Cargo.toml").write_text("[package]\nname = \"demo\"\n", encoding="utf-8")
+        (tmp_path / "Cargo.toml").write_text('[package]\nname = "demo"\n', encoding="utf-8")
         (tmp_path / "Cargo.lock").write_text("version = 3\n", encoding="utf-8")
         (tmp_path / "src").mkdir()
         (tmp_path / "src" / "main.rs").write_text("fn main() {}\n", encoding="utf-8")
@@ -37,7 +37,7 @@ class TestRustAnalyzer:
 
                 [dev-dependencies]
                 cargo-audit = "0.18"
-                """
+                """,
             ).strip(),
             encoding="utf-8",
         )
@@ -56,7 +56,7 @@ class TestRustAnalyzer:
                 - run: cargo audit
                 - run: cargo deny
                 - run: cargo tarpaulin
-                """
+                """,
             ).strip(),
             encoding="utf-8",
         )
@@ -79,7 +79,7 @@ class TestRustAnalyzer:
 
                 [dev-dependencies]
                 anyhow = "1.0"
-                """
+                """,
             ).strip(),
             encoding="utf-8",
         )

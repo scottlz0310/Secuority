@@ -43,7 +43,7 @@ class TestGoAnalyzer:
                       - run: go test ./...
                       - run: govulncheck ./...
                       - run: gosec ./...
-                """
+                """,
             ).strip(),
             encoding="utf-8",
         )
@@ -67,7 +67,7 @@ class TestGoAnalyzer:
                     github.com/pkg/errors v0.9.1
                     golang.org/x/crypto v0.21.0
                 )
-                """
+                """,
             ).strip(),
             encoding="utf-8",
         )

@@ -102,7 +102,7 @@ class GoAnalyzer(LanguageAnalyzer):
                     path=file_path,
                     exists=True,
                     file_type=self._determine_file_type(pattern),
-                )
+                ),
             )
 
         return config_files
@@ -133,10 +133,7 @@ class GoAnalyzer(LanguageAnalyzer):
         tools = {}
 
         # Check for golangci-lint configuration
-        tools["golangci-lint"] = (
-            (project_path / ".golangci.yml").exists()
-            or (project_path / ".golangci.yaml").exists()
-        )
+        tools["golangci-lint"] = (project_path / ".golangci.yml").exists() or (project_path / ".golangci.yaml").exists()
 
         # Check for gofmt (always available with Go installation)
         tools["gofmt"] = (project_path / "go.mod").exists()
@@ -262,21 +259,21 @@ class GoAnalyzer(LanguageAnalyzer):
                 content = go_mod.read_text()
                 # Simple parsing of go.mod
                 in_require = False
-                for line in content.split('\n'):
+                for line in content.split("\n"):
                     line = line.strip()
-                    if line.startswith('require'):
+                    if line.startswith("require"):
                         in_require = True
                         # Handle single-line require
-                        if '(' not in line and line.count(' ') >= 2:
+                        if "(" not in line and line.count(" ") >= 2:
                             parts = line.split()
                             if len(parts) >= 2:
                                 dependencies.append(parts[1])
                         continue
                     if in_require:
-                        if line == ')':
+                        if line == ")":
                             in_require = False
                             continue
-                        if line and not line.startswith('//'):
+                        if line and not line.startswith("//"):
                             parts = line.split()
                             if parts:
                                 dependencies.append(parts[0])

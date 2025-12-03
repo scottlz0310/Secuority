@@ -115,7 +115,7 @@ class PythonAnalyzer(LanguageAnalyzer):
                     path=file_path if file_path.exists() else None,
                     exists=file_path.exists(),
                     file_type=file_type,
-                )
+                ),
             )
 
         return config_files

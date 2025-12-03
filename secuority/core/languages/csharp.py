@@ -108,7 +108,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
                     path=csproj,
                     exists=True,
                     file_type="xml",
-                )
+                ),
             )
 
         # Check for .sln files
@@ -120,7 +120,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
                     path=sln,
                     exists=True,
                     file_type="solution",
-                )
+                ),
             )
 
         # Check for other configuration files
@@ -143,7 +143,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
                         path=file_path,
                         exists=True,
                         file_type=self._determine_file_type(filename),
-                    )
+                    ),
                 )
 
         return config_files
@@ -290,6 +290,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
         for csproj in csproj_files:
             try:
                 import xml.etree.ElementTree as ET
+
                 tree = ET.parse(csproj)
                 root = tree.getroot()
 

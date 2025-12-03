@@ -16,10 +16,10 @@ class TestCSharpAnalyzer:
         project_dir = tmp_path / "src"
         project_dir.mkdir()
         csproj = project_dir / "Demo.csproj"
-        csproj.write_text("<Project Sdk=\"Microsoft.NET.Sdk\" />", encoding="utf-8")
+        csproj.write_text('<Project Sdk="Microsoft.NET.Sdk" />', encoding="utf-8")
         (tmp_path / "Demo.sln").write_text("", encoding="utf-8")
         (project_dir / "Program.cs").write_text("class Program {}", encoding="utf-8")
-        (tmp_path / "global.json").write_text("{\"sdk\": {\"version\": \"8.0.0\"}}", encoding="utf-8")
+        (tmp_path / "global.json").write_text('{"sdk": {"version": "8.0.0"}}', encoding="utf-8")
         (tmp_path / "NuGet.config").write_text("<configuration/>", encoding="utf-8")
         (tmp_path / "bin").mkdir()
 
@@ -41,7 +41,7 @@ class TestCSharpAnalyzer:
                     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0" />
                   </ItemGroup>
                 </Project>
-                """
+                """,
             ).strip(),
             encoding="utf-8",
         )
@@ -72,7 +72,7 @@ class TestCSharpAnalyzer:
                     <PackageReference Include="Serilog" Version="2.12.0" />
                   </ItemGroup>
                 </Project>
-                """
+                """,
             ).strip(),
             encoding="utf-8",
         )

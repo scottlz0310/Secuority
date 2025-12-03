@@ -104,7 +104,7 @@ class RustAnalyzer(LanguageAnalyzer):
                     path=file_path,
                     exists=True,
                     file_type=self._determine_file_type(pattern),
-                )
+                ),
             )
 
         return config_files
@@ -131,22 +131,17 @@ class RustAnalyzer(LanguageAnalyzer):
         tools = {}
 
         # Check for rustfmt configuration
-        tools["rustfmt"] = (
-            (project_path / "rustfmt.toml").exists()
-            or (project_path / ".rustfmt.toml").exists()
-        )
+        tools["rustfmt"] = (project_path / "rustfmt.toml").exists() or (project_path / ".rustfmt.toml").exists()
 
         # Check for clippy configuration
-        tools["clippy"] = (
-            (project_path / "clippy.toml").exists()
-            or (project_path / ".clippy.toml").exists()
-        )
+        tools["clippy"] = (project_path / "clippy.toml").exists() or (project_path / ".clippy.toml").exists()
 
         # Check for cargo-audit (check in Cargo.toml)
         cargo_toml = project_path / "Cargo.toml"
         if cargo_toml.exists():
             try:
                 import tomllib
+
                 with open(cargo_toml, "rb") as f:
                     cargo_data = tomllib.load(f)
                     # Check if cargo-audit is in dev-dependencies
@@ -266,6 +261,7 @@ class RustAnalyzer(LanguageAnalyzer):
         if cargo_toml.exists():
             try:
                 import tomllib
+
                 with open(cargo_toml, "rb") as f:
                     cargo_data = tomllib.load(f)
 

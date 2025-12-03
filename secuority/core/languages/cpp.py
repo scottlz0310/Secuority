@@ -123,7 +123,7 @@ class CppAnalyzer(LanguageAnalyzer):
                         path=file_path,
                         exists=True,
                         file_type=self._determine_file_type(pattern),
-                    )
+                    ),
                 )
 
         # Check for compile_commands.json in build directory
@@ -135,7 +135,7 @@ class CppAnalyzer(LanguageAnalyzer):
                     path=build_compile_commands,
                     exists=True,
                     file_type="json",
-                )
+                ),
             )
 
         return config_files
@@ -184,10 +184,7 @@ class CppAnalyzer(LanguageAnalyzer):
         tools["vcpkg"] = (project_path / "vcpkg.json").exists()
 
         # Check for Conan
-        tools["conan"] = (
-            (project_path / "conanfile.txt").exists()
-            or (project_path / "conanfile.py").exists()
-        )
+        tools["conan"] = (project_path / "conanfile.txt").exists() or (project_path / "conanfile.py").exists()
 
         # Check for GitHub Actions workflows
         workflows_dir = project_path / ".github" / "workflows"
@@ -289,6 +286,7 @@ class CppAnalyzer(LanguageAnalyzer):
         if vcpkg_json.exists():
             try:
                 import json
+
                 with open(vcpkg_json) as f:
                     vcpkg_data = json.load(f)
                     deps = vcpkg_data.get("dependencies", [])
@@ -306,16 +304,16 @@ class CppAnalyzer(LanguageAnalyzer):
             try:
                 content = conanfile_txt.read_text()
                 in_requires = False
-                for line in content.split('\n'):
+                for line in content.split("\n"):
                     line = line.strip()
                     if line == "[requires]":
                         in_requires = True
                         continue
-                    if line.startswith('['):
+                    if line.startswith("["):
                         in_requires = False
                     if in_requires and line:
                         # Format: package/version
-                        dep_name = line.split('/')[0]
+                        dep_name = line.split("/")[0]
                         dependencies.append(dep_name)
             except Exception:
                 pass
