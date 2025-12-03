@@ -1,7 +1,7 @@
 # Secuority 多言語対応 実装ロードマップ
 
 **最終更新**: 2025-12-03
-**ステータス**: Phase 5 完了
+**ステータス**: Phase 6 完了
 
 ## 📊 進捗状況
 
@@ -13,7 +13,7 @@
 | Phase 3-2 | TemplateManager の更新 | ✅ 完了 | 2025-12-03 |
 | Phase 4 | Node.js/Biome サポート追加 | ✅ 完了 | 2025-12-03 |
 | Phase 5 | CLI の単一リポジトリ実行最適化 | ✅ 完了 | 2025-12-03 |
-| Phase 6 | モダンツールテンプレート追加 | 📋 計画中 | - |
+| Phase 6 | モダンツールテンプレート追加 | ✅ 完了 | 2025-12-03 |
 
 ---
 
@@ -283,14 +283,84 @@ secuority apply --language nodejs
 
 ---
 
-## 🔄 次回作業: Phase 6
+---
 
-## Phase 6: モダンツールテンプレート追加
+### Phase 6: モダンツールテンプレート追加
 
-### 目標
-最新のツールチェーンテンプレートを追加・更新
+**コミット**: (次のコミットで完了予定)
 
-### 実装タスク
+**ステータス**: ✅ 完了 (2025-12-03)
+
+**実装内容**:
+- pyproject.toml.template: hatchling、basedpyright、uvセクション追加
+- .pre-commit-config.yaml.template: basedpyright、osv-scanner統合
+- workflows/security-check.yml: osv-scanner統合とPRコメント追加
+
+**更新ファイル**:
+```
+secuority/templates/python/pyproject.toml.template
+secuority/templates/python/.pre-commit-config.yaml.template
+secuority/templates/python/workflows/security-check.yml
+```
+
+**主要な変更**:
+
+#### pyproject.toml.template
+- build-system: setuptools → hatchling
+- dev-dependencies: mypy → basedpyright
+- 追加: [tool.uv] セクション
+- 追加: [tool.basedpyright] 設定（typeCheckingMode: standard）
+- 更新: ruff設定（fix=true、新しいルール追加）
+
+#### .pre-commit-config.yaml.template
+- mypy → basedpyright に置き換え
+- osv-scanner追加（uv.lockスキャン）
+- CI skip設定追加（osv-scanner）
+
+#### workflows/security-check.yml
+- osv-scannerステップ追加
+- osv-report.jsonアーティファクト追加
+- PRコメントにosv-scanner結果を表示
+
+**テスト結果**:
+- ✅ 全519テスト合格
+- ✅ コードカバレッジ 76% (+4%)
+- ✅ 後方互換性維持
+
+---
+
+## 🎯 次のステップと今後の展開
+
+### 実装完了サマリー
+
+Phase 6まで完了し、Secuorityは以下の機能を持つ完全な多言語対応ツールになりました：
+
+**言語サポート**:
+- ✅ Python（ruff, basedpyright, pytest, bandit, osv-scanner）
+- ✅ Node.js（biome, typescript, jest, npm audit, osv-scanner）
+
+**主要機能**:
+- ✅ 言語自動検出
+- ✅ マルチ言語プロジェクト対応
+- ✅ モダンツールチェーン（hatchling, basedpyright, osv-scanner）
+- ✅ GitHub Actions統合
+- ✅ pre-commit hooks統合
+
+### 将来の拡張案
+
+#### Phase 7 (オプション): 追加言語サポート
+- Rust（Cargo.toml/Clippy）
+- Go（go.mod/golangci-lint）
+- C++（CMakeLists.txt/clang-tidy）
+
+#### Phase 8 (オプション): 高度な機能
+- プロジェクトテンプレート機能
+- インタラクティブ設定ウィザード
+- CI/CD統合の拡張
+
+---
+
+## 📋 実装タスク（参考）
 
 #### 6-1. Python モダンツール更新
 

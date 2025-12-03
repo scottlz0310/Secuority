@@ -72,6 +72,20 @@ jobs:
           uv run safety check --json --output safety-report.json || true
           uv run safety check
 
+      - name: Run OSV-Scanner for vulnerability detection
+        run: |
+          if [ -f "uv.lock" ]; then
+            uv tool install osv-scanner
+            osv-scanner scan --lockfile uv.lock --format json --output osv-report.json || true
+            osv-scanner scan --lockfile uv.lock || true
+          elif [ -f "requirements.txt" ]; then
+            uv tool install osv-scanner
+            osv-scanner scan --lockfile requirements.txt --format json --output osv-report.json || true
+            osv-scanner scan --lockfile requirements.txt || true
+          else
+            echo "No lock file found, skipping OSV-Scanner"
+          fi
+
       - name: Upload security reports to SARIF
         if: always()
         run: |
@@ -132,6 +146,7 @@ jobs:
           path: |
             bandit-report.json
             safety-report.json
+            osv-report.json
             bandit.sarif
 
       - name: Comment PR with security results
@@ -171,6 +186,19 @@ jobs:
               }
             } catch (e) {
               comment += '### 🔍 Safety Dependency Scanner\n❓ Report not available\n\n';
+            }
+
+            try {
+              const osvReport = JSON.parse(fs.readFileSync('osv-report.json', 'utf8'));
+              const osvVulnCount = osvReport.results?.reduce((sum, result) => sum + (result.packages?.length || 0), 0) || 0;
+              comment += `### 🔐 OSV-Scanner\n`;
+              comment += `- **Vulnerabilities found**: ${osvVulnCount} ${osvVulnCount > 0 ? '❌' : '✅'}\n\n`;
+
+              if (osvVulnCount > 0) {
+                comment += `⚠️ **Action Required**: Please review and update vulnerable dependencies.\n\n`;
+              }
+            } catch (e) {
+              comment += '### 🔐 OSV-Scanner\n❓ Report not available\n\n';
             }
 
             comment += `---\n*Security scan completed for Python ${{ matrix.python-version }}*`;

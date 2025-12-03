@@ -41,22 +41,12 @@ repos:
     hooks:
       - id: gitleaks
 
-  # Type checking with mypy
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+  # Type checking with basedpyright
+  - repo: https://github.com/detachhead/basedpyright
+    rev: v1.20.0
     hooks:
-      - id: mypy
-        additional_dependencies: [
-          types-requests,
-          types-pyyaml,
-          types-toml,
-          pytest,
-          typer,
-          rich,
-          tomli,
-          tomli-w,
-        ]
-        args: [--config-file=pyproject.toml]
+      - id: basedpyright
+        args: [--project, pyproject.toml]
 
   # Security linting with bandit
   - repo: https://github.com/PyCQA/bandit
@@ -66,6 +56,14 @@ repos:
         args: ['-c', 'pyproject.toml']
         additional_dependencies: ['bandit[toml]']
         exclude: ^tests/
+
+  # Dependency vulnerability scanning with osv-scanner
+  - repo: https://github.com/google/osv-scanner
+    rev: v1.9.1
+    hooks:
+      - id: osv-scanner-reqs-lock
+        name: Scan dependencies for vulnerabilities (osv-scanner)
+        args: [--lockfile, uv.lock]
 
   # Dependency vulnerability scanning with safety
   - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
@@ -169,5 +167,5 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: []
+  skip: [osv-scanner-reqs-lock]  # Skip osv-scanner on pre-commit.ci (uv.lock not available)
   submodules: false
