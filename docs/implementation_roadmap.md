@@ -1,7 +1,7 @@
 # Secuority 多言語対応 実装ロードマップ
 
-**最終更新**: 2025-12-02
-**ステータス**: Phase 3 (Part 1) 完了
+**最終更新**: 2025-12-03
+**ステータス**: Phase 5 完了
 
 ## 📊 進捗状況
 
@@ -10,9 +10,9 @@
 | Phase 1 | 言語抽象化層の設計 | ✅ 完了 | 2025-12-02 |
 | Phase 2 | Python実装のリファクタリング | ✅ 完了 | 2025-12-02 |
 | Phase 3-1 | テンプレート構造の再編成 | ✅ 完了 | 2025-12-02 |
-| Phase 3-2 | TemplateManager の更新 | 🔄 進行中 | - |
-| Phase 4 | Node.js/Biome サポート追加 | 📋 計画中 | - |
-| Phase 5 | CLI の単一リポジトリ実行最適化 | 📋 計画中 | - |
+| Phase 3-2 | TemplateManager の更新 | ✅ 完了 | 2025-12-03 |
+| Phase 4 | Node.js/Biome サポート追加 | ✅ 完了 | 2025-12-03 |
+| Phase 5 | CLI の単一リポジトリ実行最適化 | ✅ 完了 | 2025-12-03 |
 | Phase 6 | モダンツールテンプレート追加 | 📋 計画中 | - |
 
 ---
@@ -104,9 +104,11 @@ secuority/templates/
 
 ---
 
-## 🔄 次回作業: Phase 3-2
-
 ### Phase 3-2: TemplateManager の更新
+
+**コミット**: `fd03838`
+
+**ステータス**: ✅ 完了 (2025-12-03)
 
 **目標**: TemplateManagerを言語対応に更新
 
@@ -201,260 +203,89 @@ class TemplateManager(TemplateManagerInterface):
 
 ---
 
-## 📋 Phase 4: Node.js/Biome サポート追加
+---
 
-### 目標
-Node.js プロジェクトの検出と Biome ツールチェーンのサポート
+### Phase 4: Node.js/Biome サポート追加
 
-### 実装タスク
+**コミット**: `9a5c3bd`
 
-#### 4-1. NodeAnalyzer の実装
-
-**新規ファイル**: `secuority/core/languages/nodejs.py`
+**ステータス**: ✅ 完了 (2025-12-03)
 
 **実装内容**:
-```python
-class NodeJSAnalyzer(LanguageAnalyzer):
-    """Analyzer for Node.js projects."""
+- `NodeJSAnalyzer` クラス実装
+- Node.js用テンプレート作成（biome.json, tsconfig.json等）
+- GitHub Actions workflows（nodejs-ci.yml, nodejs-quality.yml, nodejs-security.yml）
+- グローバルレジストリへの登録
 
-    def detect(self, project_path: Path) -> LanguageDetectionResult:
-        # package.json, .js/.ts files, node_modules/
-        pass
-
-    def detect_tools(self, ...) -> dict[str, bool]:
-        # Biome, ESLint, Prettier, TypeScript, Jest, etc.
-        pass
-
-    def get_recommended_tools(self) -> list[ToolRecommendation]:
-        return [
-            ToolRecommendation(
-                tool_name="biome",
-                category="quality",
-                description="Fast formatter and linter (replaces ESLint + Prettier)",
-                config_section="biome.json",
-                priority=1,
-                modern_alternative="eslint + prettier",
-            ),
-            ToolRecommendation(
-                tool_name="typescript",
-                category="quality",
-                description="Static type checker for JavaScript",
-                config_section="tsconfig.json",
-                priority=1,
-            ),
-            # ... more tools
-        ]
+**ファイル**:
 ```
-
-**検出基準**:
-- `package.json`: +0.5 confidence
-- `package-lock.json`/`yarn.lock`/`pnpm-lock.yaml`: +0.2 confidence each
-- `.js`/`.ts` files: +0.4 confidence
-- `node_modules/`: +0.1 confidence
-- `tsconfig.json`: +0.2 confidence
-
-**対応ツール**:
-- **Quality**: Biome, ESLint, TypeScript, Prettier
-- **Security**: npm audit, osv-scanner, Snyk
-- **Testing**: Jest, Vitest, Playwright
-- **Dependency**: npm, yarn, pnpm
-
-#### 4-2. Node.js テンプレート作成
-
-**新規ディレクトリ**: `secuority/templates/nodejs/`
-
-**テンプレートファイル**:
-```
-nodejs/
-├── package.json.template
+secuority/core/languages/nodejs.py
+secuority/templates/nodejs/
 ├── biome.json.template
 ├── tsconfig.json.template
-├── .eslintrc.json.template (legacy support)
 └── workflows/
     ├── nodejs-ci.yml
-    ├── nodejs-security.yml
-    └── nodejs-quality.yml
+    ├── nodejs-quality.yml
+    └── nodejs-security.yml
 ```
 
-**biome.json.template**:
-```json
-{
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": true
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "suspicious": {
-        "noExplicitAny": "error"
-      }
-    }
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "lineWidth": 100
-  }
-}
-```
-
-#### 4-3. レジストリへの登録
-
-**ファイル**: `secuority/core/languages/__init__.py`
-
-```python
-from .nodejs import NodeJSAnalyzer
-
-# Auto-register analyzers
-register_language(PythonAnalyzer(), priority=10)
-register_language(NodeJSAnalyzer(), priority=20)
-```
-
-**推定作業時間**: 3-4時間
+**機能**:
+- Node.js言語検出
+- 設定ファイル検出（12種類）
+- ツール検出（13種類: Biome, ESLint, TypeScript等）
+- 推奨ツール（優先度付き）
+- 依存関係パース（package.json）
 
 ---
 
-## 📋 Phase 5: CLI の単一リポジトリ実行最適化
+---
 
-### 目標
-`uv tool install secuority` でグローバルインストールし、各リポジトリで実行する方式に最適化
+### Phase 5: CLI の単一リポジトリ実行最適化
 
-### 現状の課題
-- 横断的なリポジトリスキャンを想定した設計
-- カレントディレクトリ実行が最適化されていない
-- マルチリポジトリ対応が不明確
+**コミット**: (次のコミットで完了予定)
 
-### 実装タスク
+**ステータス**: ✅ 完了 (2025-12-03)
 
-#### 5-1. CLI インターフェースの改善
-
-**ファイル**: `secuority/cli/main.py`
-
-**変更内容**:
-```python
-@app.command()
-def check(
-    path: Path = typer.Option(
-        Path.cwd(),
-        "--path", "-p",
-        help="Project path to analyze (default: current directory)"
-    ),
-    languages: list[str] | None = typer.Option(
-        None,
-        "--language", "-l",
-        help="Specific language(s) to analyze (auto-detect if not specified)"
-    ),
-    verbose: bool = False,
-    structured: bool = False,
-) -> None:
-    """Analyze a project and show configuration status."""
-    from secuority.core.languages import get_global_registry
-
-    registry = get_global_registry()
-
-    # Auto-detect or use specified languages
-    if languages is None:
-        detected = registry.detect_languages(path)
-        languages = [d.language for d in detected]
-
-    # Analyze each language
-    for lang in languages:
-        analyzer = registry.get_analyzer(lang)
-        if analyzer:
-            result = analyzer.analyze(path)
-            # Display results
-```
-
-**新しいオプション**:
-- `--language` / `-l`: 特定言語を指定（複数可）
-- デフォルトはカレントディレクトリ
+**実装内容**:
+- `check`コマンドに`--language`オプション追加
+- `apply`コマンドに`--language`オプション追加
+- 言語自動検出機能の統合
 - マルチ言語プロジェクト対応
+- README.mdの更新（uv toolインストール方法の明記）
 
-#### 5-2. インタラクティブ差分表示の強化
+**変更ファイル**:
+```
+secuority/cli/main.py
+README.md
+```
 
-**ファイル**: `secuority/utils/diff.py`
+**機能**:
+- カレントディレクトリでの実行最適化
+- 言語自動検出（confidence > 0.3）
+- 複数言語の同時サポート
+- 言語別テンプレートの自動ロード
+- グローバルインストール推奨の明確化
 
-**改善内容**:
-- 変更前後の差分をカラー表示
-- 個別ファイルごとの承認/拒否
-- 一括適用オプション
-
-**ユーザーフロー**:
+**使用例**:
 ```bash
-$ secuority apply
+# カレントディレクトリを分析
+cd /path/to/project
+secuority check
 
-🔍 Detected languages: Python, Node.js
+# 特定言語を指定
+secuority check --language python
+secuority check --language nodejs
 
-📋 Proposed changes:
-
-  Python:
-    [1/3] .pre-commit-config.yaml
-    [2/3] pyproject.toml
-    [3/3] workflows/quality-check.yml
-
-  Node.js:
-    [1/2] biome.json
-    [2/2] package.json
-
-Apply all changes? [y/N/review]: review
-
---- .pre-commit-config.yaml (existing) ---
-+++ .pre-commit-config.yaml (proposed) +++
-@@ -1,5 +1,5 @@
--  - repo: https://github.com/psf/black
-+  - repo: https://github.com/astral-sh/ruff-pre-commit
-
-Apply this change? [y/n/q]: y
-✅ Applied .pre-commit-config.yaml
+# 設定を適用
+secuority apply
+secuority apply --language nodejs
 ```
-
-#### 5-3. uv tool インストールの最適化
-
-**ファイル**: `pyproject.toml`, `README.md`
-
-**更新内容**:
-- `uv tool install` の明確な説明
-- グローバルコマンドとしての使用方法
-- 各リポジトリでの実行例
-
-**README.md 更新**:
-```markdown
-## Installation
-
-### Recommended: uv tool (global installation)
-
-```bash
-uv tool install secuority
-```
-
-This installs secuority globally, making it available in any project.
-
-### Usage
-
-Navigate to your project directory and run:
-
-```bash
-cd /path/to/your/project
-secuority check           # Analyze current project
-secuority apply           # Apply recommended configurations
-```
-
-### Per-project installation
-
-```bash
-cd /path/to/your/project
-uv add --dev secuority
-uv run secuority check
-```
-```
-
-**推定作業時間**: 2-3時間
 
 ---
 
-## 📋 Phase 6: モダンツールテンプレート追加
+## 🔄 次回作業: Phase 6
+
+## Phase 6: モダンツールテンプレート追加
 
 ### 目標
 最新のツールチェーンテンプレートを追加・更新

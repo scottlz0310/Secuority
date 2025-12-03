@@ -50,6 +50,12 @@ def check(
         help="Path to the project directory",
     ),
     structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
+    language: list[str] | None = typer.Option(  # noqa: B008
+        None,
+        "--language",
+        "-l",
+        help="Specific language(s) to analyze (auto-detect if not specified)",
+    ),
 ) -> None:
     """Analyze project configuration and show recommendations."""
     # Configure logging based on CLI options
@@ -64,13 +70,31 @@ def check(
         logger.info("Starting project analysis", project_path=str(project_path))
         logger.debug("Analysis configuration", verbose=verbose, structured_output=structured_output)
 
+        # Detect languages in the project
+        from ..core.languages import get_global_registry
+
+        registry = get_global_registry()
+
+        # Auto-detect or use specified languages
+        if language is None:
+            detected = registry.detect_languages(project_path)
+            detected_languages = [d.language for d in detected if d.confidence > 0.3]
+            if not detected_languages:
+                # Default to Python if no languages detected
+                detected_languages = ["python"]
+        else:
+            detected_languages = language
+
+        logger.info("Detected languages", languages=detected_languages)
+
         # Get core engine and analyze project
         core_engine = _get_core_engine()
         project_state = core_engine.analyze_project(project_path)
 
         if not structured_output:
             console.print("\n[bold blue]Secuority Analysis Report[/bold blue]")
-            console.print(f"[dim]Project: {project_path}[/dim]\n")
+            console.print(f"[dim]Project: {project_path}[/dim]")
+            console.print(f"[dim]Detected languages: {', '.join(detected_languages)}[/dim]\n")
 
         # Display configuration files status
         config_files_info = [
@@ -455,6 +479,12 @@ def apply(
     structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
     security_only: bool = typer.Option(False, "--security-only", help="Apply only security-related configurations"),
     templates_only: bool = typer.Option(False, "--templates-only", help="Apply only template-based configurations"),
+    language: list[str] | None = typer.Option(  # noqa: B008
+        None,
+        "--language",
+        "-l",
+        help="Specific language(s) to apply templates for (auto-detect if not specified)",
+    ),
 ) -> None:
     """Apply configuration changes to the project."""
     # Configure logging
@@ -468,6 +498,23 @@ def apply(
     try:
         logger.info("Starting configuration application", project_path=str(project_path), dry_run=dry_run, force=force)
 
+        # Detect languages in the project
+        from ..core.languages import get_global_registry
+
+        registry = get_global_registry()
+
+        # Auto-detect or use specified languages
+        if language is None:
+            detected = registry.detect_languages(project_path)
+            detected_languages = [d.language for d in detected if d.confidence > 0.3]
+            if not detected_languages:
+                # Default to Python if no languages detected
+                detected_languages = ["python"]
+        else:
+            detected_languages = language
+
+        logger.info("Target languages for template application", languages=detected_languages)
+
         if not structured_output:
             if dry_run:
                 console.print("\n[bold blue]Dry Run - Configuration Changes Preview[/bold blue]\n")
@@ -475,6 +522,7 @@ def apply(
                 console.print("\n[bold green]Applying Configuration Changes[/bold green]\n")
 
             console.print(f"[dim]Project: {project_path}[/dim]")
+            console.print(f"[dim]Languages: {', '.join(detected_languages)}[/dim]")
             console.print(f"[dim]Dry run: {dry_run}, Force: {force}[/dim]\n")
 
         # Get core engine and analyze project first
@@ -484,15 +532,28 @@ def apply(
         # Generate configuration changes based on analysis
         changes = []
 
-        # Load templates
+        # Load templates for all detected languages
+        all_templates = {}
         try:
-            templates = core_engine.template_manager.load_templates()
-        except TemplateError as e:
+            # Load templates for each detected language
+            for lang in detected_languages:
+                try:
+                    lang_templates = core_engine.template_manager.load_templates(language=lang)
+                    # Prefix template names with language for disambiguation if multiple languages
+                    if len(detected_languages) > 1:
+                        all_templates.update({f"{lang}:{k}": v for k, v in lang_templates.items()})
+                    else:
+                        all_templates.update(lang_templates)
+                    logger.debug(f"Loaded {len(lang_templates)} templates for {lang}")
+                except TemplateError as e:
+                    logger.warning(f"Could not load templates for {lang}", error=str(e))
+        except Exception as e:
             if not structured_output:
                 console.print(f"[yellow]Warning:[/yellow] Could not load templates: {e}")
                 console.print("[dim]Run 'secuority init' to initialize templates.[/dim]")
             logger.warning("Templates not available", error=str(e))
-            templates = {}
+
+        templates = all_templates
 
         # Filter changes based on options
         apply_security = not templates_only

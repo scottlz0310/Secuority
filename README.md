@@ -1,25 +1,37 @@
 # Secuority
 
-**Secuority** は、Pythonプロジェクトのコード品質とセキュリティ設定を自動化・標準化するCLIツールです。
+**Secuority** は、Python・Node.jsプロジェクトのコード品質とセキュリティ設定を自動化・標準化するCLIツールです。
 
 ## 📦 インストール
 
-### GitHub Releasesからインストール（推奨）
+### 推奨: uv tool (グローバルインストール)
 
 ```bash
-# uvを使用（推奨）
+# GitHub Releasesから
 uv tool install secuority --from "https://github.com/scottlz0310/Secuority/releases/download/v0.5.0/secuority-0.5.0-py3-none-any.whl"
 
-# pipxを使用
-pipx install "https://github.com/scottlz0310/Secuority/releases/download/v0.5.0/secuority-0.5.0-py3-none-any.whl"
-```
-
-### ソースからインストール
-
-```bash
+# または、ソースから
 git clone https://github.com/scottlz0310/Secuority.git
 cd Secuority
 uv tool install .
+```
+
+グローバルインストールすることで、どのプロジェクトディレクトリからでも `secuority` コマンドが使用できます。
+
+### 代替: pipx
+
+```bash
+pipx install "https://github.com/scottlz0310/Secuority/releases/download/v0.5.0/secuority-0.5.0-py3-none-any.whl"
+```
+
+### プロジェクトごとにインストール
+
+特定のプロジェクトに開発依存として追加する場合：
+
+```bash
+cd /path/to/your/project
+uv add --dev secuority
+uv run secuority check
 ```
 
 ## 🎯 解決する問題
@@ -71,14 +83,34 @@ uv tool install .
 
 ---
 
-## 🚀 CLIコマンド
+## 🚀 使用方法
+
+プロジェクトディレクトリに移動してコマンドを実行：
 
 ```bash
-# 現在のプロジェクトを分析
-secuority check [--verbose]
+cd /path/to/your/project
+secuority check              # プロジェクトを分析
+secuority apply              # 推奨設定を適用
+```
+
+### 主要コマンド
+
+```bash
+# プロジェクトを分析（カレントディレクトリ）
+secuority check
+secuority check --verbose                    # 詳細表示
+secuority check --language python            # 特定言語のみ
+secuority check --language python --language nodejs  # 複数言語
 
 # 設定を自動適用（確認プロンプト付き）
-secuority apply [--dry-run] [--force]
+secuority apply
+secuority apply --dry-run                    # 変更をプレビュー
+secuority apply --force                      # 確認なしで適用
+secuority apply --language nodejs            # Node.js用テンプレートのみ
+
+# 特定のパスを指定
+secuority check --project-path /path/to/project
+secuority apply --project-path /path/to/project
 
 # テンプレート管理
 secuority template list
@@ -87,6 +119,17 @@ secuority template update
 # 設定初期化
 secuority init
 ```
+
+### 多言語対応
+
+Secuorityは以下の言語を自動検出します：
+
+- **Python**: pyproject.toml, requirements.txt, .py ファイルから検出
+  - ツール: ruff, basedpyright, pytest, bandit, osv-scanner
+- **Node.js**: package.json, .js/.ts ファイルから検出
+  - ツール: biome, typescript, jest, npm audit, osv-scanner
+
+言語は自動検出されますが、`--language` オプションで明示的に指定することもできます。
 
 ## ✅ 重要機能チェックリスト
 
@@ -113,7 +156,9 @@ secuority init
 
 ## 🔮 将来の拡張
 
-* **多言語対応**: Node.js (package.json/ESLint), Rust (Cargo.toml/Clippy), Go (go.mod/golangci-lint) などへの対応を予定
+* **追加言語対応**: Rust (Cargo.toml/Clippy), Go (go.mod/golangci-lint), C++ (CMakeLists.txt/clang-tidy) などへの対応を予定
+* **高度なCI/CD統合**: より複雑なワークフローテンプレートの追加
+* **プロジェクトテンプレート**: 新規プロジェクト作成時のスキャフォールディング
 
 ---
 
