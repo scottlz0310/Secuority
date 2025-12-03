@@ -2,8 +2,10 @@
 
 import json
 import os
+import shutil
+import zipfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -197,6 +199,54 @@ class TestTemplateManager:
 
         assert "version" in version_data
         assert "created" in version_data
+
+    def test_get_available_languages_sorted(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+    ) -> None:
+        """Ensure available languages excludes helper directories and is sorted."""
+        manager._template_dir = tmp_path
+        templates_dir = tmp_path / "templates"
+        (templates_dir / "common").mkdir(parents=True)
+        (templates_dir / "python").mkdir()
+        (templates_dir / "nodejs").mkdir()
+        (templates_dir / "__pycache__").mkdir()
+        (templates_dir / ".git").mkdir()
+
+        languages = manager.get_available_languages()
+
+        assert languages == ["nodejs", "python"]
+
+    def test_load_templates_fallback_to_flat_structure(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+    ) -> None:
+        """Handle legacy layouts where templates are not split by language."""
+        manager._template_dir = tmp_path
+        templates_dir = tmp_path / "templates"
+        templates_dir.mkdir(parents=True)
+        template_path = templates_dir / "legacy.template"
+        template_path.write_text("legacy", encoding="utf-8")
+
+        templates = manager.load_templates(language="python")
+
+        assert templates["legacy.template"] == "legacy"
+
+    def test_template_exists_supports_language_subdirectories(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+    ) -> None:
+        """Verify template existence checks include nested language directories."""
+        manager._template_dir = tmp_path
+        template_path = tmp_path / "templates" / "python"
+        template_path.mkdir(parents=True)
+        (template_path / "pyproject.toml.template").write_text("[project]\n", encoding="utf-8")
+
+        assert manager.template_exists("python/pyproject.toml.template")
+        assert not manager.template_exists("nodejs/package.json.template")
 
     def test_template_exists_true(
         self,
@@ -464,6 +514,49 @@ class TestTemplateManager:
         with pytest.raises(TemplateError, match="Unsupported template source"):
             manager.update_templates()
 
+    def test_update_templates_prefers_github_source(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Ensure github sources dispatch to the github updater."""
+        manager._template_dir = tmp_path
+        monkeypatch.setattr(
+            manager,
+            "get_config",
+            lambda: {"templates": {"source": "github:owner/repo@dev"}},
+        )
+        captured: dict[str, str] = {}
+
+        def fake_update(source: str) -> bool:
+            captured["source"] = source
+            return True
+
+        monkeypatch.setattr(manager, "_update_from_github", fake_update)
+
+        assert manager.update_templates()
+        assert captured["source"] == "github:owner/repo@dev"
+
+    def test_update_from_github_builds_archive_url(
+        self,
+        manager: TemplateManager,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """GitHub updater constructs correct branch archive URL."""
+        observed: dict[str, str] = {}
+
+        def fake_download(url: str, repo: str) -> bool:
+            observed["url"] = url
+            observed["repo"] = repo
+            return True
+
+        monkeypatch.setattr(manager, "_download_and_extract_templates", fake_download)
+
+        assert manager._update_from_github("github:demo/templates@release")
+        assert observed["url"] == "https://github.com/demo/templates/archive/release.zip"
+        assert observed["repo"] == "templates"
+
     def test_load_templates_caches_result(
         self,
         manager: TemplateManager,
@@ -484,3 +577,36 @@ class TestTemplateManager:
         # Check that the content is the same
         assert templates1 == templates2
         assert len(templates1) == len(templates2)
+
+    def test_download_and_extract_templates_replaces_existing_content(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Download helper swaps templates and updates history without leftovers."""
+        manager._template_dir = tmp_path
+        templates_path = tmp_path / "templates"
+        templates_path.mkdir(parents=True)
+        (templates_path / "old.template").write_text("old", encoding="utf-8")
+        (tmp_path / "config.yaml").write_text("templates: {}", encoding="utf-8")
+
+        archive_root = tmp_path / "archive"
+        template_dir = archive_root / "demo-main" / "templates"
+        template_dir.mkdir(parents=True)
+        (template_dir / "new.template").write_text("new", encoding="utf-8")
+        zip_path = tmp_path / "demo.zip"
+        with zipfile.ZipFile(zip_path, "w") as zip_file:
+            for file_path in template_dir.rglob("*"):
+                zip_file.write(file_path, file_path.relative_to(archive_root))
+
+        def fake_urlretrieve(url: str, filename: str) -> None:
+            shutil.copy(zip_path, filename)
+
+        monkeypatch.setattr("secuority.core.template_manager.urllib.request.urlretrieve", fake_urlretrieve)
+
+        assert manager._download_and_extract_templates("https://example.com/demo.zip", "demo")
+        assert (templates_path / "new.template").read_text(encoding="utf-8") == "new"
+        assert not list(tmp_path.glob("templates_backup_*"))
+        history = manager.get_template_history()
+        assert history and history[0]["action"] == "created"

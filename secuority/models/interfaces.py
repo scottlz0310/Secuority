@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     from .config import ApplyResult
@@ -49,6 +49,50 @@ class QualityTool(Enum):
     ISORT = "isort"
     FLAKE8 = "flake8"
     PYLINT = "pylint"
+
+
+class DependabotConfig(TypedDict, total=False):
+    """Minimal view of Dependabot configuration."""
+
+    enabled: bool
+    config_file_exists: bool
+    config_content: str
+
+
+class GitHubWorkflowSummary(TypedDict, total=False):
+    """Subset of workflow fields we consume."""
+
+    id: int
+    name: str
+    path: str
+    state: str
+    html_url: str
+
+
+class GitHubSecuritySettings(TypedDict):
+    """Security settings flags returned by GitHubClient."""
+
+    secret_scanning: bool
+    secret_scanning_push_protection: bool
+    dependency_graph: bool
+    private_vulnerability_reporting: bool
+    security_policy: bool
+    is_private: bool
+
+
+class GitHubAnalysisResult(TypedDict, total=False):
+    """Aggregate GitHub repository analysis summary."""
+
+    is_github_repo: bool
+    owner: str
+    repo: str
+    authenticated: bool
+    analysis_successful: bool
+    push_protection: bool
+    dependabot: DependabotConfig
+    workflows: list[GitHubWorkflowSummary]
+    security_settings: GitHubSecuritySettings
+    error: str
 
 
 def validate_project_path(path: Path) -> bool:
@@ -170,12 +214,16 @@ class ProjectAnalyzerInterface(ABC):
         """Detect existing configuration files in the project."""
 
     @abstractmethod
-    def analyze_dependencies(self, project_path: Path) -> dict[str, Any]:
+    def analyze_dependencies(self, project_path: Path) -> "DependencyAnalysis":
         """Analyze project dependencies and their configuration."""
 
     @abstractmethod
     def check_security_tools(self, project_path: Path) -> dict[str, bool]:
         """Check which security tools are configured in the project."""
+
+    @abstractmethod
+    def analyze_github_repository(self, project_path: Path) -> "GitHubAnalysisResult":
+        """Analyze GitHub repository metadata and settings."""
 
 
 class TemplateManagerInterface(ABC):
@@ -201,6 +249,10 @@ class TemplateManagerInterface(ABC):
     def initialize_templates(self) -> None:
         """Initialize template directory with default templates."""
 
+    @abstractmethod
+    def get_template_history(self) -> list[dict[str, str]]:
+        """Retrieve template update history metadata."""
+
 
 class ConfigurationApplierInterface(ABC):
     """Interface for applying configuration changes."""
@@ -217,6 +269,52 @@ class ConfigurationApplierInterface(ABC):
     def merge_configurations(self, existing: dict[str, Any], template: dict[str, Any]) -> dict[str, Any]:
         """Merge existing configuration with template configuration."""
 
+    @abstractmethod
+    def merge_file_configurations(self, file_path: Path, template_content: str) -> "ConfigChangeType":
+        """Merge template content with an existing file."""
+
+    @abstractmethod
+    def get_security_integration_changes(
+        self,
+        project_path: Path,
+        tools: list[str] | None = None,
+    ) -> list["ConfigChangeType"]:
+        """Prepare security tool integration changes without applying them."""
+
+    @abstractmethod
+    def get_quality_integration_changes(
+        self,
+        project_path: Path,
+        tools: list[str] | None = None,
+    ) -> list["ConfigChangeType"]:
+        """Prepare quality tool integration changes without applying them."""
+
+    @abstractmethod
+    def get_dependency_migration_change(
+        self,
+        project_path: Path,
+        dependency_analysis: "DependencyAnalysis",
+    ) -> "ConfigChangeType | None":
+        """Prepare dependency migration change if needed."""
+
+    @abstractmethod
+    def get_workflow_integration_changes(
+        self,
+        project_path: Path,
+        workflows: list[str] | None = None,
+        python_versions: list[str] | None = None,
+    ) -> list["ConfigChangeType"]:
+        """Prepare CI/CD workflow integration changes."""
+
+    @abstractmethod
+    def apply_changes_interactively(
+        self,
+        changes: list["ConfigChangeType"],
+        dry_run: bool = False,
+        batch_mode: bool = False,
+    ) -> "ApplyResult":
+        """Apply changes interactively via user prompts."""
+
 
 class GitHubClientInterface(ABC):
     """Interface for GitHub API integration."""
@@ -226,15 +324,15 @@ class GitHubClientInterface(ABC):
         """Check if GitHub Push Protection is enabled for the repository."""
 
     @abstractmethod
-    def get_dependabot_config(self, owner: str, repo: str) -> dict[str, Any]:
+    def get_dependabot_config(self, owner: str, repo: str) -> DependabotConfig:
         """Get Dependabot configuration for the repository."""
 
     @abstractmethod
-    def list_workflows(self, owner: str, repo: str) -> list[dict[str, Any]]:
+    def list_workflows(self, owner: str, repo: str) -> list[GitHubWorkflowSummary]:
         """List GitHub Actions workflows in the repository."""
 
     @abstractmethod
-    def check_security_settings(self, owner: str, repo: str) -> dict[str, Any]:
+    def check_security_settings(self, owner: str, repo: str) -> GitHubSecuritySettings:
         """Check repository security settings."""
 
 
@@ -264,14 +362,7 @@ class ProjectState:
 
     def validate(self) -> bool:
         """Validate the entire project state."""
-        try:
-            # Validate project path
-            if not validate_project_path(self.project_path):
-                return False
-
-            return True
-        except Exception:
-            return False
+        return validate_project_path(self.project_path)
 
     def has_modern_config(self) -> bool:
         """Check if project uses modern configuration (pyproject.toml)."""
@@ -320,3 +411,14 @@ class CLIInterface(ABC):
     @abstractmethod
     def init(self) -> None:
         """Initialize Secuority configuration."""
+class PyprojectTools(TypedDict, total=False):
+    """Typed representation of pyproject tool section."""
+
+    ruff: dict[str, object]
+    mypy: dict[str, object]
+    black: dict[str, object]
+    isort: dict[str, object]
+    flake8: dict[str, object]
+    pylint: dict[str, object]
+    bandit: dict[str, object]
+    safety: dict[str, object]

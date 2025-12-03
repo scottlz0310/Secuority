@@ -117,36 +117,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return config_files
 
-    def analyze_dependencies(self, project_path: Path) -> dict[str, Any]:
+    def analyze_dependencies(self, project_path: Path) -> DependencyAnalysis:
         """Analyze project dependencies and their configuration."""
         if not validate_project_path(project_path):
             raise ProjectAnalysisError(f"Invalid project path: {project_path}")
 
-        dependency_analysis = self._analyze_dependencies_internal(project_path)
-
-        return {
-            "requirements_packages": [
-                {
-                    "name": pkg.name,
-                    "version": pkg.version,
-                    "extras": pkg.extras,
-                    "markers": pkg.markers,
-                }
-                for pkg in dependency_analysis.requirements_packages
-            ],
-            "pyproject_dependencies": [
-                {
-                    "name": pkg.name,
-                    "version": pkg.version,
-                    "extras": pkg.extras,
-                    "markers": pkg.markers,
-                }
-                for pkg in dependency_analysis.pyproject_dependencies
-            ],
-            "extras_found": dependency_analysis.extras_found,
-            "migration_needed": dependency_analysis.migration_needed,
-            "conflicts": dependency_analysis.conflicts,
-        }
+        return self._analyze_dependencies_internal(project_path)
 
     def check_security_tools(self, project_path: Path) -> dict[str, bool]:
         """Check which security tools are configured in the project."""

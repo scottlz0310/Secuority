@@ -106,7 +106,8 @@ class CSharpAnalyzer(LanguageAnalyzer):
                 ConfigFile(
                     name=csproj.name,
                     path=csproj,
-                    description="C# project file",
+                    exists=True,
+                    file_type="xml",
                 )
             )
 
@@ -117,7 +118,8 @@ class CSharpAnalyzer(LanguageAnalyzer):
                 ConfigFile(
                     name=sln.name,
                     path=sln,
-                    description="Visual Studio solution file",
+                    exists=True,
+                    file_type="solution",
                 )
             )
 
@@ -139,11 +141,26 @@ class CSharpAnalyzer(LanguageAnalyzer):
                     ConfigFile(
                         name=filename,
                         path=file_path,
-                        description=description,
+                        exists=True,
+                        file_type=self._determine_file_type(filename),
                     )
                 )
 
         return config_files
+
+    def _determine_file_type(self, filename: str) -> str:
+        """Infer file type for configuration files."""
+        if filename.endswith(".json"):
+            return "json"
+        if filename.endswith(".config"):
+            return "xml"
+        if filename.endswith(".props") or filename.endswith(".targets"):
+            return "msbuild"
+        if filename == ".editorconfig":
+            return "editorconfig"
+        if filename == ".runsettings":
+            return "xml"
+        return "unknown"
 
     def detect_tools(self, project_path: Path, config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
         """Detect which tools are configured in the project.

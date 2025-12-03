@@ -92,18 +92,34 @@ class GoAnalyzer(LanguageAnalyzer):
         config_files = []
         patterns = self.get_config_file_patterns()
 
-        for pattern, description in patterns.items():
+        for pattern in patterns:
             file_path = project_path / pattern
-            if file_path.exists() and file_path.is_file():
-                config_files.append(
-                    ConfigFile(
-                        name=pattern,
-                        path=file_path,
-                        description=description,
-                    )
+            if not file_path.exists() or not file_path.is_file():
+                continue
+            config_files.append(
+                ConfigFile(
+                    name=pattern,
+                    path=file_path,
+                    exists=True,
+                    file_type=self._determine_file_type(pattern),
                 )
+            )
 
         return config_files
+
+    def _determine_file_type(self, filename: str) -> str:
+        """Determine file type based on extension."""
+        if filename.endswith(".mod"):
+            return "module"
+        if filename.endswith(".sum"):
+            return "checksum"
+        if filename.endswith(".work"):
+            return "workspace"
+        if filename.endswith((".yml", ".yaml")):
+            return "yaml"
+        if filename.startswith(".go"):
+            return "config"
+        return "unknown"
 
     def detect_tools(self, project_path: Path, config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
         """Detect which tools are configured in the project.

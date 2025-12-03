@@ -12,8 +12,11 @@ from ..core.analyzer import ProjectAnalyzer
 from ..core.applier import ConfigurationApplier
 from ..core.engine import CoreEngine
 from ..core.github_client import GitHubClient
+from ..core.languages import get_global_registry
 from ..core.template_manager import TemplateManager
+from ..models.config import ConfigChange
 from ..models.exceptions import ConfigurationError, ProjectAnalysisError, TemplateError
+from ..models.interfaces import GitHubAnalysisResult
 from ..utils.logger import configure_logging, get_logger
 
 console = Console()
@@ -71,8 +74,6 @@ def check(
         logger.debug("Analysis configuration", verbose=verbose, structured_output=structured_output)
 
         # Detect languages in the project
-        from ..core.languages import get_global_registry
-
         registry = get_global_registry()
 
         # Auto-detect or use specified languages
@@ -218,19 +219,19 @@ def check(
             console.print()
 
         # Initialize recommendations list
-        recommendations = []
+        recommendations: list[str] = []
 
         # GitHub integration analysis (if available)
-        github_analysis = None
+        github_analysis: GitHubAnalysisResult | None = None
         if core_engine.github_client:
             try:
-                github_analysis = core_engine.analyzer.analyze_github_repository(project_path)  # type: ignore[attr-defined]
+                github_analysis = core_engine.analyzer.analyze_github_repository(project_path)
                 if github_analysis.get("analysis_successful"):
                     if not github_analysis.get("push_protection", False):
                         recommendations.append("Enable GitHub Push Protection for secret scanning")
 
-                    dependabot = github_analysis.get("dependabot", {})
-                    if not dependabot.get("enabled", False):
+                    dependabot_cfg = github_analysis.get("dependabot")
+                    if not dependabot_cfg or not dependabot_cfg.get("enabled", False):
                         recommendations.append("Enable Dependabot for automated dependency updates")
             except Exception as e:
                 logger.debug("GitHub analysis failed", error=str(e))
@@ -244,17 +245,18 @@ def check(
                 github_table.add_column("Status", justify="center")
 
                 # Push Protection
-                push_protection = github_analysis.get("push_protection", False)
+                push_protection = bool(github_analysis.get("push_protection", False))
                 pp_status = "[green]✓ Enabled[/green]" if push_protection else "[red]✗ Disabled[/red]"
                 github_table.add_row("Push Protection", pp_status)
 
                 # Dependabot
-                dependabot = github_analysis.get("dependabot", {})
-                db_status = "[green]✓ Enabled[/green]" if dependabot.get("enabled") else "[red]✗ Disabled[/red]"
+                dependabot_cfg = github_analysis.get("dependabot")
+                db_enabled = bool(dependabot_cfg and dependabot_cfg.get("enabled"))
+                db_status = "[green]✓ Enabled[/green]" if db_enabled else "[red]✗ Disabled[/red]"
                 github_table.add_row("Dependabot", db_status)
 
                 # Security Settings
-                security_settings = github_analysis.get("security_settings", {})
+                security_settings = github_analysis.get("security_settings")
                 if security_settings:
                     # Vulnerability Alerts (dependency_graph in API response)
                     vuln_alerts = security_settings.get("dependency_graph", False)
@@ -269,7 +271,7 @@ def check(
                 console.print(github_table)
 
                 # Add note for public repositories
-                is_private = security_settings.get("is_private", False)
+                is_private = security_settings.get("is_private", False) if security_settings else False
                 if not is_private:
                     console.print(
                         "[dim]Note: Some security features (Secret Scanning, Push Protection) "
@@ -299,7 +301,7 @@ def check(
 
         # Check for missing security tools
         if project_state.security_tools:
-            missing_security = [
+            missing_security: list[str] = [
                 tool.value for tool, configured in project_state.security_tools.items() if not configured
             ]
             if missing_security:
@@ -309,12 +311,12 @@ def check(
         if project_state.quality_tools:
             # Check for essential modern tools
             essential_tools = ["ruff", "mypy"]
-            missing_essential = []
+            missing_essential: list[str] = []
 
             for quality_tool, configured in project_state.quality_tools.items():
                 tool_name = quality_tool.value.lower()
                 if tool_name in essential_tools and not configured:
-                    missing_essential.append(tool.value)
+                    missing_essential.append(quality_tool.value)
 
             if missing_essential:
                 recommendations.append(f"Configure essential quality tools: {', '.join(missing_essential)}")
@@ -324,7 +326,7 @@ def check(
 
             if ruff_configured:
                 # Check if using redundant tools that ruff can replace
-                redundant_tools = []
+                redundant_tools: list[str] = []
                 for qtool, configured in project_state.quality_tools.items():
                     tool_name = qtool.value.lower()
                     if tool_name in ["black", "flake8", "isort"] and configured:
@@ -337,7 +339,7 @@ def check(
                     )
             else:
                 # Ruff not configured, suggest it as replacement for legacy tools
-                legacy_in_use = []
+                legacy_in_use: list[str] = []
                 for qtool, configured in project_state.quality_tools.items():
                     tool_name = qtool.value.lower()
                     if tool_name in ["black", "flake8", "pylint"] and configured:
@@ -433,8 +435,7 @@ def check(
                     if workflows:
                         console.print(f"  • Remote workflows: {len(workflows)}")
                         for workflow in workflows[:3]:  # Show first 3
-                            workflow_dict = workflow if isinstance(workflow, dict) else {}
-                            console.print(f"    - {workflow_dict.get('name', 'Unknown')}")
+                            console.print(f"    - {workflow.get('name', 'Unknown')}")
 
                 # Show template information
                 try:
@@ -499,8 +500,6 @@ def apply(
         logger.info("Starting configuration application", project_path=str(project_path), dry_run=dry_run, force=force)
 
         # Detect languages in the project
-        from ..core.languages import get_global_registry
-
         registry = get_global_registry()
 
         # Auto-detect or use specified languages
@@ -530,10 +529,10 @@ def apply(
         project_state = core_engine.analyze_project(project_path)
 
         # Generate configuration changes based on analysis
-        changes = []
+        changes: list[ConfigChange] = []
 
         # Load templates for all detected languages
-        all_templates = {}
+        all_templates: dict[str, str] = {}
         try:
             # Load templates for each detected language
             for lang in detected_languages:
@@ -553,7 +552,7 @@ def apply(
                 console.print("[dim]Run 'secuority init' to initialize templates.[/dim]")
             logger.warning("Templates not available", error=str(e))
 
-        templates = all_templates
+        templates: dict[str, str] = all_templates
 
         # Filter changes based on options
         apply_security = not templates_only
@@ -571,7 +570,7 @@ def apply(
             # pyproject.toml template
             if not project_state.has_pyproject_toml and "pyproject.toml.template" in templates:
                 try:
-                    change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
+                    change = core_engine.applier.merge_file_configurations(
                         project_path / "pyproject.toml",
                         templates["pyproject.toml.template"],
                     )
@@ -583,7 +582,7 @@ def apply(
             # .gitignore template
             if not project_state.has_gitignore and ".gitignore.template" in templates:
                 try:
-                    change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
+                    change = core_engine.applier.merge_file_configurations(
                         project_path / ".gitignore",
                         templates[".gitignore.template"],
                     )
@@ -595,7 +594,7 @@ def apply(
             # pre-commit template
             if not project_state.has_pre_commit_config and ".pre-commit-config.yaml.template" in templates:
                 try:
-                    change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
+                    change = core_engine.applier.merge_file_configurations(
                         project_path / ".pre-commit-config.yaml",
                         templates[".pre-commit-config.yaml.template"],
                     )
@@ -607,7 +606,7 @@ def apply(
             # SECURITY.md template
             if not project_state.has_security_md and "SECURITY.md.template" in templates:
                 try:
-                    change = core_engine.applier.merge_file_configurations(  # type: ignore[attr-defined]
+                    change = core_engine.applier.merge_file_configurations(
                         project_path / "SECURITY.md",
                         templates["SECURITY.md.template"],
                     )
@@ -618,12 +617,12 @@ def apply(
 
         # Add security tools integration if needed
         if apply_security and project_state.security_tools:
-            missing_security_tools = [
+            missing_security_tools: list[str] = [
                 tool.value for tool, configured in project_state.security_tools.items() if not configured
             ]
             if missing_security_tools:
                 try:
-                    security_changes = core_engine.applier.get_security_integration_changes(  # type: ignore[attr-defined]
+                    security_changes = core_engine.applier.get_security_integration_changes(
                         project_path,
                         missing_security_tools,
                     )
@@ -642,12 +641,12 @@ def apply(
 
         # Add quality tools integration if needed
         if apply_templates and project_state.quality_tools:
-            missing_quality_tools = [
+            missing_quality_tools: list[str] = [
                 tool.value for tool, configured in project_state.quality_tools.items() if not configured
             ]
             if missing_quality_tools:
                 try:
-                    quality_changes = core_engine.applier.get_quality_integration_changes(  # type: ignore[attr-defined]
+                    quality_changes = core_engine.applier.get_quality_integration_changes(
                         project_path,
                         missing_quality_tools,
                     )
@@ -667,7 +666,7 @@ def apply(
         # Handle dependency migration if needed
         if apply_templates and project_state.dependency_analysis and project_state.dependency_analysis.migration_needed:
             try:
-                migration_change = core_engine.applier.get_dependency_migration_change(  # type: ignore[attr-defined]
+                migration_change = core_engine.applier.get_dependency_migration_change(
                     project_path,
                     project_state.dependency_analysis,
                 )
@@ -680,7 +679,7 @@ def apply(
         # Add CI/CD workflows if needed
         if apply_templates:
             try:
-                workflow_changes = core_engine.applier.get_workflow_integration_changes(  # type: ignore[attr-defined]
+                workflow_changes = core_engine.applier.get_workflow_integration_changes(
                     project_path,
                     ["security", "quality", "cicd", "dependency"],
                 )
@@ -803,8 +802,8 @@ def apply(
 
         if not structured_output and not force and not dry_run:
             # Interactive mode - show diffs and get individual approvals
-            result = core_engine.applier.apply_changes_interactively(changes, dry_run=dry_run, batch_mode=False)  # type: ignore[attr-defined]
-        # Batch mode - apply all changes at once  # type: ignore[attr-defined]
+            result = core_engine.applier.apply_changes_interactively(changes, dry_run=dry_run, batch_mode=False)
+        # Batch mode - apply all changes at once
         elif not structured_output and not dry_run:
             with console.status("[bold green]Applying configuration changes..."):
                 result = core_engine.applier.apply_changes(changes, dry_run=dry_run)
@@ -1039,7 +1038,7 @@ def template_update(
 
         if success:
             # Get update history
-            history = core_engine.template_manager.get_template_history()  # type: ignore[attr-defined]
+            history = core_engine.template_manager.get_template_history()
 
             logger.log_operation(
                 operation="template_update",

@@ -45,9 +45,9 @@ register_language(CppAnalyzer(), priority=30)
 register_language(CSharpAnalyzer(), priority=30)
 
 __all__ = [
+    "CSharpAnalyzer",
     "ConfigFile",
     "CppAnalyzer",
-    "CSharpAnalyzer",
     "GoAnalyzer",
     "LanguageAnalyzer",
     "LanguageDetectionResult",

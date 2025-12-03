@@ -87,12 +87,7 @@ reportPrivateUsage = false
 reportConstantRedefinition = true
 reportIncompatibleMethodOverride = true
 reportIncompatibleVariableOverride = true
-
-# Module-specific overrides (less verbose than mypy)
-[[tool.basedpyright.ignore]]
-path = "tests"
-reportUnusedVariable = false
-reportUnusedFunction = false
+ignore = []
 
 [tool.bandit]
 exclude_dirs = [
@@ -157,6 +152,7 @@ python_functions = [ "test_*",]
 addopts = "--cov=secuority --cov-report=term-missing --cov-report=html"
 
 [tool.secuority.safety]
+# Safety requires string CVE IDs; start with placeholder list.
 ignore = []
 full_report = true
 output = "json"
@@ -169,4 +165,3 @@ override-dependencies = []
 
 [tool.uv.sources]
 # Add any custom sources here if needed
-

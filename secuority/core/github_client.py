@@ -9,7 +9,12 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from ..models.exceptions import GitHubAPIError
-from ..models.interfaces import GitHubClientInterface
+from ..models.interfaces import (
+    DependabotConfig,
+    GitHubClientInterface,
+    GitHubSecuritySettings,
+    GitHubWorkflowSummary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +161,7 @@ class GitHubClient(GitHubClientInterface):
                 "config_content": "",
             }
 
-    def get_dependabot_config(self, owner: str, repo: str) -> dict[str, Any]:
+    def get_dependabot_config(self, owner: str, repo: str) -> DependabotConfig:
         """Get Dependabot configuration for the repository.
 
         DEPRECATED: Use get_renovate_config instead for modern dependency management.
@@ -183,19 +188,19 @@ class GitHubClient(GitHubClientInterface):
         config_endpoint = f"/repos/{owner}/{repo}/contents/.github/dependabot.yml"
         try:
             config_data = self._make_request(config_endpoint)
-            return {
-                "enabled": dependabot_enabled,
-                "config_file_exists": True,
-                "config_content": config_data.get("content", ""),
-            }
+            return DependabotConfig(
+                enabled=dependabot_enabled,
+                config_file_exists=True,
+                config_content=config_data.get("content", ""),
+            )
         except GitHubAPIError:
-            return {
-                "enabled": dependabot_enabled,
-                "config_file_exists": False,
-                "config_content": "",
-            }
+            return DependabotConfig(
+                enabled=dependabot_enabled,
+                config_file_exists=False,
+                config_content="",
+            )
 
-    def list_workflows(self, owner: str, repo: str) -> list[dict[str, Any]]:
+    def list_workflows(self, owner: str, repo: str) -> list[GitHubWorkflowSummary]:
         """List GitHub Actions workflows for the repository.
 
         Args:
@@ -211,12 +216,24 @@ class GitHubClient(GitHubClientInterface):
         endpoint = f"/repos/{owner}/{repo}/actions/workflows"
         try:
             response = self._make_request(endpoint)
-            workflows: list[dict[str, Any]] = response.get("workflows", [])
+            workflows: list[GitHubWorkflowSummary] = []
+            for workflow in response.get("workflows", []):
+                if not isinstance(workflow, dict):
+                    continue
+                workflows.append(
+                    GitHubWorkflowSummary(
+                        id=int(workflow.get("id", 0)),
+                        name=str(workflow.get("name", "unknown")),
+                        path=str(workflow.get("path", "")),
+                        state=str(workflow.get("state", "")),
+                        html_url=str(workflow.get("html_url", "")),
+                    )
+                )
             return workflows
         except GitHubAPIError:
             raise
 
-    def check_security_settings(self, owner: str, repo: str) -> dict[str, Any]:
+    def check_security_settings(self, owner: str, repo: str) -> GitHubSecuritySettings:
         """Check various security settings for the repository.
 
         Args:
@@ -247,20 +264,20 @@ class GitHubClient(GitHubClientInterface):
             # Check repository visibility
             is_private = repo_data.get("private", False)
 
-            return {
-                "secret_scanning": security_analysis.get("secret_scanning", {}).get("status") == "enabled",
-                "secret_scanning_push_protection": security_analysis.get("secret_scanning_push_protection", {}).get(
+            return GitHubSecuritySettings(
+                secret_scanning=security_analysis.get("secret_scanning", {}).get("status") == "enabled",
+                secret_scanning_push_protection=security_analysis.get("secret_scanning_push_protection", {}).get(
                     "status",
                 )
                 == "enabled",
-                "dependency_graph": repo_data.get("has_vulnerability_alerts", False),
-                "private_vulnerability_reporting": security_analysis.get("private_vulnerability_reporting", {}).get(
+                dependency_graph=repo_data.get("has_vulnerability_alerts", False),
+                private_vulnerability_reporting=security_analysis.get("private_vulnerability_reporting", {}).get(
                     "status",
                 )
                 == "enabled",
-                "security_policy": has_security_policy,
-                "is_private": is_private,
-            }
+                security_policy=has_security_policy,
+                is_private=is_private,
+            )
         except GitHubAPIError:
             raise
 

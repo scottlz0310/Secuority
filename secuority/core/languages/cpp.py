@@ -114,14 +114,15 @@ class CppAnalyzer(LanguageAnalyzer):
         config_files = []
         patterns = self.get_config_file_patterns()
 
-        for pattern, description in patterns.items():
+        for pattern in patterns:
             file_path = project_path / pattern
             if file_path.exists() and file_path.is_file():
                 config_files.append(
                     ConfigFile(
                         name=pattern,
                         path=file_path,
-                        description=description,
+                        exists=True,
+                        file_type=self._determine_file_type(pattern),
                     )
                 )
 
@@ -132,11 +133,28 @@ class CppAnalyzer(LanguageAnalyzer):
                 ConfigFile(
                     name="build/compile_commands.json",
                     path=build_compile_commands,
-                    description="Compilation database",
+                    exists=True,
+                    file_type="json",
                 )
             )
 
         return config_files
+
+    def _determine_file_type(self, filename: str) -> str:
+        """Infer file type for configuration files."""
+        if filename.endswith(".json"):
+            return "json"
+        if filename.endswith(".py"):
+            return "python"
+        if filename.endswith(".txt"):
+            return "text"
+        if filename in {"CMakeLists.txt"}:
+            return "cmake"
+        if filename == "Makefile":
+            return "make"
+        if filename.startswith(".clang") or filename == ".cppcheck":
+            return "yaml"
+        return "unknown"
 
     def detect_tools(self, project_path: Path, config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
         """Detect which tools are configured in the project.
