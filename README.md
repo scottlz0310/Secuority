@@ -1,6 +1,6 @@
 # Secuority
 
-**Secuority** は、Python・Node.jsプロジェクトのコード品質とセキュリティ設定を自動化・標準化するCLIツールです。
+**Secuority** は、Python・Node.js・Rust・Goプロジェクトのコード品質とセキュリティ設定を自動化・標準化するCLIツールです。
 
 ## 📦 インストール
 
@@ -128,6 +128,10 @@ Secuorityは以下の言語を自動検出します：
   - ツール: ruff, basedpyright, pytest, bandit, osv-scanner
 - **Node.js**: package.json, .js/.ts ファイルから検出
   - ツール: biome, typescript, jest, npm audit, osv-scanner
+- **Rust**: Cargo.toml, Cargo.lock, .rs ファイルから検出
+  - ツール: clippy, rustfmt, cargo-audit, cargo-deny
+- **Go**: go.mod, go.sum, .go ファイルから検出
+  - ツール: golangci-lint, gofmt, govet, govulncheck, gosec
 
 言語は自動検出されますが、`--language` オプションで明示的に指定することもできます。
 

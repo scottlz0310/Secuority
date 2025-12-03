@@ -1,7 +1,7 @@
 # Secuority 多言語対応 実装ロードマップ
 
 **最終更新**: 2025-12-03
-**ステータス**: Phase 6 完了
+**ステータス**: Phase 7 完了
 
 ## 📊 進捗状況
 
@@ -14,6 +14,7 @@
 | Phase 4 | Node.js/Biome サポート追加 | ✅ 完了 | 2025-12-03 |
 | Phase 5 | CLI の単一リポジトリ実行最適化 | ✅ 完了 | 2025-12-03 |
 | Phase 6 | モダンツールテンプレート追加 | ✅ 完了 | 2025-12-03 |
+| Phase 7 | Rust・Go言語サポート追加 | ✅ 完了 | 2025-12-03 |
 
 ---
 
@@ -338,6 +339,8 @@ Phase 6まで完了し、Secuorityは以下の機能を持つ完全な多言語�
 **言語サポート**:
 - ✅ Python（ruff, basedpyright, pytest, bandit, osv-scanner）
 - ✅ Node.js（biome, typescript, jest, npm audit, osv-scanner）
+- ✅ Rust（clippy, rustfmt, cargo-audit, cargo-deny）
+- ✅ Go（golangci-lint, gofmt, govet, govulncheck, gosec）
 
 **主要機能**:
 - ✅ 言語自動検出
@@ -346,12 +349,63 @@ Phase 6まで完了し、Secuorityは以下の機能を持つ完全な多言語�
 - ✅ GitHub Actions統合
 - ✅ pre-commit hooks統合
 
+---
+
+### Phase 7: Rust・Go言語サポート追加
+
+**コミット**: (次のコミットで完了予定)
+
+**ステータス**: ✅ 完了 (2025-12-03)
+
+**実装内容**:
+
+#### Rust サポート
+- **RustAnalyzer**: Cargo.toml、.rsファイルの検出
+- **テンプレート**:
+  - Cargo.toml.template: モダンなRust設定
+  - rustfmt.toml: フォーマット設定
+  - deny.toml: cargo-deny設定
+  - workflows/rust-ci.yml: テスト・clippy・rustfmt
+  - workflows/rust-security.yml: cargo-audit・cargo-deny
+
+#### Go サポート
+- **GoAnalyzer**: go.mod、.goファイルの検出
+- **テンプレート**:
+  - .golangci.yml: golangci-lint設定
+  - workflows/go-ci.yml: ビルド・テスト・lint・fmt
+  - workflows/go-security.yml: govulncheck・gosec
+
+**新規ファイル**:
+```
+secuority/core/languages/rust.py
+secuority/core/languages/go.py
+secuority/templates/rust/
+├── Cargo.toml.template
+├── rustfmt.toml
+├── deny.toml
+└── workflows/
+    ├── rust-ci.yml
+    └── rust-security.yml
+secuority/templates/go/
+├── .golangci.yml
+└── workflows/
+    ├── go-ci.yml
+    └── go-security.yml
+```
+
+**テスト結果**:
+- ✅ 全519テスト合格
+- ✅ 抽象メソッド実装完了
+- ✅ 言語レジストリ統合完了
+
+---
+
 ### 将来の拡張案
 
-#### Phase 7 (オプション): 追加言語サポート
-- Rust（Cargo.toml/Clippy）
-- Go（go.mod/golangci-lint）
+#### Phase 8 (オプション): 追加言語サポート
 - C++（CMakeLists.txt/clang-tidy）
+- C#（.csproj/dotnet format）
+- Java（Maven/Gradle + SpotBugs）
 
 #### Phase 8 (オプション): 高度な機能
 - プロジェクトテンプレート機能

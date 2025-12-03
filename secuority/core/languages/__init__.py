@@ -24,6 +24,7 @@ from .base import (
     LanguageDetectionResult,
     ToolRecommendation,
 )
+from .go import GoAnalyzer
 from .nodejs import NodeJSAnalyzer
 from .python import PythonAnalyzer
 from .registry import (
@@ -31,18 +32,23 @@ from .registry import (
     get_global_registry,
     register_language,
 )
+from .rust import RustAnalyzer
 
 # Auto-register language analyzers
 register_language(PythonAnalyzer(), priority=10)
 register_language(NodeJSAnalyzer(), priority=10)
+register_language(RustAnalyzer(), priority=20)
+register_language(GoAnalyzer(), priority=20)
 
 __all__ = [
     "ConfigFile",
+    "GoAnalyzer",
     "LanguageAnalyzer",
     "LanguageDetectionResult",
     "LanguageRegistry",
     "NodeJSAnalyzer",
     "PythonAnalyzer",
+    "RustAnalyzer",
     "ToolRecommendation",
     "get_global_registry",
     "register_language",
