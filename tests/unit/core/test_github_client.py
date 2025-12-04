@@ -1,6 +1,8 @@
 """Unit tests for GitHubClient."""
 
 import json
+from email.message import Message
+from typing import Any
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError, URLError
 
@@ -8,6 +10,11 @@ import pytest
 
 from secuority.core.github_client import GitHubClient
 from secuority.models.exceptions import GitHubAPIError
+
+
+def make_http_error(code: int, message: str) -> HTTPError:
+    """Create HTTPError with typed headers."""
+    return HTTPError("url", code, message, Message(), None)
 
 
 def create_mock_response(content: bytes) -> MagicMock:
@@ -66,7 +73,7 @@ class TestGitHubClient:
 
     def test_make_request_401_error(self, client: GitHubClient) -> None:
         """Test API request with 401 authentication error."""
-        mock_error = HTTPError("url", 401, "Unauthorized", {}, None)
+        mock_error = make_http_error(401, "Unauthorized")
 
         with (
             patch("secuority.core.github_client.urlopen", side_effect=mock_error),
@@ -76,7 +83,7 @@ class TestGitHubClient:
 
     def test_make_request_403_error(self, client: GitHubClient) -> None:
         """Test API request with 403 rate limit error."""
-        mock_error = HTTPError("url", 403, "Forbidden", {}, None)
+        mock_error = make_http_error(403, "Forbidden")
 
         with (
             patch("secuority.core.github_client.urlopen", side_effect=mock_error),
@@ -86,7 +93,7 @@ class TestGitHubClient:
 
     def test_make_request_404_error(self, client: GitHubClient) -> None:
         """Test API request with 404 not found error."""
-        mock_error = HTTPError("url", 404, "Not Found", {}, None)
+        mock_error = make_http_error(404, "Not Found")
 
         with (
             patch("secuority.core.github_client.urlopen", side_effect=mock_error),
@@ -118,7 +125,7 @@ class TestGitHubClient:
         """Test checking push protection when enabled."""
         call_count = [0]
 
-        def mock_urlopen(request):
+        def mock_urlopen(request: Any) -> MagicMock:
             call_count[0] += 1
             if call_count[0] == 1:
                 # First call: repo data
@@ -135,7 +142,7 @@ class TestGitHubClient:
         """Test checking push protection when disabled."""
         call_count = [0]
 
-        def mock_urlopen(request):
+        def mock_urlopen(request: Any) -> MagicMock:
             call_count[0] += 1
             if call_count[0] == 1:
                 # First call: repo data
@@ -152,14 +159,14 @@ class TestGitHubClient:
         """Test push protection check with fallback to general settings."""
         call_count = [0]
 
-        def mock_urlopen(request):
+        def mock_urlopen(request: Any) -> MagicMock:
             call_count[0] += 1
 
             if call_count[0] == 1:
                 # First call: repo data
                 return create_mock_response(b'{"security_and_analysis": {"secret_scanning": {"status": "enabled"}}}')
             # Second call: push protection endpoint fails
-            raise HTTPError("url", 404, "Not Found", {}, None)
+            raise make_http_error(404, "Not Found")
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             result = client.check_push_protection("owner", "repo")
@@ -170,7 +177,7 @@ class TestGitHubClient:
         """Test getting Dependabot config when enabled."""
         call_count = [0]
 
-        def mock_urlopen(request):
+        def mock_urlopen(request: Any) -> MagicMock:
             call_count[0] += 1
 
             if call_count[0] == 1:
@@ -188,9 +195,9 @@ class TestGitHubClient:
     def test_get_dependabot_config_disabled(self, client: GitHubClient) -> None:
         """Test getting Dependabot config when disabled."""
 
-        def mock_urlopen(request):
+        def mock_urlopen(request: Any) -> MagicMock:
             # Both endpoints fail
-            raise HTTPError("url", 404, "Not Found", {}, None)
+            raise make_http_error(404, "Not Found")
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             result = client.get_dependabot_config("owner", "repo")
@@ -206,7 +213,7 @@ class TestGitHubClient:
             result = client.list_workflows("owner", "repo")
 
         assert len(result) == 1
-        assert result[0]["name"] == "CI"
+        assert result[0].get("name") == "CI"
 
     def test_list_workflows_empty(self, client: GitHubClient) -> None:
         """Test listing workflows when none exist."""
@@ -221,7 +228,7 @@ class TestGitHubClient:
         """Test checking security settings successfully."""
         call_count = [0]
 
-        def mock_urlopen(request):
+        def mock_urlopen(request: Any) -> MagicMock:
             call_count[0] += 1
 
             if call_count[0] == 1:
@@ -253,14 +260,14 @@ class TestGitHubClient:
         """Test checking security settings when SECURITY.md doesn't exist."""
         call_count = [0]
 
-        def mock_urlopen(request):
+        def mock_urlopen(request: Any) -> MagicMock:
             call_count[0] += 1
 
             if call_count[0] == 1:
                 # Repo data
                 return create_mock_response(b'{"private": true, "security_and_analysis": {}}')
             # SECURITY.md doesn't exist
-            raise HTTPError("url", 404, "Not Found", {}, None)
+            raise make_http_error(404, "Not Found")
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_urlopen):
             result = client.check_security_settings("owner", "repo")
@@ -287,7 +294,7 @@ class TestGitHubClient:
 
     def test_is_authenticated_false_invalid_token(self, client: GitHubClient) -> None:
         """Test authentication check with invalid token."""
-        mock_error = HTTPError("url", 401, "Unauthorized", {}, None)
+        mock_error = make_http_error(401, "Unauthorized")
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_error):
             result = client.is_authenticated()
@@ -305,7 +312,7 @@ class TestGitHubClient:
 
     def test_safe_api_call_with_fallback(self, client: GitHubClient) -> None:
         """Test safe API call with error and fallback value."""
-        mock_error = HTTPError("url", 404, "Not Found", {}, None)
+        mock_error = make_http_error(404, "Not Found")
 
         with patch("secuority.core.github_client.urlopen", side_effect=mock_error):
             result = client.safe_api_call("test operation", "/test", fallback_value={"default": "value"})
@@ -314,7 +321,7 @@ class TestGitHubClient:
 
     def test_safe_api_call_no_logging(self, client: GitHubClient) -> None:
         """Test safe API call without error logging."""
-        mock_error = HTTPError("url", 404, "Not Found", {}, None)
+        mock_error = make_http_error(404, "Not Found")
 
         with (
             patch("secuority.core.github_client.urlopen", side_effect=mock_error),
@@ -329,7 +336,7 @@ class TestGitHubClient:
         """Test getting API status when authenticated."""
         call_count = [0]
 
-        def mock_urlopen(request):
+        def mock_urlopen(request: Any) -> MagicMock:
             call_count[0] += 1
 
             if call_count[0] == 1:
@@ -361,12 +368,12 @@ class TestGitHubClient:
         """Test getting API status when authentication fails."""
         call_count = [0]
 
-        def mock_urlopen(request):
+        def mock_urlopen(request: Any) -> MagicMock:
             call_count[0] += 1
 
             if call_count[0] == 1:
                 # User endpoint fails
-                raise HTTPError("url", 401, "Unauthorized", {}, None)
+                raise make_http_error(401, "Unauthorized")
             # Zen endpoint succeeds (API accessible)
             return create_mock_response(b'"Keep it simple"')
 

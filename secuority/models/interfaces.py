@@ -51,7 +51,7 @@ class QualityTool(Enum):
     PYLINT = "pylint"
 
 
-class DependabotConfig(TypedDict, total=False):
+class DependabotConfig(TypedDict):
     """Minimal view of Dependabot configuration."""
 
     enabled: bool

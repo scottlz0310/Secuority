@@ -9,13 +9,37 @@ from .configuration import (
     TomlWriter,
     YamlModule,
 )
+from .github import (
+    ComprehensiveAnalysisResult,
+    DependencyManagementReport,
+    GitHubApiStatus,
+    JSONDict,
+    PushProtectionResponse,
+    RenovateConfig,
+    RepositorySecurityResponse,
+    SecurityAnalysisReport,
+    SecurityAnalysisSection,
+    SecurityFeatureStatus,
+    WorkflowAnalysisReport,
+)
 
 __all__ = [
     "AnalyzerFinding",
+    "ComprehensiveAnalysisResult",
     "ConfigMap",
+    "DependencyManagementReport",
     "DependencySummary",
+    "GitHubApiStatus",
+    "JSONDict",
+    "PushProtectionResponse",
+    "RenovateConfig",
+    "RepositorySecurityResponse",
+    "SecurityAnalysisReport",
+    "SecurityAnalysisSection",
+    "SecurityFeatureStatus",
     "TemplateMergePlan",
     "TomlLoader",
     "TomlWriter",
+    "WorkflowAnalysisReport",
     "YamlModule",
 ]

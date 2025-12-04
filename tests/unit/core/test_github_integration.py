@@ -6,6 +6,8 @@ import pytest
 
 from secuority.core.github_integration import GitHubIntegration
 from secuority.models.exceptions import GitHubAPIError
+from secuority.models.interfaces import GitHubSecuritySettings
+from secuority.types import ComprehensiveAnalysisResult
 
 
 class TestGitHubIntegration:
@@ -57,10 +59,14 @@ class TestGitHubIntegration:
     def test_analyze_security_settings_success(self, integration: GitHubIntegration) -> None:
         """Test analyzing security settings successfully."""
         integration.client.check_security_settings = MagicMock(
-            return_value={
-                "secret_scanning": True,
-                "dependency_graph": True,
-            },
+            return_value=GitHubSecuritySettings(
+                secret_scanning=True,
+                secret_scanning_push_protection=True,
+                dependency_graph=True,
+                private_vulnerability_reporting=True,
+                security_policy=True,
+                is_private=False,
+            ),
         )
         integration.client.check_push_protection = MagicMock(return_value=True)
 
@@ -77,7 +83,7 @@ class TestGitHubIntegration:
 
         result = integration._analyze_security_settings("owner", "repo")
 
-        assert result["security_settings"] == {}
+        assert result["security_settings"]["secret_scanning"] is False
         assert result["push_protection"] is False
 
     def test_analyze_workflows_success(self, integration: GitHubIntegration) -> None:
@@ -133,9 +139,9 @@ class TestGitHubIntegration:
 
         result = integration._analyze_dependency_management("owner", "repo")
 
-        assert result["renovate_config"]["enabled"] is True
-        assert result["using_renovate"] is True
-        assert result["using_dependabot"] is False
+        assert result["renovate"].get("enabled") is True
+        assert result["dependabot"]["enabled"] is False
+        assert result["recommendations"] == []
 
     def test_analyze_dependency_management_with_dependabot(self, integration: GitHubIntegration) -> None:
         """Test analyzing dependency management with Dependabot (should recommend migration)."""
@@ -156,11 +162,8 @@ class TestGitHubIntegration:
 
         result = integration._analyze_dependency_management("owner", "repo")
 
-        assert result["dependabot_config"]["enabled"] is True
-        assert result["using_renovate"] is False
-        assert result["using_dependabot"] is True
-        assert result["should_migrate"] is True
-        assert len(result["recommendations"]) > 0
+        assert result["dependabot"]["enabled"] is True
+        assert result["recommendations"]
 
     def test_is_security_workflow(self, integration: GitHubIntegration) -> None:
         """Test identifying security workflows."""
@@ -178,24 +181,36 @@ class TestGitHubIntegration:
 
     def test_get_security_recommendations_no_settings(self, integration: GitHubIntegration) -> None:
         """Test getting security recommendations with no settings."""
-        recommendations = integration._get_security_recommendations({}, False)
+        base_settings = GitHubSecuritySettings(
+            secret_scanning=False,
+            secret_scanning_push_protection=False,
+            dependency_graph=False,
+            private_vulnerability_reporting=False,
+            security_policy=False,
+            is_private=False,
+        )
+
+        recommendations = integration._get_security_recommendations(base_settings, False)
 
         assert len(recommendations) > 0
-        assert any("check GitHub token" in rec for rec in recommendations)
+        assert any("secret scanning" in rec.lower() for rec in recommendations)
 
     def test_get_security_recommendations_missing_features(self, integration: GitHubIntegration) -> None:
         """Test getting security recommendations for missing features."""
-        settings = {
-            "secret_scanning": False,
-            "dependency_graph": False,
-            "private_vulnerability_reporting": False,
-        }
+        settings = GitHubSecuritySettings(
+            secret_scanning=False,
+            secret_scanning_push_protection=False,
+            dependency_graph=False,
+            private_vulnerability_reporting=False,
+            security_policy=False,
+            is_private=False,
+        )
 
         recommendations = integration._get_security_recommendations(settings, False)
 
         assert len(recommendations) > 0
-        assert any("secret scanning" in rec for rec in recommendations)
-        assert any("push protection" in rec for rec in recommendations)
+        assert any("secret scanning" in rec.lower() for rec in recommendations)
+        assert any("push protection" in rec.lower() for rec in recommendations)
 
     def test_get_workflow_recommendations(self, integration: GitHubIntegration) -> None:
         """Test getting workflow recommendations."""
@@ -225,6 +240,13 @@ class TestGitHubIntegration:
         )
         integration.client.check_push_protection = MagicMock(return_value=True)
         integration.client.list_workflows = MagicMock(return_value=[])
+        integration.client.get_renovate_config = MagicMock(
+            return_value={
+                "enabled": True,
+                "config_file_exists": True,
+                "config_content": "{}",
+            },
+        )
         integration.client.get_dependabot_config = MagicMock(
             return_value={"enabled": True, "config_file_exists": True},
         )
@@ -236,7 +258,7 @@ class TestGitHubIntegration:
         assert result["analysis_complete"] is True
         assert "security_analysis" in result
         assert "workflow_analysis" in result
-        assert "dependabot_analysis" in result
+        assert "dependency_analysis" in result
 
     def test_analyze_repository_comprehensive_not_authenticated(self, integration: GitHubIntegration) -> None:
         """Test comprehensive analysis without authentication."""
@@ -250,6 +272,13 @@ class TestGitHubIntegration:
         integration.client.check_security_settings = MagicMock(return_value={})
         integration.client.check_push_protection = MagicMock(return_value=False)
         integration.client.list_workflows = MagicMock(return_value=[])
+        integration.client.get_renovate_config = MagicMock(
+            return_value={
+                "enabled": False,
+                "config_file_exists": False,
+                "config_content": "",
+            },
+        )
         integration.client.get_dependabot_config = MagicMock(
             return_value={"enabled": False, "config_file_exists": False},
         )
@@ -261,32 +290,46 @@ class TestGitHubIntegration:
 
     def test_print_analysis_summary(self, integration: GitHubIntegration) -> None:
         """Test printing analysis summary."""
-        analysis_result = {
+        analysis_result: ComprehensiveAnalysisResult = {
             "owner": "test-owner",
             "repo": "test-repo",
             "api_status": {
                 "has_token": True,
                 "authenticated": True,
                 "api_accessible": True,
+                "user": "tester",
+                "rate_limit_info": {},
+                "errors": [],
             },
             "security_analysis": {
                 "security_settings": {
                     "secret_scanning": True,
+                    "secret_scanning_push_protection": True,
                     "dependency_graph": True,
+                    "private_vulnerability_reporting": True,
+                    "security_policy": True,
+                    "is_private": False,
                 },
                 "push_protection": True,
                 "recommendations": ["Enable private vulnerability reporting"],
             },
             "workflow_analysis": {
-                "workflows": [{"name": "Test"}],
+                "workflows": [{"name": "Test", "path": ".github/workflows/test.yml"}],
+                "security_workflows": [],
+                "quality_workflows": [],
                 "has_security_workflows": True,
                 "has_quality_workflows": True,
                 "recommendations": [],
             },
-            "dependabot_analysis": {
+            "dependency_analysis": {
+                "renovate": {"enabled": True, "config_file_exists": True, "config_content": "{}"},
+                "dependabot": {"enabled": False, "config_file_exists": False, "config_content": ""},
                 "recommendations": [],
             },
             "errors": [],
+            "warnings": [],
+            "total_errors": 0,
+            "analysis_complete": True,
         }
 
         # Should not raise any exceptions
@@ -298,29 +341,46 @@ class TestGitHubIntegration:
             {"operation": "test", "error": "API error", "type": "github_api_error"},
         ]
 
-        analysis_result = {
+        analysis_result: ComprehensiveAnalysisResult = {
             "owner": "test-owner",
             "repo": "test-repo",
             "api_status": {
                 "has_token": False,
                 "authenticated": False,
                 "api_accessible": False,
+                "user": "unknown",
+                "rate_limit_info": None,
+                "errors": [],
             },
             "security_analysis": {
-                "security_settings": {},
+                "security_settings": {
+                    "secret_scanning": False,
+                    "secret_scanning_push_protection": False,
+                    "dependency_graph": False,
+                    "private_vulnerability_reporting": False,
+                    "security_policy": False,
+                    "is_private": False,
+                },
                 "push_protection": False,
                 "recommendations": [],
             },
             "workflow_analysis": {
                 "workflows": [],
+                "security_workflows": [],
+                "quality_workflows": [],
                 "has_security_workflows": False,
                 "has_quality_workflows": False,
                 "recommendations": [],
             },
-            "dependabot_analysis": {
+            "dependency_analysis": {
+                "renovate": {"enabled": False, "config_file_exists": False, "config_content": ""},
+                "dependabot": {"enabled": False, "config_file_exists": False, "config_content": ""},
                 "recommendations": [],
             },
             "errors": [{"operation": "test", "error": "API error"}],
+            "warnings": [],
+            "total_errors": 1,
+            "analysis_complete": False,
         }
 
         # Should not raise any exceptions
@@ -340,6 +400,7 @@ class TestGitHubIntegration:
         integration.client.check_security_settings = MagicMock(side_effect=GitHubAPIError("API error"))
         integration.client.check_push_protection = MagicMock(side_effect=GitHubAPIError("API error"))
         integration.client.list_workflows = MagicMock(side_effect=GitHubAPIError("API error"))
+        integration.client.get_renovate_config = MagicMock(side_effect=GitHubAPIError("API error"))
         integration.client.get_dependabot_config = MagicMock(side_effect=GitHubAPIError("API error"))
 
         result = integration.analyze_repository_comprehensive("owner", "repo")

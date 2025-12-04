@@ -1,10 +1,18 @@
 """GitHub integration module with comprehensive error handling."""
 
 import logging
-from typing import Any
 
 from rich.console import Console
 
+from ..models.interfaces import DependabotConfig, GitHubSecuritySettings, GitHubWorkflowSummary
+from ..types import (
+    ComprehensiveAnalysisResult,
+    DependencyManagementReport,
+    GitHubApiStatus,
+    RenovateConfig,
+    SecurityAnalysisReport,
+    WorkflowAnalysisReport,
+)
 from ..utils.github_error_handler import GitHubErrorHandler, safe_github_call
 from .github_client import GitHubClient
 
@@ -27,7 +35,7 @@ class GitHubIntegration:
         self.continue_on_error = continue_on_error
         self.console = Console()
 
-    def analyze_repository_comprehensive(self, owner: str, repo: str) -> dict[str, Any]:
+    def analyze_repository_comprehensive(self, owner: str, repo: str) -> ComprehensiveAnalysisResult:
         """Perform comprehensive repository analysis with error handling.
 
         Args:
@@ -37,26 +45,23 @@ class GitHubIntegration:
         Returns:
             Dictionary containing analysis results and error information
         """
-        analysis_result = {
+        analysis_result: ComprehensiveAnalysisResult = {
             "owner": owner,
             "repo": repo,
             "api_status": self._get_api_status(),
-            "security_analysis": {},
-            "workflow_analysis": {},
-            "dependabot_analysis": {},
+            "security_analysis": self._empty_security_report(),
+            "workflow_analysis": self._empty_workflow_report(),
+            "dependency_analysis": self._empty_dependency_report(),
             "errors": [],
             "warnings": [],
+            "total_errors": 0,
             "analysis_complete": False,
         }
 
         # If not authenticated, provide helpful information
         api_status = analysis_result["api_status"]
-        if isinstance(api_status, dict) and not api_status.get("authenticated"):
-            warnings_list = analysis_result.get("warnings")
-            if not isinstance(warnings_list, list):
-                warnings_list = []
-                analysis_result["warnings"] = warnings_list
-            warnings_list.append(
+        if not api_status["authenticated"]:
+            analysis_result["warnings"].append(
                 "GitHub API authentication not available. "
                 "Set GITHUB_PERSONAL_ACCESS_TOKEN environment variable for full analysis.",
             )
@@ -77,49 +82,51 @@ class GitHubIntegration:
 
         # Collect all errors from error handler
         error_summary = self.error_handler.get_error_summary()
-        analysis_result["errors"] = error_summary["errors"]
-        analysis_result["total_errors"] = error_summary["total_errors"]
+        errors_value = error_summary.get("errors")
+        analysis_result["errors"] = errors_value if isinstance(errors_value, list) else []
+        total_errors = error_summary.get("total_errors", 0)
+        analysis_result["total_errors"] = int(total_errors)
 
         # Mark analysis as complete if we got some results
         analysis_result["analysis_complete"] = bool(security_result) or bool(workflow_result) or bool(dependency_result)
 
         return analysis_result
 
-    def _get_api_status(self) -> dict[str, Any]:
+    def _get_api_status(self) -> GitHubApiStatus:
         """Get GitHub API status with error handling."""
-        result = safe_github_call(
-            self.client.get_api_status,
-            fallback_value={
-                "has_token": False,
-                "authenticated": False,
-                "api_accessible": False,
-                "errors": ["Could not check API status"],
-            },
-            operation_name="API status check",
-            show_warnings=self.show_warnings,
-        )
-        return result or {
+        fallback_status: GitHubApiStatus = {
             "has_token": False,
             "authenticated": False,
             "api_accessible": False,
+            "user": "unknown",
+            "rate_limit_info": None,
             "errors": ["Could not check API status"],
         }
 
-    def _analyze_security_settings(self, owner: str, repo: str) -> dict[str, Any]:
+        result = safe_github_call(
+            self.client.get_api_status,
+            fallback_value=fallback_status,
+            operation_name="API status check",
+            show_warnings=self.show_warnings,
+        )
+        if result is None:
+            return fallback_status
+        return result
+
+    def _analyze_security_settings(self, owner: str, repo: str) -> SecurityAnalysisReport:
         """Analyze repository security settings with error handling."""
-        security_settings: dict[str, Any] = (
-            safe_github_call(
-                self.client.check_security_settings,
-                owner,
-                repo,
-                fallback_value={},
-                operation_name="security settings check",
-                show_warnings=self.show_warnings,
-            )
-            or {}
+        raw_settings = safe_github_call(
+            self.client.check_security_settings,
+            owner,
+            repo,
+            fallback_value=self._default_security_settings(),
+            operation_name="security settings check",
+            show_warnings=self.show_warnings,
         )
 
-        push_protection = (
+        security_settings = raw_settings if isinstance(raw_settings, dict) else self._default_security_settings()
+
+        push_protection = bool(
             safe_github_call(
                 self.client.check_push_protection,
                 owner,
@@ -128,48 +135,50 @@ class GitHubIntegration:
                 operation_name="push protection check",
                 show_warnings=self.show_warnings,
             )
-            or False
+            or False,
         )
 
-        return {
-            "security_settings": security_settings,
-            "push_protection": push_protection,
-            "recommendations": self._get_security_recommendations(security_settings, push_protection),
-        }
+        return SecurityAnalysisReport(
+            security_settings=security_settings,
+            push_protection=push_protection,
+            recommendations=self._get_security_recommendations(security_settings, push_protection),
+        )
 
-    def _analyze_workflows(self, owner: str, repo: str) -> dict[str, Any]:
+    def _analyze_workflows(self, owner: str, repo: str) -> WorkflowAnalysisReport:
         """Analyze repository workflows with error handling."""
-        workflows: list[dict[str, Any]] = (
-            safe_github_call(
-                self.client.list_workflows,
-                owner,
-                repo,
-                fallback_value=[],
-                operation_name="workflow listing",
-                show_warnings=self.show_warnings,
-            )
-            or []
+        raw_workflows = safe_github_call(
+            self.client.list_workflows,
+            owner,
+            repo,
+            fallback_value=[],
+            operation_name="workflow listing",
+            show_warnings=self.show_warnings,
         )
+
+        workflows_result = raw_workflows if isinstance(raw_workflows, list) else []
+        workflows: list[GitHubWorkflowSummary] = list(workflows_result)
 
         if not workflows:
-            return {
-                "workflows": [],
-                "has_security_workflows": False,
-                "has_quality_workflows": False,
-                "recommendations": [
+            return WorkflowAnalysisReport(
+                workflows=[],
+                security_workflows=[],
+                quality_workflows=[],
+                has_security_workflows=False,
+                has_quality_workflows=False,
+                recommendations=[
                     "Consider adding GitHub Actions workflows for automated testing",
                     "Add security scanning workflows (CodeQL, Dependabot)",
                     "Set up quality checks (linting, type checking)",
                 ],
-            }
+            )
 
         # Analyze workflow types
-        security_workflows = []
-        quality_workflows = []
+        security_workflows: list[GitHubWorkflowSummary] = []
+        quality_workflows: list[GitHubWorkflowSummary] = []
 
         for workflow in workflows:
-            workflow_name = workflow.get("name", "").lower()
-            workflow_path = workflow.get("path", "").lower()
+            workflow_name = str(workflow.get("name", "")).lower()
+            workflow_path = str(workflow.get("path", "")).lower()
 
             if self._is_security_workflow(workflow_name, workflow_path):
                 security_workflows.append(workflow)
@@ -177,87 +186,50 @@ class GitHubIntegration:
             if self._is_quality_workflow(workflow_name, workflow_path):
                 quality_workflows.append(workflow)
 
-        return {
-            "workflows": workflows,
-            "security_workflows": security_workflows,
-            "quality_workflows": quality_workflows,
-            "has_security_workflows": bool(security_workflows),
-            "has_quality_workflows": bool(quality_workflows),
-            "recommendations": self._get_workflow_recommendations(bool(security_workflows), bool(quality_workflows)),
-        }
+        return WorkflowAnalysisReport(
+            workflows=workflows,
+            security_workflows=security_workflows,
+            quality_workflows=quality_workflows,
+            has_security_workflows=bool(security_workflows),
+            has_quality_workflows=bool(quality_workflows),
+            recommendations=self._get_workflow_recommendations(bool(security_workflows), bool(quality_workflows)),
+        )
 
-    def _analyze_dependency_management(self, owner: str, repo: str) -> dict[str, Any]:
+    def _analyze_dependency_management(self, owner: str, repo: str) -> DependencyManagementReport:
         """Analyze dependency management (Renovate/Dependabot) with error handling."""
-        # Check for Renovate first (preferred)
         renovate_config_result = safe_github_call(
             self.client.get_renovate_config,
             owner,
             repo,
-            fallback_value={
-                "enabled": False,
-                "config_file": None,
-                "config_file_exists": False,
-                "config_content": "",
-            },
+            fallback_value=self._default_renovate_config(),
             operation_name="Renovate configuration check",
             show_warnings=self.show_warnings,
         )
-
-        renovate_config: dict[str, Any] = (
-            renovate_config_result
-            if renovate_config_result is not None
-            else {
-                "enabled": False,
-                "config_file": None,
-                "config_file_exists": False,
-                "config_content": "",
-            }
+        renovate_config = (
+            renovate_config_result if isinstance(renovate_config_result, dict) else self._default_renovate_config()
         )
 
-        # Check for Dependabot as fallback
         dependabot_config_result = safe_github_call(
             self.client.get_dependabot_config,
             owner,
             repo,
-            fallback_value={
-                "enabled": False,
-                "config_file_exists": False,
-                "config_content": "",
-            },
+            fallback_value=self._default_dependabot_config(),
             operation_name="Dependabot configuration check",
             show_warnings=self.show_warnings,
         )
-
-        dependabot_config: dict[str, Any] = (
+        dependabot_config = (
             dependabot_config_result
-            if dependabot_config_result is not None
-            else {
-                "enabled": False,
-                "config_file_exists": False,
-                "config_content": "",
-            }
+            if isinstance(dependabot_config_result, dict)
+            else self._default_dependabot_config()
         )
 
-        recommendations = []
-        has_renovate = renovate_config.get("enabled", False)
-        has_dependabot = dependabot_config.get("enabled", False)
+        recommendations = self._build_dependency_recommendations(renovate_config, dependabot_config)
 
-        if not has_renovate and not has_dependabot:
-            recommendations.append(
-                "Enable Renovate for automated dependency updates (modern alternative to Dependabot)",
-            )
-            recommendations.append("Add renovate.json configuration file")
-        elif has_dependabot and not has_renovate:
-            recommendations.append("Consider migrating to Renovate for better dependency management")
-
-        return {
-            "renovate_config": renovate_config,
-            "dependabot_config": dependabot_config,
-            "using_renovate": has_renovate,
-            "using_dependabot": has_dependabot,
-            "should_migrate": has_dependabot and not has_renovate,
-            "recommendations": recommendations,
-        }
+        return DependencyManagementReport(
+            renovate=renovate_config,
+            dependabot=dependabot_config,
+            recommendations=recommendations,
+        )
 
     def _is_security_workflow(self, name: str, path: str) -> bool:
         """Check if a workflow is security-related."""
@@ -293,31 +265,31 @@ class GitHubIntegration:
         ]
         return any(keyword in name or keyword in path for keyword in quality_keywords)
 
-    def _get_security_recommendations(self, security_settings: dict[str, Any], push_protection: bool) -> list[str]:
+    def _get_security_recommendations(
+        self,
+        security_settings: GitHubSecuritySettings,
+        push_protection: bool,
+    ) -> list[str]:
         """Get security recommendations based on current settings."""
-        recommendations = []
+        recommendations: list[str] = []
 
-        if not security_settings:
-            recommendations.append("Could not analyze security settings - check GitHub token permissions")
-            return recommendations
-
-        if not security_settings.get("secret_scanning", False):
+        if not security_settings["secret_scanning"]:
             recommendations.append("Enable secret scanning in repository security settings")
 
         if not push_protection:
             recommendations.append("Enable push protection for secret scanning")
 
-        if not security_settings.get("dependency_graph", False):
+        if not security_settings["dependency_graph"]:
             recommendations.append("Enable dependency graph for vulnerability alerts")
 
-        if not security_settings.get("private_vulnerability_reporting", False):
+        if not security_settings["private_vulnerability_reporting"]:
             recommendations.append("Enable private vulnerability reporting")
 
         return recommendations
 
     def _get_workflow_recommendations(self, has_security: bool, has_quality: bool) -> list[str]:
         """Get workflow recommendations based on current setup."""
-        recommendations = []
+        recommendations: list[str] = []
 
         if not has_security:
             recommendations.append("Add security workflow with Bandit, Safety, and CodeQL")
@@ -327,7 +299,75 @@ class GitHubIntegration:
 
         return recommendations
 
-    def print_analysis_summary(self, analysis_result: dict[str, Any]) -> None:
+    def _default_security_settings(self) -> GitHubSecuritySettings:
+        return GitHubSecuritySettings(
+            secret_scanning=False,
+            secret_scanning_push_protection=False,
+            dependency_graph=False,
+            private_vulnerability_reporting=False,
+            security_policy=False,
+            is_private=False,
+        )
+
+    def _empty_security_report(self) -> SecurityAnalysisReport:
+        return SecurityAnalysisReport(
+            security_settings=self._default_security_settings(),
+            push_protection=False,
+            recommendations=[],
+        )
+
+    def _empty_workflow_report(self) -> WorkflowAnalysisReport:
+        return WorkflowAnalysisReport(
+            workflows=[],
+            security_workflows=[],
+            quality_workflows=[],
+            has_security_workflows=False,
+            has_quality_workflows=False,
+            recommendations=[],
+        )
+
+    def _empty_dependency_report(self) -> DependencyManagementReport:
+        return DependencyManagementReport(
+            renovate=self._default_renovate_config(),
+            dependabot=self._default_dependabot_config(),
+            recommendations=[],
+        )
+
+    def _default_renovate_config(self) -> RenovateConfig:
+        return RenovateConfig(
+            enabled=False,
+            config_file=None,
+            config_file_exists=False,
+            config_content="",
+        )
+
+    def _default_dependabot_config(self) -> DependabotConfig:
+        return DependabotConfig(
+            enabled=False,
+            config_file_exists=False,
+            config_content="",
+        )
+
+    def _build_dependency_recommendations(
+        self,
+        renovate_config: RenovateConfig,
+        dependabot_config: DependabotConfig,
+    ) -> list[str]:
+        recommendations: list[str] = []
+        renovate_enabled = bool(renovate_config.get("enabled", False))
+        dependabot_enabled = bool(dependabot_config.get("enabled", False))
+
+        if not renovate_enabled and not dependabot_enabled:
+            recommendations.append(
+                "Enable Renovate for automated dependency updates (modern alternative to Dependabot)",
+            )
+            recommendations.append("Add renovate.json configuration file")
+        elif dependabot_enabled and not renovate_enabled:
+            recommendations.append("Consider migrating to Renovate for better dependency management")
+
+        return recommendations
+
+    def print_analysis_summary(self, analysis_result: ComprehensiveAnalysisResult) -> None:
         """Print a summary of the GitHub analysis results."""
         self.console.print(f"\n📊 GitHub Repository Analysis: {analysis_result['owner']}/{analysis_result['repo']}")
         self.console.print("=" * 60)
@@ -343,24 +383,31 @@ class GitHubIntegration:
 
         # Security Analysis
         security = analysis_result["security_analysis"]
-        if security.get("security_settings"):
-            settings = security["security_settings"]
-            self.console.print("\n🔒 Security Settings:")
-            self.console.print(f"   Secret Scanning: {'✅' if settings.get('secret_scanning') else '❌'}")
-            self.console.print(f"   Push Protection: {'✅' if security.get('push_protection') else '❌'}")
-            self.console.print(f"   Dependency Graph: {'✅' if settings.get('dependency_graph') else '❌'}")
+        settings = security["security_settings"]
+        self.console.print("\n🔒 Security Settings:")
+        self.console.print(f"   Secret Scanning: {'✅' if settings.get('secret_scanning') else '❌'}")
+        self.console.print(f"   Push Protection: {'✅' if security['push_protection'] else '❌'}")
+        self.console.print(f"   Dependency Graph: {'✅' if settings.get('dependency_graph') else '❌'}")
 
         # Workflow Analysis
         workflows = analysis_result["workflow_analysis"]
-        if workflows.get("workflows"):
-            self.console.print(f"\n⚙️  GitHub Actions: {len(workflows['workflows'])} workflows found")
-            self.console.print(f"   Security Workflows: {'✅' if workflows['has_security_workflows'] else '❌'}")
-            self.console.print(f"   Quality Workflows: {'✅' if workflows['has_quality_workflows'] else '❌'}")
+        self.console.print(f"\n⚙️  GitHub Actions: {len(workflows['workflows'])} workflows found")
+        self.console.print(f"   Security Workflows: {'✅' if workflows['has_security_workflows'] else '❌'}")
+        self.console.print(f"   Quality Workflows: {'✅' if workflows['has_quality_workflows'] else '❌'}")
+
+        dependency = analysis_result["dependency_analysis"]
+        renovate_status = "✅" if dependency["renovate"].get("enabled", False) else "❌"
+        dependabot_status = "✅" if dependency["dependabot"]["enabled"] else "❌"
+        self.console.print(f"\n🔁 Dependency Automation: Renovate {renovate_status}, Dependabot {dependabot_status}")
 
         # Recommendations
-        all_recommendations = []
-        for section in [security, workflows, analysis_result.get("dependabot_analysis", {})]:
-            all_recommendations.extend(section.get("recommendations", []))
+        all_recommendations: list[str] = []
+        for rec_source in (
+            security["recommendations"],
+            workflows["recommendations"],
+            dependency["recommendations"],
+        ):
+            all_recommendations.extend(rec_source)
 
         if all_recommendations:
             self.console.print("\n💡 Recommendations:")

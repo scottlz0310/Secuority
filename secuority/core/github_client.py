@@ -3,7 +3,7 @@
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
@@ -15,8 +15,42 @@ from ..models.interfaces import (
     GitHubSecuritySettings,
     GitHubWorkflowSummary,
 )
+from ..types import (
+    GitHubApiStatus,
+    JSONDict,
+    PushProtectionResponse,
+    RenovateConfig,
+    RepositorySecurityResponse,
+    SecurityAnalysisSection,
+    SecurityFeatureStatus,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_security_section(repo_data: RepositorySecurityResponse) -> SecurityAnalysisSection:
+    section_value = repo_data.get("security_and_analysis")
+    if section_value is None:
+        return {}
+    return section_value
+
+
+def _default_renovate_config() -> RenovateConfig:
+    return RenovateConfig(
+        enabled=False,
+        config_file=None,
+        config_file_exists=False,
+        config_content="",
+    )
+
+
+def _feature_enabled(feature: SecurityFeatureStatus | object | None) -> bool:
+    if isinstance(feature, dict):
+        feature_status = cast(SecurityFeatureStatus, feature)
+        status = feature_status.get("status")
+        if isinstance(status, str):
+            return status == "enabled"
+    return False
 
 
 class GitHubClient(GitHubClientInterface):
@@ -84,27 +118,22 @@ class GitHubClient(GitHubClientInterface):
         """
         endpoint = f"/repos/{owner}/{repo}"
         try:
-            repo_data = self._make_request(endpoint)
+            repo_data = cast(RepositorySecurityResponse, self._make_request(endpoint))
             # Check if the repository has security features enabled
             # Push protection is part of secret scanning
             security_endpoint = f"/repos/{owner}/{repo}/secret-scanning/push-protection"
             try:
-                protection_data = self._make_request(security_endpoint)
-                enabled: bool = protection_data.get("enabled", False)
-                return enabled
+                protection_data = cast(PushProtectionResponse, self._make_request(security_endpoint))
+                return bool(protection_data.get("enabled", False))
             except GitHubAPIError:
                 # If we can't access push protection endpoint, check general security settings
-                security_analysis = repo_data.get("security_and_analysis", {})
-                if isinstance(security_analysis, dict):
-                    secret_scanning = security_analysis.get("secret_scanning", {})
-                else:
-                    secret_scanning = {}
-                status = secret_scanning.get("status") if isinstance(secret_scanning, dict) else None
-                return status == "enabled"
+                security_analysis = _extract_security_section(repo_data)
+                secret_scanning = security_analysis.get("secret_scanning")
+                return _feature_enabled(secret_scanning)
         except GitHubAPIError:
             raise
 
-    def get_renovate_config(self, owner: str, repo: str) -> dict[str, Any]:
+    def get_renovate_config(self, owner: str, repo: str) -> RenovateConfig:
         """Get Renovate configuration for the repository.
 
         Args:
@@ -120,46 +149,41 @@ class GitHubClient(GitHubClientInterface):
         # Try to get Renovate configuration file (renovate.json)
         config_endpoint = f"/repos/{owner}/{repo}/contents/renovate.json"
         try:
-            config_data = self._make_request(config_endpoint)
-            return {
-                "enabled": True,
-                "config_file": "renovate.json",
-                "config_file_exists": True,
-                "config_content": config_data.get("content", ""),
-            }
+            config_data = cast(JSONDict, self._make_request(config_endpoint))
+            return RenovateConfig(
+                enabled=True,
+                config_file="renovate.json",
+                config_file_exists=True,
+                config_content=str(config_data.get("content", "")),
+            )
         except GitHubAPIError:
             pass
 
         # Try renovate.json5 as alternative
         config5_endpoint = f"/repos/{owner}/{repo}/contents/renovate.json5"
         try:
-            config_data = self._make_request(config5_endpoint)
-            return {
-                "enabled": True,
-                "config_file": "renovate.json5",
-                "config_file_exists": True,
-                "config_content": config_data.get("content", ""),
-            }
+            config_data = cast(JSONDict, self._make_request(config5_endpoint))
+            return RenovateConfig(
+                enabled=True,
+                config_file="renovate.json5",
+                config_file_exists=True,
+                config_content=str(config_data.get("content", "")),
+            )
         except GitHubAPIError:
             pass
 
         # Try .github/renovate.json
         github_config_endpoint = f"/repos/{owner}/{repo}/contents/.github/renovate.json"
         try:
-            config_data = self._make_request(github_config_endpoint)
-            return {
-                "enabled": True,
-                "config_file": ".github/renovate.json",
-                "config_file_exists": True,
-                "config_content": config_data.get("content", ""),
-            }
+            config_data = cast(JSONDict, self._make_request(github_config_endpoint))
+            return RenovateConfig(
+                enabled=True,
+                config_file=".github/renovate.json",
+                config_file_exists=True,
+                config_content=str(config_data.get("content", "")),
+            )
         except GitHubAPIError:
-            return {
-                "enabled": False,
-                "config_file": None,
-                "config_file_exists": False,
-                "config_content": "",
-            }
+            return _default_renovate_config()
 
     def get_dependabot_config(self, owner: str, repo: str) -> DependabotConfig:
         """Get Dependabot configuration for the repository.
@@ -187,11 +211,11 @@ class GitHubClient(GitHubClientInterface):
         # Try to get Dependabot configuration file
         config_endpoint = f"/repos/{owner}/{repo}/contents/.github/dependabot.yml"
         try:
-            config_data = self._make_request(config_endpoint)
+            config_data = cast(JSONDict, self._make_request(config_endpoint))
             return DependabotConfig(
                 enabled=dependabot_enabled,
                 config_file_exists=True,
-                config_content=config_data.get("content", ""),
+                config_content=str(config_data.get("content", "")),
             )
         except GitHubAPIError:
             return DependabotConfig(
@@ -215,18 +239,35 @@ class GitHubClient(GitHubClientInterface):
         """
         endpoint = f"/repos/{owner}/{repo}/actions/workflows"
         try:
-            response = self._make_request(endpoint)
+            response = cast(JSONDict, self._make_request(endpoint))
+            raw_workflows = response.get("workflows", [])
+            if not isinstance(raw_workflows, list):
+                return []
+
+            typed_workflow_candidates = cast(list[object], raw_workflows)
+            workflow_entries: list[JSONDict] = [
+                cast(JSONDict, workflow_entry)
+                for workflow_entry in typed_workflow_candidates
+                if isinstance(workflow_entry, dict)
+            ]
+
             workflows: list[GitHubWorkflowSummary] = []
-            for workflow in response.get("workflows", []):
-                if not isinstance(workflow, dict):
-                    continue
+            for workflow_data in workflow_entries:
+                raw_id = workflow_data.get("id", 0)
+                workflow_id = int(raw_id) if isinstance(raw_id, (int, str)) else 0
+
+                name_value = workflow_data.get("name", "unknown")
+                path_value = workflow_data.get("path", "")
+                state_value = workflow_data.get("state", "")
+                url_value = workflow_data.get("html_url", "")
+
                 workflows.append(
                     GitHubWorkflowSummary(
-                        id=int(workflow.get("id", 0)),
-                        name=str(workflow.get("name", "unknown")),
-                        path=str(workflow.get("path", "")),
-                        state=str(workflow.get("state", "")),
-                        html_url=str(workflow.get("html_url", "")),
+                        id=workflow_id,
+                        name=str(name_value),
+                        path=str(path_value),
+                        state=str(state_value),
+                        html_url=str(url_value),
                     ),
                 )
             return workflows
@@ -248,8 +289,8 @@ class GitHubClient(GitHubClientInterface):
         """
         endpoint = f"/repos/{owner}/{repo}"
         try:
-            repo_data = self._make_request(endpoint)
-            security_analysis = repo_data.get("security_and_analysis", {})
+            repo_data = cast(RepositorySecurityResponse, self._make_request(endpoint))
+            security_analysis = _extract_security_section(repo_data)
 
             # Check if SECURITY.md exists in the repository
             has_security_policy = False
@@ -262,19 +303,17 @@ class GitHubClient(GitHubClientInterface):
                 pass
 
             # Check repository visibility
-            is_private = repo_data.get("private", False)
+            is_private = bool(repo_data.get("private", False))
 
             return GitHubSecuritySettings(
-                secret_scanning=security_analysis.get("secret_scanning", {}).get("status") == "enabled",
-                secret_scanning_push_protection=security_analysis.get("secret_scanning_push_protection", {}).get(
-                    "status",
-                )
-                == "enabled",
-                dependency_graph=repo_data.get("has_vulnerability_alerts", False),
-                private_vulnerability_reporting=security_analysis.get("private_vulnerability_reporting", {}).get(
-                    "status",
-                )
-                == "enabled",
+                secret_scanning=_feature_enabled(security_analysis.get("secret_scanning")),
+                secret_scanning_push_protection=_feature_enabled(
+                    security_analysis.get("secret_scanning_push_protection"),
+                ),
+                dependency_graph=bool(repo_data.get("has_vulnerability_alerts", False)),
+                private_vulnerability_reporting=_feature_enabled(
+                    security_analysis.get("private_vulnerability_reporting"),
+                ),
                 security_policy=has_security_policy,
                 is_private=is_private,
             )
@@ -319,16 +358,13 @@ class GitHubClient(GitHubClientInterface):
                 logger.warning(f"Unexpected error during GitHub API {operation}: {e}")
             return fallback_value
 
-    def get_api_status(self) -> dict[str, Any]:
-        """Get the status of GitHub API connectivity and authentication.
-
-        Returns:
-            Dictionary containing API status information
-        """
-        status: dict[str, Any] = {
+    def get_api_status(self) -> GitHubApiStatus:
+        """Get the status of GitHub API connectivity and authentication."""
+        status: GitHubApiStatus = {
             "has_token": bool(self.token),
             "authenticated": False,
             "api_accessible": False,
+            "user": "unknown",
             "rate_limit_info": None,
             "errors": [],
         }
@@ -339,10 +375,12 @@ class GitHubClient(GitHubClientInterface):
 
         # Test authentication
         try:
-            user_data = self._make_request("/user")
+            user_data = cast(JSONDict, self._make_request("/user"))
             status["authenticated"] = True
             status["api_accessible"] = True
-            status["user"] = user_data.get("login", "unknown")
+            login = user_data.get("login")
+            if isinstance(login, str):
+                status["user"] = login
         except GitHubAPIError as e:
             status["errors"].append(f"Authentication failed: {e}")
 
@@ -357,8 +395,9 @@ class GitHubClient(GitHubClientInterface):
         # Get rate limit info if authenticated
         if status["authenticated"]:
             try:
-                rate_limit = self._make_request("/rate_limit")
-                status["rate_limit_info"] = rate_limit.get("rate", {})
+                rate_limit = cast(JSONDict, self._make_request("/rate_limit"))
+                rate_info = rate_limit.get("rate")
+                status["rate_limit_info"] = rate_info if isinstance(rate_info, dict) else None
             except GitHubAPIError:
                 status["errors"].append("Could not retrieve rate limit information")
 
