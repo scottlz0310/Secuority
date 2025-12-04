@@ -30,6 +30,7 @@ from ..models.interfaces import (
     ChangeType,
     ConfigurationApplierInterface,
     DependencyAnalysis,
+    Package,
 )
 from ..utils.diff import DiffGenerator
 from ..utils.file_ops import FileOperations
@@ -477,55 +478,12 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             self.ui.show_dry_run_results(changes)
             return self.apply_changes(changes, dry_run=True)
 
-        # Separate changes by conflict status
+        ready_changes, conflicted_changes = self._split_changes_by_conflict(changes)
+        ready_changes = self._resolve_conflicts_interactively(changes, ready_changes, conflicted_changes)
         conflicted_changes = [c for c in changes if c.has_conflicts()]
-        ready_changes = [c for c in changes if not c.has_conflicts()]
 
-        # Resolve conflicts first
-        if conflicted_changes:
-            self.console.print(f"Found {len(conflicted_changes)} changes with conflicts.")
-            all_conflicts = []
-            for change in conflicted_changes:
-                all_conflicts.extend(change.conflicts)
+        approved_changes, rejected_changes = self._gather_change_approvals(ready_changes, batch_mode)
 
-            resolved_conflicts = self.ui.resolve_conflicts_interactively(all_conflicts)
-
-            # Update changes with resolved conflicts
-            for change in conflicted_changes:
-                for conflict in resolved_conflicts:
-                    if conflict.file_path == change.file_path:
-                        # Find and update the corresponding conflict in the change
-                        for change_conflict in change.conflicts:
-                            if (
-                                change_conflict.section == conflict.section
-                                and change_conflict.existing_value == conflict.existing_value
-                            ):
-                                change_conflict.resolution = conflict.resolution
-
-            # Re-categorize changes after conflict resolution
-            ready_changes = [c for c in changes if not c.has_conflicts()]
-            conflicted_changes = [c for c in changes if c.has_conflicts()]
-
-        # Get user approval for ready changes
-        approved_changes = []
-        rejected_changes = []
-
-        if ready_changes:
-            if batch_mode:
-                approvals = self.ui.get_batch_approval(ready_changes)
-                for change in ready_changes:
-                    if approvals.get(change.file_path, False):
-                        approved_changes.append(change)
-                    else:
-                        rejected_changes.append(change)
-            else:
-                for change in ready_changes:
-                    if self.ui.get_change_approval(change):
-                        approved_changes.append(change)
-                    else:
-                        rejected_changes.append(change)
-
-        # Show summary
         self.ui.show_apply_summary(approved_changes, rejected_changes, conflicted_changes)
 
         # Get final confirmation
@@ -533,6 +491,66 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             return self.apply_changes(approved_changes, dry_run=False)
         # Return empty result if no changes approved or user cancelled
         return ApplyResult(dry_run=False)
+
+    @staticmethod
+    def _split_changes_by_conflict(changes: list[ConfigChange]) -> tuple[list[ConfigChange], list[ConfigChange]]:
+        ready_changes = [change for change in changes if not change.has_conflicts()]
+        conflicted_changes = [change for change in changes if change.has_conflicts()]
+        return ready_changes, conflicted_changes
+
+    def _resolve_conflicts_interactively(
+        self,
+        changes: list[ConfigChange],
+        ready_changes: list[ConfigChange],
+        conflicted_changes: list[ConfigChange],
+    ) -> list[ConfigChange]:
+        if not conflicted_changes:
+            return ready_changes
+
+        self.console.print(f"Found {len(conflicted_changes)} changes with conflicts.")
+        all_conflicts = [conflict for change in conflicted_changes for conflict in change.conflicts]
+        resolved_conflicts = self.ui.resolve_conflicts_interactively(all_conflicts)
+
+        for change in conflicted_changes:
+            for resolved in resolved_conflicts:
+                if resolved.file_path != change.file_path:
+                    continue
+                for change_conflict in change.conflicts:
+                    if (
+                        change_conflict.section == resolved.section
+                        and change_conflict.existing_value == resolved.existing_value
+                    ):
+                        change_conflict.resolution = resolved.resolution
+
+        return [change for change in changes if not change.has_conflicts()]
+
+    def _gather_change_approvals(
+        self,
+        ready_changes: list[ConfigChange],
+        batch_mode: bool,
+    ) -> tuple[list[ConfigChange], list[ConfigChange]]:
+        approved_changes: list[ConfigChange] = []
+        rejected_changes: list[ConfigChange] = []
+
+        if not ready_changes:
+            return approved_changes, rejected_changes
+
+        if batch_mode:
+            approvals = self.ui.get_batch_approval(ready_changes)
+            for change in ready_changes:
+                if approvals.get(change.file_path, False):
+                    approved_changes.append(change)
+                else:
+                    rejected_changes.append(change)
+            return approved_changes, rejected_changes
+
+        for change in ready_changes:
+            if self.ui.get_change_approval(change):
+                approved_changes.append(change)
+            else:
+                rejected_changes.append(change)
+
+        return approved_changes, rejected_changes
 
     def apply_security_tools_integration(
         self,
@@ -605,108 +623,11 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         else:
             existing_data = {}
 
-        # Add quality tools configuration
-        if "tool" not in existing_data:
-            existing_data["tool"] = {}
-
         modified = False
-
-        # Add Ruff configuration
-        if "ruff" in tools and "ruff" not in existing_data["tool"]:
-            existing_data["tool"]["ruff"] = {
-                "line-length": 120,
-                "target-version": "py313",
-                "select": [
-                    "E",
-                    "F",
-                    "W",
-                    "C90",
-                    "I",
-                    "N",
-                    "UP",
-                    "YTT",
-                    "S",
-                    "BLE",
-                    "FBT",
-                    "B",
-                    "A",
-                    "COM",
-                    "C4",
-                    "DTZ",
-                    "T10",
-                    "EM",
-                    "EXE",
-                    "ISC",
-                    "ICN",
-                    "G",
-                    "INP",
-                    "PIE",
-                    "T20",
-                    "PYI",
-                    "PT",
-                    "Q",
-                    "RSE",
-                    "RET",
-                    "SLF",
-                    "SIM",
-                    "TID",
-                    "TCH",
-                    "ARG",
-                    "PTH",
-                    "ERA",
-                    "PD",
-                    "PGH",
-                    "PL",
-                    "TRY",
-                    "NPY",
-                    "RUF",
-                ],
-                "ignore": ["E501", "S101"],
-                "fixable": ["ALL"],
-                "unfixable": [],
-                "exclude": [
-                    ".bzr",
-                    ".direnv",
-                    ".eggs",
-                    ".git",
-                    ".hg",
-                    ".mypy_cache",
-                    ".nox",
-                    ".pants.d",
-                    ".pytype",
-                    ".ruff_cache",
-                    ".svn",
-                    ".tox",
-                    ".venv",
-                    "__pypackages__",
-                    "_build",
-                    "buck-out",
-                    "build",
-                    "dist",
-                    "node_modules",
-                    "venv",
-                ],
-            }
-            modified = True
-
-        # Add Mypy configuration
-        if "mypy" in tools and "mypy" not in existing_data["tool"]:
-            existing_data["tool"]["mypy"] = {
-                "python_version": "3.13",
-                "warn_return_any": True,
-                "warn_unused_configs": True,
-                "disallow_untyped_defs": True,
-                "disallow_incomplete_defs": True,
-                "check_untyped_defs": True,
-                "disallow_untyped_decorators": True,
-                "no_implicit_optional": True,
-                "warn_redundant_casts": True,
-                "warn_unused_ignores": True,
-                "warn_no_return": True,
-                "warn_unreachable": True,
-                "strict_equality": True,
-            }
-            modified = True
+        if "ruff" in tools:
+            modified |= self._ensure_ruff_config(existing_data)
+        if "mypy" in tools:
+            modified |= self._ensure_mypy_config(existing_data)
 
         if modified:
             # Convert back to TOML using the existing format method
@@ -727,6 +648,109 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         return changes
 
+    def _ensure_ruff_config(self, existing_data: dict[str, Any]) -> bool:
+        tool_config = existing_data.setdefault("tool", {})
+        if "ruff" in tool_config:
+            return False
+
+        tool_config["ruff"] = {
+            "line-length": 120,
+            "target-version": "py313",
+            "select": [
+                "E",
+                "F",
+                "W",
+                "C90",
+                "I",
+                "N",
+                "UP",
+                "YTT",
+                "S",
+                "BLE",
+                "FBT",
+                "B",
+                "A",
+                "COM",
+                "C4",
+                "DTZ",
+                "T10",
+                "EM",
+                "EXE",
+                "ISC",
+                "ICN",
+                "G",
+                "INP",
+                "PIE",
+                "T20",
+                "PYI",
+                "PT",
+                "Q",
+                "RSE",
+                "RET",
+                "SLF",
+                "SIM",
+                "TID",
+                "TCH",
+                "ARG",
+                "PTH",
+                "ERA",
+                "PD",
+                "PGH",
+                "PL",
+                "TRY",
+                "NPY",
+                "RUF",
+            ],
+            "ignore": ["E501", "S101"],
+            "fixable": ["ALL"],
+            "unfixable": [],
+            "exclude": [
+                ".bzr",
+                ".direnv",
+                ".eggs",
+                ".git",
+                ".hg",
+                ".mypy_cache",
+                ".nox",
+                ".pants.d",
+                ".pytype",
+                ".ruff_cache",
+                ".svn",
+                ".tox",
+                ".venv",
+                "__pypackages__",
+                "_build",
+                "buck-out",
+                "build",
+                "dist",
+                "node_modules",
+                "venv",
+            ],
+        }
+        return True
+
+    def _ensure_mypy_config(self, existing_data: dict[str, Any]) -> bool:
+        tool_config = existing_data.setdefault("tool", {})
+        if "mypy" in tool_config:
+            return False
+
+        tool_config["mypy"] = {
+            "python_version": "3.13",
+            "warn_return_any": True,
+            "warn_unused_configs": True,
+            "disallow_untyped_defs": True,
+            "disallow_incomplete_defs": True,
+            "check_untyped_defs": True,
+            "disallow_untyped_decorators": True,
+            "no_implicit_optional": True,
+            "warn_redundant_casts": True,
+            "warn_unused_ignores": True,
+            "warn_no_return": True,
+            "warn_unreachable": True,
+            "strict_equality": True,
+        }
+        return True
+
     def get_dependency_migration_change(
         self,
         project_path: Path,
@@ -746,57 +770,62 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         pyproject_path = project_path / "pyproject.toml"
         requirements_path = project_path / "requirements.txt"
-
         if not requirements_path.exists():
             return None
 
-        # Read existing pyproject.toml or create new structure
-        if pyproject_path.exists():
-            try:
-                with pyproject_path.open("rb") as f:
-                    existing_data = tomllib.loads(f.read().decode("utf-8"))
-            except Exception:
-                existing_data = {}
-        else:
-            existing_data = {}
+        existing_data = self._load_pyproject_data(pyproject_path)
+        existing_data.setdefault("project", {})
+        existing_data["project"]["dependencies"] = self._build_dependency_specs(
+            dependency_analysis.requirements_packages,
+        )
 
-        # Ensure project section exists
-        if "project" not in existing_data:
-            existing_data["project"] = {}
+        return self._create_pyproject_change(
+            pyproject_path=pyproject_path,
+            existing_data=existing_data,
+            description="Migrate dependencies from requirements.txt to pyproject.toml",
+        )
 
-        # Convert requirements.txt packages to pyproject.toml format
-        dependencies = []
-        for package in dependency_analysis.requirements_packages:
-            dep_spec = package.name
-            if package.version:
-                dep_spec += f">={package.version}"
-            if package.extras:
-                dep_spec = f"{package.name}[{','.join(package.extras)}]"
-                if package.version:
-                    dep_spec += f">={package.version}"
+    def _load_pyproject_data(self, pyproject_path: Path) -> dict[str, Any]:
+        if not pyproject_path.exists():
+            return {}
+        try:
+            with pyproject_path.open("rb") as f:
+                return tomllib.loads(f.read().decode("utf-8"))
+        except Exception:
+            return {}
+
+    def _build_dependency_specs(self, packages: list["Package"]) -> list[str]:
+        dependencies: list[str] = []
+        for package in packages:
+            extras_part = f"[{','.join(package.extras)}]" if package.extras else ""
+            version_part = f">={package.version}" if package.version else ""
+            dep_spec = f"{package.name}{extras_part}{version_part}"
             if package.markers:
                 dep_spec += f"; {package.markers}"
             dependencies.append(dep_spec)
+        return dependencies
 
-        existing_data["project"]["dependencies"] = dependencies
-
-        # Convert back to TOML
+    def _create_pyproject_change(
+        self,
+        pyproject_path: Path,
+        existing_data: dict[str, Any],
+        description: str,
+    ) -> ConfigChange | None:
         if tomli_w is None:
             raise ConfigurationError("TOML writing support not available")
 
         try:
             new_content = tomli_w.dumps(existing_data)
+        except Exception as exc:
+            raise ConfigurationError(f"Failed to generate dependency migration: {exc}") from exc
 
-            return ConfigChange.merge_file_change(
-                file_path=pyproject_path,
-                old_content=pyproject_path.read_text() if pyproject_path.exists() else "",
-                new_content=new_content,
-                description="Migrate dependencies from requirements.txt to pyproject.toml",
-                conflicts=[],
-            )
-
-        except Exception as e:
-            raise ConfigurationError(f"Failed to generate dependency migration: {e}") from e
+        return ConfigChange.merge_file_change(
+            file_path=pyproject_path,
+            old_content=pyproject_path.read_text() if pyproject_path.exists() else "",
+            new_content=new_content,
+            description=description,
+            conflicts=[],
+        )
 
     def apply_precommit_security_hooks(
         self,

@@ -124,18 +124,18 @@ class PythonAnalyzer(LanguageAnalyzer):
 
     def _determine_file_type(self, filename: str) -> str:
         """Determine file type from filename."""
-        if filename.endswith(".toml"):
-            return "toml"
-        if filename.endswith((".yaml", ".yml")):
-            return "yaml"
-        if filename.endswith(".ini"):
-            return "ini"
-        if filename.endswith(".py"):
-            return "python"
-        if filename.endswith(".txt"):
-            return "text"
-        if filename.endswith(".lock"):
-            return "lock"
+        suffix_map = {
+            ".toml": "toml",
+            ".yaml": "yaml",
+            ".yml": "yaml",
+            ".ini": "ini",
+            ".py": "python",
+            ".txt": "text",
+            ".lock": "lock",
+        }
+        for suffix, file_type in suffix_map.items():
+            if filename.endswith(suffix):
+                return file_type
         return "unknown"
 
     def detect_tools(self, _project_path: Path, config_files: list[ConfigFile]) -> dict[str, bool]:

@@ -145,18 +145,25 @@ class CppAnalyzer(LanguageAnalyzer):
 
     def _determine_file_type(self, filename: str) -> str:
         """Infer file type for configuration files."""
-        if filename.endswith(".json"):
-            return "json"
-        if filename.endswith(".py"):
-            return "python"
-        if filename.endswith(".txt"):
-            return "text"
-        if filename in {"CMakeLists.txt"}:
-            return "cmake"
-        if filename == "Makefile":
-            return "make"
+        suffix_map = {
+            ".json": "json",
+            ".py": "python",
+            ".txt": "text",
+        }
+        for suffix, file_type in suffix_map.items():
+            if filename.endswith(suffix):
+                return file_type
+
+        special_map = {
+            "CMakeLists.txt": "cmake",
+            "Makefile": "make",
+        }
+        if filename in special_map:
+            return special_map[filename]
+
         if filename.startswith(".clang") or filename == ".cppcheck":
             return "yaml"
+
         return "unknown"
 
     def detect_tools(self, project_path: Path, _config_files: list[ConfigFile] | None = None) -> dict[str, bool]:

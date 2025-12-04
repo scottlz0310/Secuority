@@ -86,3 +86,6 @@
 - 2025-12-04: プラン初版作成。フェーズ1未着手（PLC0415/S110/ARG002/PLW2901/PTH123の是正準備中）。
 - 2025-12-04: フェーズ1-1としてコアモジュール（workflow_integrator/security_tools/template_manager/applier/言語アナライザ）の遅延import整理とPath API化を実施。`uv run ruff check --select PLC0415,S110,ARG002,PLW2901,PTH123` で残42件（主に言語アナライザのS110/ARG002とtests配下）まで削減。
 - 2025-12-04: フェーズ1-2でtests配下のPLC0415を解消し、各言語アナライザの`ARG002`/`PLW2901`/`S110`と`models/project.py`の指摘を修正。`uv run ruff check --select PLC0415,S110,ARG002,PLW2901,PTH123` がクリーンに通過（0件）したため、フェーズ1のLint面は完了。
+- 2025-12-04: フェーズ2-1として`secuority/cli/main.py`の`check`コマンドをヘルパー化し、PLR0912/0915の主要要因を分離。引き続き`apply`/`init`など残る複雑度箇所の分解を予定。
+- 2025-12-04: フェーズ2-2で`apply`/`template`/`init`コマンドをヘルパー分割し、`uv run ruff check --select PLR0911,PLR0912,PLR0915 secuority/cli/main.py` がクリーンに。今後は`core/analyzer.py`等の複雑関数へ着手予定。
+- 2025-12-04: フェーズ2-3で`core/analyzer.py` (`_detect_dependency_manager`/`_check_security_tools`ほか) と `core/applier.py` (`apply_changes_interactively`/依存移行) をヘルパー化、さらに `languages/cpp.py` `languages/python.py` の判定ロジックを簡素化。`uv run ruff check --select PLR0911,PLR0912,PLR0915` 全体がクリーンに。
