@@ -1,8 +1,17 @@
 """CI/CD workflow integration for Secuority."""
 
 import importlib.resources
+import json
 from pathlib import Path
 from typing import Any
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ModuleNotFoundError:
+        tomllib = None  # type: ignore[assignment]
 
 try:
     import yaml
@@ -28,13 +37,8 @@ class WorkflowIntegrator:
         if not pyproject_path.exists():
             return {}
 
-        try:
-            import tomllib
-        except ImportError:
-            try:
-                import tomli as tomllib  # type: ignore[no-redef]
-            except ImportError:
-                return {}
+        if tomllib is None:
+            return {}
 
         try:
             with pyproject_path.open("rb") as f:
@@ -93,8 +97,6 @@ class WorkflowIntegrator:
             raise ConfigurationError(f"Failed to load security workflow template: {e}") from e
 
         # Replace placeholders in template
-        import json
-
         versions_json = json.dumps(python_versions)
         new_content = template_content.replace('["3.12", "3.13", "3.14"]', versions_json)
 
@@ -149,8 +151,6 @@ class WorkflowIntegrator:
             raise ConfigurationError(f"Failed to load quality workflow template: {e}") from e
 
         # Replace placeholders in template
-        import json
-
         versions_json = json.dumps(python_versions)
         package_name = self._get_package_name_from_pyproject(project_path)
 
@@ -209,8 +209,6 @@ class WorkflowIntegrator:
             raise ConfigurationError(f"Failed to load CI/CD workflow template: {e}") from e
 
         # Replace placeholders in template
-        import json
-
         versions_json = json.dumps(python_versions)
         package_name = self._get_package_name_from_pyproject(project_path)
 

@@ -4,7 +4,20 @@ from pathlib import Path
 
 import pytest
 
+from secuority.core.analyzer import ProjectAnalyzer
 from secuority.core.security_tools import SecurityToolsIntegrator
+from secuority.core.workflow_integrator import WorkflowIntegrator
+from secuority.models.interfaces import QualityTool, SecurityTool
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    tomllib = None  # type: ignore[assignment]
+
+try:
+    import yaml  # type: ignore[import-untyped]
+except ImportError:
+    yaml = None  # type: ignore[assignment]
 
 
 class TestSecurityFeatures:
@@ -97,14 +110,11 @@ class TestSecurityFeatures:
 
         # Verify result is valid
         assert result is not None
-        try:
-            import tomllib
+        if tomllib is None:
+            pytest.skip("tomllib not available")
 
-            data = tomllib.loads(result.new_content)
-            assert isinstance(data, dict)
-        except ImportError:
-            # TOML library not available, skip validation
-            pass
+        data = tomllib.loads(result.new_content)
+        assert isinstance(data, dict)
 
     def test_bandit_config_merge(
         self,
@@ -219,10 +229,8 @@ class TestWorkflowGeneration:
     """Test CI/CD workflow generation for security features."""
 
     @pytest.fixture
-    def workflow_integrator(self):  # type: ignore[no-untyped-def]
+    def workflow_integrator(self) -> WorkflowIntegrator:
         """Create WorkflowIntegrator instance."""
-        from secuority.core.workflow_integrator import WorkflowIntegrator
-
         return WorkflowIntegrator()
 
     @pytest.fixture
@@ -233,7 +241,7 @@ class TestWorkflowGeneration:
 
     def test_generate_security_workflow(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test generating security workflow."""
@@ -247,7 +255,7 @@ class TestWorkflowGeneration:
 
     def test_generate_quality_workflow(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test generating quality workflow."""
@@ -261,7 +269,7 @@ class TestWorkflowGeneration:
 
     def test_generate_multiple_workflows(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test generating multiple workflows at once."""
@@ -277,7 +285,7 @@ class TestWorkflowGeneration:
 
     def test_workflow_with_custom_python_versions(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test workflow generation with custom Python versions."""
@@ -292,7 +300,7 @@ class TestWorkflowGeneration:
 
     def test_check_existing_workflows(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test checking for existing workflows."""
@@ -314,7 +322,7 @@ class TestWorkflowGeneration:
 
     def test_workflow_recommendations(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test getting workflow recommendations."""
@@ -327,7 +335,7 @@ class TestWorkflowGeneration:
 
     def test_security_workflow_structure(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test security workflow has correct structure."""
@@ -346,7 +354,7 @@ class TestWorkflowGeneration:
 
     def test_quality_workflow_structure(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test quality workflow has correct structure."""
@@ -364,7 +372,7 @@ class TestWorkflowGeneration:
 
     def test_workflow_update_existing(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test updating existing workflow."""
@@ -383,13 +391,11 @@ class TestWorkflowGeneration:
 
     def test_workflow_yaml_validity(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test generated workflows are valid YAML."""
-        try:
-            import yaml  # type: ignore[import-untyped]
-        except ImportError:
+        if yaml is None:
             pytest.skip("PyYAML not available")
 
         change = workflow_integrator.generate_security_workflow(sample_project)
@@ -406,12 +412,10 @@ class TestWorkflowGeneration:
 
     def test_integrated_security_and_workflow_setup(
         self,
-        workflow_integrator,  # type: ignore[no-untyped-def]
+        workflow_integrator: WorkflowIntegrator,
         sample_project: Path,
     ) -> None:
         """Test complete integration of security tools and workflows."""
-        from secuority.core.security_tools import SecurityToolsIntegrator
-
         # Set up security tools
         security_integrator = SecurityToolsIntegrator()
         tool_changes = security_integrator.integrate_security_tools(sample_project)
@@ -440,10 +444,8 @@ class TestRecommendationAccuracy:
     """Test recommendation generation accuracy."""
 
     @pytest.fixture
-    def analyzer(self):  # type: ignore[no-untyped-def]
+    def analyzer(self) -> ProjectAnalyzer:
         """Create ProjectAnalyzer instance."""
-        from secuority.core.analyzer import ProjectAnalyzer
-
         return ProjectAnalyzer()
 
     @pytest.fixture
@@ -454,7 +456,7 @@ class TestRecommendationAccuracy:
 
     def test_no_duplicate_workflow_recommendations(
         self,
-        analyzer,  # type: ignore[no-untyped-def]
+        analyzer: ProjectAnalyzer,
         sample_project: Path,
     ) -> None:
         """Test that existing workflows don't trigger duplicate recommendations."""
@@ -498,11 +500,10 @@ class TestRecommendationAccuracy:
 
     def test_modern_tools_no_legacy_recommendations(
         self,
-        analyzer,  # type: ignore[no-untyped-def]
+        analyzer: ProjectAnalyzer,
         sample_project: Path,
     ) -> None:
         """Test that modern tools don't trigger legacy tool recommendations."""
-        from secuority.models.interfaces import QualityTool
 
         # Set up modern tooling
         pyproject_path = sample_project / "pyproject.toml"
@@ -526,11 +527,10 @@ class TestRecommendationAccuracy:
 
     def test_partial_security_setup_recommendations(
         self,
-        analyzer,  # type: ignore[no-untyped-def]
+        analyzer: ProjectAnalyzer,
         sample_project: Path,
     ) -> None:
         """Test recommendations for partial security setup."""
-        from secuority.models.interfaces import SecurityTool
 
         # Set up only Bandit
         pyproject_path = sample_project / "pyproject.toml"
@@ -549,11 +549,10 @@ class TestRecommendationAccuracy:
 
     def test_complete_modern_setup_minimal_recommendations(
         self,
-        analyzer,  # type: ignore[no-untyped-def]
+        analyzer: ProjectAnalyzer,
         sample_project: Path,
     ) -> None:
         """Test that complete modern setup generates minimal recommendations."""
-        from secuority.models.interfaces import QualityTool, SecurityTool
 
         # Create complete modern setup
         pyproject_path = sample_project / "pyproject.toml"
@@ -618,7 +617,7 @@ class TestRecommendationAccuracy:
 
     def test_combined_workflow_detection(
         self,
-        analyzer,  # type: ignore[no-untyped-def]
+        analyzer: ProjectAnalyzer,
         sample_project: Path,
     ) -> None:
         """Test detection of security and quality checks in a single workflow."""
@@ -654,11 +653,10 @@ class TestRecommendationAccuracy:
 
     def test_precommit_tool_detection_integration(
         self,
-        analyzer,  # type: ignore[no-untyped-def]
+        analyzer: ProjectAnalyzer,
         sample_project: Path,
     ) -> None:
         """Test accurate detection of tools in pre-commit config."""
-        from secuority.models.interfaces import QualityTool, SecurityTool
 
         precommit_path = sample_project / ".pre-commit-config.yaml"
         precommit_path.write_text(
@@ -701,7 +699,7 @@ class TestRecommendationAccuracy:
 
     def test_yaml_parse_error_graceful_handling(
         self,
-        analyzer,  # type: ignore[no-untyped-def]
+        analyzer: ProjectAnalyzer,
         sample_project: Path,
     ) -> None:
         """Test graceful handling of YAML parse errors."""
@@ -730,11 +728,10 @@ class TestRecommendationAccuracy:
 
     def test_legacy_tools_migration_recommendations(
         self,
-        analyzer,  # type: ignore[no-untyped-def]
+        analyzer: ProjectAnalyzer,
         sample_project: Path,
     ) -> None:
         """Test recommendations for migrating from legacy tools."""
-        from secuority.models.interfaces import QualityTool
 
         # Set up legacy tools
         pyproject_path = sample_project / "pyproject.toml"

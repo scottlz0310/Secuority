@@ -42,43 +42,38 @@ class ProjectState:
     def validate(self) -> bool:
         """Comprehensive validation of the project state."""
         try:
-            # Validate project path exists and is accessible
-            if not self.project_path.exists():
-                return False
-
-            if not self.project_path.is_dir():
-                return False
-
-            # Validate file existence claims
-            pyproject_path = self.project_path / "pyproject.toml"
-            if self.has_pyproject_toml and not pyproject_path.exists():
-                return False
-
-            requirements_path = self.project_path / "requirements.txt"
-            if self.has_requirements_txt and not requirements_path.exists():
-                return False
-
-            setup_path = self.project_path / "setup.py"
-            if self.has_setup_py and not setup_path.exists():
-                return False
-
-            gitignore_path = self.project_path / ".gitignore"
-            if self.has_gitignore and not gitignore_path.exists():
-                return False
-
-            precommit_path = self.project_path / ".pre-commit-config.yaml"
-            if self.has_pre_commit_config and not precommit_path.exists():
-                return False
-
-            # Validate tool configurations
-            for tool_name, tool_config in self.current_tools.items():
-                if tool_config.name != tool_name:
-                    return False
-
-            # Validate workflows
-            return all(workflow.file_path.exists() for workflow in self.ci_workflows)
+            checks = [
+                self._project_root_is_accessible(),
+                self._declared_files_exist(),
+                self._tool_configs_are_consistent(),
+                self._workflows_are_accessible(),
+            ]
+            return all(checks)
         except Exception:
             return False
+
+    def _project_root_is_accessible(self) -> bool:
+        """Ensure the project root exists and is a directory."""
+        return self.project_path.exists() and self.project_path.is_dir()
+
+    def _declared_files_exist(self) -> bool:
+        """Validate file existence claims."""
+        expected_files: list[tuple[bool, Path]] = [
+            (self.has_pyproject_toml, self.project_path / "pyproject.toml"),
+            (self.has_requirements_txt, self.project_path / "requirements.txt"),
+            (self.has_setup_py, self.project_path / "setup.py"),
+            (self.has_gitignore, self.project_path / ".gitignore"),
+            (self.has_pre_commit_config, self.project_path / ".pre-commit-config.yaml"),
+        ]
+        return all((not declared) or path.exists() for declared, path in expected_files)
+
+    def _tool_configs_are_consistent(self) -> bool:
+        """Validate tool configuration map integrity."""
+        return all(tool_config.name == tool_name for tool_name, tool_config in self.current_tools.items())
+
+    def _workflows_are_accessible(self) -> bool:
+        """Ensure referenced workflows exist on disk."""
+        return all(workflow.file_path.exists() for workflow in self.ci_workflows)
 
     def validate_pyproject_toml(self) -> bool:
         """Validate pyproject.toml file structure and content."""
@@ -106,8 +101,8 @@ class ProjectState:
                 lines = f.readlines()
 
             # Basic format validation
-            for line in lines:
-                line = line.strip()
+            for raw_line in lines:
+                line = raw_line.strip()
                 if not line or line.startswith("#"):
                     continue  # Skip empty lines and comments
 

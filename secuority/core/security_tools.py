@@ -19,6 +19,7 @@ except ImportError:
 from ..models.config import ConfigChange
 from ..models.exceptions import ConfigurationError
 from ..models.interfaces import ChangeType
+from ..utils.logger import debug
 
 
 class SecurityToolsIntegrator:
@@ -210,8 +211,6 @@ class SecurityToolsIntegrator:
                     except Exception as parse_error:
                         # Continue with original config if parsing fails
                         # This is expected during incremental config building
-                        from ..utils.logger import debug
-
                         debug(f"Could not parse intermediate config after bandit: {parse_error}")
             elif tool == "safety":
                 change = self.integrate_safety_config(project_path, existing_config.copy())
@@ -223,8 +222,6 @@ class SecurityToolsIntegrator:
                     except Exception as parse_error:
                         # Continue with original config if parsing fails
                         # This is expected during incremental config building
-                        from ..utils.logger import debug
-
                         debug(f"Could not parse intermediate config after safety: {parse_error}")
 
         return changes

@@ -1,6 +1,9 @@
 """C# language analyzer implementation."""
 
+import xml.etree.ElementTree as ET
 from pathlib import Path
+
+from secuority.utils.logger import debug
 
 from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
 
@@ -162,7 +165,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
             return "xml"
         return "unknown"
 
-    def detect_tools(self, project_path: Path, config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, _config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
         """Detect which tools are configured in the project.
 
         Args:
@@ -186,8 +189,8 @@ class CSharpAnalyzer(LanguageAnalyzer):
                 if "StyleCop" in content:
                     tools["stylecop"] = True
                     break
-            except Exception:
-                pass
+            except OSError as exc:
+                debug("Failed to read %s: %s", csproj, exc)
 
         # Check for dotnet-format (usually in workflows)
         tools["dotnet-format"] = False
@@ -273,7 +276,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
         """
         return ["dotnet-format"]
 
-    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, _config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies from .csproj files.
 
         Args:
@@ -289,8 +292,6 @@ class CSharpAnalyzer(LanguageAnalyzer):
         csproj_files = list(project_path.glob("**/*.csproj"))
         for csproj in csproj_files:
             try:
-                import xml.etree.ElementTree as ET
-
                 tree = ET.parse(csproj)  # noqa: S314  # Parsing local project files, not untrusted data
                 root = tree.getroot()
 
@@ -299,7 +300,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
                     include = package_ref.get("Include")
                     if include:
                         dependencies.append(include)
-            except Exception:
-                pass
+            except (ET.ParseError, OSError) as exc:
+                debug("Failed to parse %s: %s", csproj, exc)
 
         return list(set(dependencies))  # Remove duplicates

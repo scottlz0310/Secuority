@@ -2,6 +2,16 @@
 
 from pathlib import Path
 
+from secuority.utils.logger import debug
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ModuleNotFoundError:
+        tomllib = None  # type: ignore[assignment]
+
 from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
 
 
@@ -119,7 +129,7 @@ class RustAnalyzer(LanguageAnalyzer):
             return "json"
         return "unknown"
 
-    def detect_tools(self, project_path: Path, config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, _config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
         """Detect which tools are configured in the project.
 
         Args:
@@ -139,16 +149,18 @@ class RustAnalyzer(LanguageAnalyzer):
         # Check for cargo-audit (check in Cargo.toml)
         cargo_toml = project_path / "Cargo.toml"
         if cargo_toml.exists():
-            try:
-                import tomllib
-
-                with cargo_toml.open("rb") as f:
-                    cargo_data = tomllib.load(f)
-                    # Check if cargo-audit is in dev-dependencies
-                    dev_deps = cargo_data.get("dev-dependencies", {})
-                    tools["cargo-audit"] = "cargo-audit" in dev_deps
-            except Exception:
+            if tomllib is None:
                 tools["cargo-audit"] = False
+            else:
+                try:
+                    with cargo_toml.open("rb") as f:
+                        cargo_data = tomllib.load(f)
+                        # Check if cargo-audit is in dev-dependencies
+                        dev_deps = cargo_data.get("dev-dependencies", {})
+                        tools["cargo-audit"] = "cargo-audit" in dev_deps
+                except Exception as exc:
+                    tools["cargo-audit"] = False
+                    debug("Failed to parse Cargo.toml for cargo-audit detection at %s: %s", cargo_toml, exc)
         else:
             tools["cargo-audit"] = False
 
@@ -245,7 +257,7 @@ class RustAnalyzer(LanguageAnalyzer):
         """
         return ["rustfmt"]
 
-    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, _config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies from Cargo.toml.
 
         Args:
@@ -258,10 +270,8 @@ class RustAnalyzer(LanguageAnalyzer):
         dependencies = []
         cargo_toml = project_path / "Cargo.toml"
 
-        if cargo_toml.exists():
+        if cargo_toml.exists() and tomllib is not None:
             try:
-                import tomllib
-
                 with cargo_toml.open("rb") as f:
                     cargo_data = tomllib.load(f)
 
@@ -272,7 +282,7 @@ class RustAnalyzer(LanguageAnalyzer):
                     # Parse dev-dependencies
                     dev_deps = cargo_data.get("dev-dependencies", {})
                     dependencies.extend(dev_deps.keys())
-            except Exception:
-                pass
+            except Exception as exc:
+                debug("Failed to parse dependencies from %s: %s", cargo_toml, exc)
 
         return dependencies

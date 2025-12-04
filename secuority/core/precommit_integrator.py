@@ -350,55 +350,81 @@ class PreCommitIntegrator:
             Tuple of (merged_config, conflicts)
         """
         merged = existing.copy()
-        conflicts = []
+        merged["repos"] = list(existing.get("repos", []))
+        conflicts: list[Conflict] = []
 
-        # Merge repos (the most complex part)
-        if "repos" in template:
-            if "repos" not in merged:
-                merged["repos"] = []
+        conflicts.extend(
+            self._merge_repos_section(
+                merged_repos=merged["repos"],
+                template_repos=template.get("repos", []),
+                file_path=file_path,
+            ),
+        )
 
-            # Track existing repos by URL to avoid duplicates
-            existing_repo_urls = set()
-            for repo in merged["repos"]:
-                if isinstance(repo, dict) and "repo" in repo:
-                    existing_repo_urls.add(repo["repo"])
+        conflicts.extend(self._merge_top_level_settings(existing, merged, template, file_path))
 
-            # Add template repos that don't already exist
-            for template_repo in template["repos"]:
-                if isinstance(template_repo, dict) and "repo" in template_repo:
-                    repo_url = template_repo["repo"]
-                    if repo_url not in existing_repo_urls:
-                        merged["repos"].append(template_repo)
-                        existing_repo_urls.add(repo_url)
-                    else:
-                        # Repo exists, check for hook conflicts
-                        for existing_repo in merged["repos"]:
-                            if isinstance(existing_repo, dict) and existing_repo.get("repo") == repo_url:
-                                # Merge hooks if needed
-                                hook_conflicts = self._merge_repo_hooks(existing_repo, template_repo, file_path)
-                                conflicts.extend(hook_conflicts)
-                                break
+        return merged, conflicts
 
-        # Merge other top-level configurations
+    def _merge_repos_section(
+        self,
+        merged_repos: list[Any],
+        template_repos: list[Any],
+        file_path: Path,
+    ) -> list[Conflict]:
+        """Merge the 'repos' section while tracking conflicts."""
+        conflicts: list[Conflict] = []
+        if not template_repos:
+            return conflicts
+
+        repo_lookup: dict[str, dict[str, Any]] = {
+            repo["repo"]: repo for repo in merged_repos if isinstance(repo, dict) and "repo" in repo
+        }
+
+        for template_repo in template_repos:
+            if not isinstance(template_repo, dict) or "repo" not in template_repo:
+                continue
+
+            repo_url = template_repo["repo"]
+            if repo_url not in repo_lookup:
+                merged_repos.append(template_repo)
+                repo_lookup[repo_url] = template_repo
+                continue
+
+            existing_repo = repo_lookup[repo_url]
+            conflicts.extend(self._merge_repo_hooks(existing_repo, template_repo, file_path))
+
+        return conflicts
+
+    def _merge_top_level_settings(
+        self,
+        existing: dict[str, Any],
+        merged: dict[str, Any],
+        template: dict[str, Any],
+        file_path: Path,
+    ) -> list[Conflict]:
+        """Merge non-repo settings while tracking conflicts."""
+        conflicts: list[Conflict] = []
         for key, value in template.items():
             if key == "repos":
-                continue  # Already handled above
+                continue
 
             if key not in existing:
                 merged[key] = value
-            elif existing[key] != value:
-                # Configuration conflict
-                conflict = Conflict(
-                    file_path=file_path,
-                    section=key,
-                    existing_value=existing[key],
-                    template_value=value,
-                    description=f"Pre-commit configuration conflict in '{key}'",
-                )
-                conflicts.append(conflict)
-                # Keep existing value by default
+                continue
 
-        return merged, conflicts
+            if existing[key] == value:
+                continue
+
+            conflict = Conflict(
+                file_path=file_path,
+                section=key,
+                existing_value=existing[key],
+                template_value=value,
+                description=f"Pre-commit configuration conflict in '{key}'",
+            )
+            conflicts.append(conflict)
+
+        return conflicts
 
     def _merge_repo_hooks(
         self,
@@ -406,57 +432,87 @@ class PreCommitIntegrator:
         template_repo: dict[str, Any],
         file_path: Path,
     ) -> list[Conflict]:
-        """Merge hooks within a repository configuration.
-
-        Args:
-            existing_repo: Existing repository configuration
-            template_repo: Template repository configuration
-            file_path: Path to the configuration file
-
-        Returns:
-            List of conflicts found during merge
-        """
-        conflicts: list[Conflict] = []
-
+        """Merge hooks within a repository configuration."""
         if "hooks" not in template_repo:
-            return conflicts
+            return []
 
-        if "hooks" not in existing_repo:
-            existing_repo["hooks"] = []
+        existing_hooks = self._ensure_hook_collection(existing_repo)
+        hook_lookup = self._build_hook_lookup(existing_hooks)
 
-        # Track existing hooks by ID
-        existing_hook_ids = set()
-        for hook in existing_repo["hooks"]:
-            if isinstance(hook, dict) and "id" in hook:
-                existing_hook_ids.add(hook["id"])
-
-        # Add template hooks that don't already exist
+        conflicts: list[Conflict] = []
         for template_hook in template_repo["hooks"]:
-            if isinstance(template_hook, dict) and "id" in template_hook:
-                hook_id = template_hook["id"]
-                if hook_id not in existing_hook_ids:
-                    existing_repo["hooks"].append(template_hook)
-                    existing_hook_ids.add(hook_id)
-                else:
-                    # Hook exists, potential configuration conflict
-                    for existing_hook in existing_repo["hooks"]:
-                        if isinstance(existing_hook, dict) and existing_hook.get("id") == hook_id:
-                            # Check for configuration differences
-                            for key, value in template_hook.items():
-                                if key == "id":
-                                    continue
-                                if key not in existing_hook:
-                                    existing_hook[key] = value
-                                elif existing_hook[key] != value:
-                                    conflict = Conflict(
-                                        file_path=file_path,
-                                        section=f"repos.{existing_repo['repo']}.hooks.{hook_id}.{key}",
-                                        existing_value=existing_hook[key],
-                                        template_value=value,
-                                        description=f"Hook configuration conflict in {hook_id}.{key}",
-                                    )
-                                    conflicts.append(conflict)
-                            break
+            if not self._is_valid_hook(template_hook):
+                continue
+
+            hook_id = template_hook["id"]
+            if hook_id not in hook_lookup:
+                existing_hooks.append(template_hook)
+                hook_lookup[hook_id] = template_hook
+                continue
+
+            existing_hook = hook_lookup[hook_id]
+            conflicts.extend(
+                self._merge_hook_settings(
+                    repo_name=existing_repo.get("repo", "unknown"),
+                    hook_id=hook_id,
+                    existing_hook=existing_hook,
+                    template_hook=template_hook,
+                    file_path=file_path,
+                ),
+            )
+
+        return conflicts
+
+    @staticmethod
+    def _ensure_hook_collection(repo: dict[str, Any]) -> list[Any]:
+        """Return the mutable hook list for a repo."""
+        hooks = repo.get("hooks")
+        if not isinstance(hooks, list):
+            hooks = []
+            repo["hooks"] = hooks
+        return hooks
+
+    @staticmethod
+    def _build_hook_lookup(hooks: list[Any]) -> dict[str, dict[str, Any]]:
+        """Map hook IDs to their dicts for quick access."""
+        lookup: dict[str, dict[str, Any]] = {}
+        for hook in hooks:
+            if isinstance(hook, dict) and "id" in hook:
+                lookup[hook["id"]] = hook
+        return lookup
+
+    @staticmethod
+    def _is_valid_hook(hook: Any) -> bool:
+        """Ensure hook data has the expected structure."""
+        return isinstance(hook, dict) and "id" in hook
+
+    def _merge_hook_settings(
+        self,
+        repo_name: str,
+        hook_id: str,
+        existing_hook: dict[str, Any],
+        template_hook: dict[str, Any],
+        file_path: Path,
+    ) -> list[Conflict]:
+        """Merge non-ID settings for a hook."""
+        conflicts: list[Conflict] = []
+        for key, value in template_hook.items():
+            if key == "id":
+                continue
+            if key not in existing_hook:
+                existing_hook[key] = value
+                continue
+            if existing_hook[key] == value:
+                continue
+
+            conflict = Conflict(
+                file_path=file_path,
+                section=f"repos.{repo_name}.hooks.{hook_id}.{key}",
+                existing_value=existing_hook[key],
+                template_value=value,
+                description=f"Hook configuration conflict in {hook_id}.{key}",
+            )
+            conflicts.append(conflict)
 
         return conflicts
 

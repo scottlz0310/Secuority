@@ -361,7 +361,6 @@ class TestTemplateManager:
         # Create a backup manually to avoid timestamp collision
         templates_path = temp_template_dir / "templates"
         backup_path = temp_template_dir / "manual_backup"
-        import shutil
 
         shutil.copytree(templates_path, backup_path)
 

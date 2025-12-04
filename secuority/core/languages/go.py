@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from secuority.utils.logger import debug
+
 from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
 
 
@@ -121,7 +123,7 @@ class GoAnalyzer(LanguageAnalyzer):
             return "config"
         return "unknown"
 
-    def detect_tools(self, project_path: Path, config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, _config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
         """Detect which tools are configured in the project.
 
         Args:
@@ -241,7 +243,7 @@ class GoAnalyzer(LanguageAnalyzer):
         """
         return ["gofmt"]
 
-    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, _config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies from go.mod.
 
         Args:
@@ -259,8 +261,8 @@ class GoAnalyzer(LanguageAnalyzer):
                 content = go_mod.read_text()
                 # Simple parsing of go.mod
                 in_require = False
-                for line in content.split("\n"):
-                    line = line.strip()
+                for raw_line in content.split("\n"):
+                    line = raw_line.strip()
                     if line.startswith("require"):
                         in_require = True
                         # Handle single-line require
@@ -277,7 +279,7 @@ class GoAnalyzer(LanguageAnalyzer):
                             parts = line.split()
                             if parts:
                                 dependencies.append(parts[0])
-            except Exception:
-                pass
+            except OSError as exc:
+                debug("Failed to parse go.mod at %s: %s", go_mod, exc)
 
         return dependencies

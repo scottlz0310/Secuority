@@ -2,11 +2,13 @@
 
 import json
 import logging
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+import secuority.utils.logger as logger_module
 from secuority.utils.logger import (
     LogLevel,
     SecuorityLogger,
@@ -61,8 +63,6 @@ class TestStructuredFormatter:
         try:
             raise ValueError("Test exception")
         except ValueError:
-            import sys
-
             exc_info = sys.exc_info()
 
         record = logging.LogRecord(
@@ -338,7 +338,6 @@ class TestGlobalLogger:
     def test_get_logger_singleton(self) -> None:
         """Test that get_logger returns singleton instance."""
         # Reset global instance
-        import secuority.utils.logger as logger_module
 
         logger_module._logger_instance = None
 
@@ -348,7 +347,6 @@ class TestGlobalLogger:
 
     def test_configure_logging(self) -> None:
         """Test global configure_logging function."""
-        import secuority.utils.logger as logger_module
 
         logger_module._logger_instance = None
 
@@ -359,7 +357,6 @@ class TestGlobalLogger:
 
     def test_convenience_functions(self) -> None:
         """Test convenience logging functions."""
-        import secuority.utils.logger as logger_module
 
         logger_module._logger_instance = None
         configure_logging()

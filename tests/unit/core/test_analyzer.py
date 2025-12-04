@@ -6,7 +6,7 @@ import pytest
 
 from secuority.core.analyzer import ProjectAnalyzer
 from secuority.models.exceptions import ProjectAnalysisError
-from secuority.models.interfaces import DependencyManager, QualityTool, SecurityTool
+from secuority.models.interfaces import DependencyManager, Package, QualityTool, SecurityTool
 
 
 class TestProjectAnalyzer:
@@ -358,8 +358,6 @@ class TestProjectAnalyzer:
 
     def test_find_dependency_conflicts(self, analyzer: ProjectAnalyzer) -> None:
         """Test finding conflicts between requirements and pyproject."""
-        from secuority.models.interfaces import Package
-
         req_packages = [
             Package(name="pytest", version="7.0.0"),
             Package(name="requests", version="2.28.0"),

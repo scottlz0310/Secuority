@@ -4,6 +4,8 @@ import re
 import tomllib
 from pathlib import Path
 
+from secuority.utils.logger import debug
+
 from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
 
 
@@ -206,9 +208,8 @@ class PythonAnalyzer(LanguageAnalyzer):
                 dep_str = " ".join(dependencies)
                 tools["pytest"] = tools.get("pytest", False) or "pytest" in dep_str
 
-        except Exception:
-            # If we can't read the file, skip it
-            pass
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            debug("Failed to parse pyproject.toml at %s: %s", pyproject_path, exc)
 
         return tools
 
@@ -340,8 +341,8 @@ class PythonAnalyzer(LanguageAnalyzer):
                     if match:
                         dependencies.append(match.group(1))
 
-        except Exception:
-            pass
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            debug("Failed to parse dependencies from %s: %s", pyproject_path, exc)
 
         return dependencies
 
@@ -351,8 +352,8 @@ class PythonAnalyzer(LanguageAnalyzer):
 
         try:
             with requirements_path.open(encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
+                for raw_line in f:
+                    line = raw_line.strip()
                     # Skip comments and empty lines
                     if not line or line.startswith("#"):
                         continue
@@ -361,7 +362,7 @@ class PythonAnalyzer(LanguageAnalyzer):
                     if match:
                         dependencies.append(match.group(1))
 
-        except Exception:
-            pass
+        except OSError as exc:
+            debug("Failed to parse requirements.txt at %s: %s", requirements_path, exc)
 
         return dependencies

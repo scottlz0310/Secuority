@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+from secuority.utils.logger import debug
+
 from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
 
 
@@ -201,9 +203,8 @@ class NodeJSAnalyzer(LanguageAnalyzer):
             # Check package manager from lockfile indicators
             # (will be overridden by _detect_tools_from_config_files)
 
-        except Exception:
-            # If we can't read the file, skip it
-            pass
+        except (OSError, json.JSONDecodeError) as exc:
+            debug("Failed to read package.json at %s: %s", package_json_path, exc)
 
         return tools
 
@@ -333,7 +334,7 @@ class NodeJSAnalyzer(LanguageAnalyzer):
             if "devDependencies" in data:
                 dependencies.extend(data["devDependencies"].keys())
 
-        except Exception:
-            pass
+        except (OSError, json.JSONDecodeError) as exc:
+            debug("Failed to parse dependencies from %s: %s", package_json_path, exc)
 
         return dependencies

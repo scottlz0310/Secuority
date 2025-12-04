@@ -1,6 +1,9 @@
 """C++ language analyzer implementation."""
 
+import json
 from pathlib import Path
+
+from secuority.utils.logger import debug
 
 from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
 
@@ -156,7 +159,7 @@ class CppAnalyzer(LanguageAnalyzer):
             return "yaml"
         return "unknown"
 
-    def detect_tools(self, project_path: Path, config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, _config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
         """Detect which tools are configured in the project.
 
         Args:
@@ -269,7 +272,7 @@ class CppAnalyzer(LanguageAnalyzer):
         """
         return ["clang-format"]
 
-    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, _config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies from vcpkg.json or conanfile.
 
         Args:
@@ -285,8 +288,6 @@ class CppAnalyzer(LanguageAnalyzer):
         vcpkg_json = project_path / "vcpkg.json"
         if vcpkg_json.exists():
             try:
-                import json
-
                 with vcpkg_json.open() as f:
                     vcpkg_data = json.load(f)
                     deps = vcpkg_data.get("dependencies", [])
@@ -295,8 +296,8 @@ class CppAnalyzer(LanguageAnalyzer):
                             dependencies.append(dep)
                         elif isinstance(dep, dict):
                             dependencies.append(dep.get("name", ""))
-            except Exception:
-                pass
+            except Exception as exc:
+                debug("Failed to parse vcpkg.json at %s: %s", vcpkg_json, exc)
 
         # Parse conanfile.txt
         conanfile_txt = project_path / "conanfile.txt"
@@ -304,8 +305,8 @@ class CppAnalyzer(LanguageAnalyzer):
             try:
                 content = conanfile_txt.read_text()
                 in_requires = False
-                for line in content.split("\n"):
-                    line = line.strip()
+                for raw_line in content.split("\n"):
+                    line = raw_line.strip()
                     if line == "[requires]":
                         in_requires = True
                         continue
@@ -315,7 +316,7 @@ class CppAnalyzer(LanguageAnalyzer):
                         # Parse dependency name from "package/version" format
                         dep_name = line.split("/")[0]
                         dependencies.append(dep_name)
-            except Exception:
-                pass
+            except Exception as exc:
+                debug("Failed to parse conanfile %s: %s", conanfile_txt, exc)
 
         return dependencies

@@ -19,6 +19,7 @@ except ImportError:
 
 from ..models.exceptions import TemplateError
 from ..models.interfaces import TemplateManagerInterface
+from ..utils.logger import warning
 
 
 class TemplateManager(TemplateManagerInterface):
@@ -610,8 +611,6 @@ class TemplateManager(TemplateManagerInterface):
                     shutil.move(str(current_backup), str(templates_path))
                 except Exception as restore_error:
                     # Best effort restore - log but don't fail
-                    from ..utils.logger import warning
-
                     warning(f"Could not restore backup after failed restore: {restore_error}")
 
             msg = f"Failed to restore from backup: {e}"

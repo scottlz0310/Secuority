@@ -1,5 +1,6 @@
 """Configuration application engine with merge functionality and conflict resolution."""
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -152,8 +153,8 @@ class ConfigurationMerger:
         merged_lines = list(existing_lines)
         conflicts: list[Conflict] = []
 
-        for line in template_lines:
-            line = line.strip()
+        for raw_line in template_lines:
+            line = raw_line.strip()
             if line and line not in existing_lines:
                 merged_lines.append(line)
 
@@ -282,7 +283,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         # Read existing content
         try:
-            with open(file_path, encoding="utf-8") as f:
+            with file_path.open(encoding="utf-8") as f:
                 existing_content = f.read()
         except OSError as e:
             raise ConfigurationError(f"Failed to read {file_path}: {e}") from e
@@ -326,8 +327,6 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
     def _process_template_variables(self, template_content: str, file_path: Path) -> str:
         """Process template variables in content."""
-        import re
-
         # Extract project information from existing pyproject.toml if available
         project_info = self._extract_project_info(file_path)
 

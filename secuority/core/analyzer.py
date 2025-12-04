@@ -394,7 +394,8 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         # Check for Bandit in pyproject.toml
         if "pyproject.toml" in config_files:
             try:
-                with open(config_files["pyproject.toml"], "rb") as f:
+                pyproject_path = config_files["pyproject.toml"]
+                with pyproject_path.open("rb") as f:
                     data = tomllib.load(f)
                     if "tool" in data and "bandit" in data["tool"]:
                         security_tools[SecurityTool.BANDIT] = True
@@ -438,7 +439,8 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         # Check pyproject.toml for tool configurations
         if "pyproject.toml" in config_files:
             try:
-                with open(config_files["pyproject.toml"], "rb") as f:
+                pyproject_path = config_files["pyproject.toml"]
+                with pyproject_path.open("rb") as f:
                     data = tomllib.load(f)
                     if "tool" in data:
                         tool_mapping = {
@@ -696,7 +698,8 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         # Check pyproject.toml first
         if "pyproject.toml" in config_files:
             try:
-                with open(config_files["pyproject.toml"], "rb") as f:
+                pyproject_path = config_files["pyproject.toml"]
+                with pyproject_path.open("rb") as f:
                     data = tomllib.load(f)
 
                 if "project" in data and "requires-python" in data["project"]:

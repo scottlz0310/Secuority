@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from secuority.core.applier import ConfigurationApplier, ConfigurationMerger
-from secuority.models.config import ConfigChange
+from secuority.models.config import ConfigChange, Conflict
 from secuority.models.exceptions import ConfigurationError
 from secuority.models.interfaces import ChangeType
 
@@ -185,8 +185,6 @@ class TestConfigurationApplier:
         tmp_path: Path,
     ) -> None:
         """Test applying changes with unresolved conflicts."""
-        from secuority.models.config import Conflict
-
         test_file = tmp_path / "test.toml"
         conflict = Conflict(
             file_path=test_file,
