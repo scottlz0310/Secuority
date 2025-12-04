@@ -76,11 +76,7 @@ class ProjectState:
                     return False
 
             # Validate workflows
-            for workflow in self.ci_workflows:
-                if not workflow.file_path.exists():
-                    return False
-
-            return True
+            return all(workflow.file_path.exists() for workflow in self.ci_workflows)
         except Exception:
             return False
 
@@ -93,7 +89,7 @@ class ProjectState:
         try:
             # For now, just check if file is readable
             # In a real implementation, you'd use tomllib or toml library
-            with open(pyproject_path, encoding="utf-8") as f:
+            with pyproject_path.open(encoding="utf-8") as f:
                 content = f.read()
                 return bool(content.strip())
         except (OSError, UnicodeDecodeError):
@@ -106,7 +102,7 @@ class ProjectState:
 
         requirements_path = self.project_path / "requirements.txt"
         try:
-            with open(requirements_path, encoding="utf-8") as f:
+            with requirements_path.open(encoding="utf-8") as f:
                 lines = f.readlines()
 
             # Basic format validation
@@ -132,7 +128,7 @@ class ProjectState:
 
         gitignore_path = self.project_path / ".gitignore"
         try:
-            with open(gitignore_path, encoding="utf-8") as f:
+            with gitignore_path.open(encoding="utf-8") as f:
                 f.read()  # Just check if we can read it
             return True
         except (OSError, UnicodeDecodeError):

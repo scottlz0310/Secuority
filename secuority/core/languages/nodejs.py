@@ -180,7 +180,7 @@ class NodeJSAnalyzer(LanguageAnalyzer):
         tools = {}
 
         try:
-            with open(package_json_path, encoding="utf-8") as f:
+            with package_json_path.open(encoding="utf-8") as f:
                 data = json.load(f)
 
             # Check dependencies and devDependencies
@@ -323,7 +323,7 @@ class NodeJSAnalyzer(LanguageAnalyzer):
         dependencies = []
 
         try:
-            with open(package_json_path, encoding="utf-8") as f:
+            with package_json_path.open(encoding="utf-8") as f:
                 data = json.load(f)
 
             # Get both dependencies and devDependencies

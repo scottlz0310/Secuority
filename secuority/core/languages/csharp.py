@@ -101,27 +101,27 @@ class CSharpAnalyzer(LanguageAnalyzer):
 
         # Check for .csproj files
         csproj_files = list(project_path.glob("**/*.csproj"))
-        for csproj in csproj_files:
-            config_files.append(
-                ConfigFile(
-                    name=csproj.name,
-                    path=csproj,
-                    exists=True,
-                    file_type="xml",
-                ),
+        config_files.extend(
+            ConfigFile(
+                name=csproj.name,
+                path=csproj,
+                exists=True,
+                file_type="xml",
             )
+            for csproj in csproj_files
+        )
 
         # Check for .sln files
         sln_files = list(project_path.glob("*.sln"))
-        for sln in sln_files:
-            config_files.append(
-                ConfigFile(
-                    name=sln.name,
-                    path=sln,
-                    exists=True,
-                    file_type="solution",
-                ),
+        config_files.extend(
+            ConfigFile(
+                name=sln.name,
+                path=sln,
+                exists=True,
+                file_type="solution",
             )
+            for sln in sln_files
+        )
 
         # Check for other configuration files
         standard_configs = {
@@ -134,7 +134,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
             ".runsettings": "Test run settings",
         }
 
-        for filename, description in standard_configs.items():
+        for filename in standard_configs:
             file_path = project_path / filename
             if file_path.exists() and file_path.is_file():
                 config_files.append(
@@ -291,7 +291,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
             try:
                 import xml.etree.ElementTree as ET
 
-                tree = ET.parse(csproj)
+                tree = ET.parse(csproj)  # noqa: S314  # Parsing local project files, not untrusted data
                 root = tree.getroot()
 
                 # Find PackageReference elements

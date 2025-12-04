@@ -92,12 +92,8 @@ class ConfigChange:
                 return False
 
             # Validate that old_content exists for UPDATE operations
-            if self.change_type == ChangeType.UPDATE and self.old_content is None:
-                return False
-
             # Conflicts and metadata are validated by type hints
-
-            return True
+            return not (self.change_type == ChangeType.UPDATE and self.old_content is None)
         except Exception:
             return False
 

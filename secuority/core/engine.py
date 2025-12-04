@@ -62,7 +62,7 @@ class CoreEngine:
         """Analyze the project and return its current state."""
         return self.analyzer.analyze_project(project_path)
 
-    def generate_recommendations(self, project_state: ProjectState) -> list[Any]:
+    def generate_recommendations(self, _project_state: ProjectState) -> list[Any]:
         """Generate configuration recommendations based on project state."""
         # This will be implemented in later tasks
         return []

@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import yaml
+    import yaml  # type: ignore[import-untyped]
 except ImportError:
-    yaml = None  # type: ignore[assignment,unused-ignore]
+    yaml = None  # type: ignore[assignment]
 
 from ..models.config import ConfigChange, Conflict
 from ..models.exceptions import ConfigurationError
@@ -55,10 +55,9 @@ class PreCommitIntegrator:
         gitleaks_exists = False
         if "repos" in existing_config:
             for repo in existing_config["repos"]:
-                if isinstance(repo, dict) and "repo" in repo:
-                    if "gitleaks" in repo["repo"].lower():
-                        gitleaks_exists = True
-                        break
+                if isinstance(repo, dict) and "repo" in repo and "gitleaks" in repo["repo"].lower():
+                    gitleaks_exists = True
+                    break
 
         # Add gitleaks if not already present
         if not gitleaks_exists:
@@ -83,7 +82,7 @@ class PreCommitIntegrator:
         old_content = ""
         if precommit_path.exists():
             try:
-                with open(precommit_path, encoding="utf-8") as f:
+                with precommit_path.open(encoding="utf-8") as f:
                     old_content = f.read()
             except OSError as e:
                 raise ConfigurationError(f"Failed to read {precommit_path}: {e}") from e
@@ -185,7 +184,7 @@ class PreCommitIntegrator:
         old_content = ""
         if precommit_path.exists():
             try:
-                with open(precommit_path, encoding="utf-8") as f:
+                with precommit_path.open(encoding="utf-8") as f:
                     old_content = f.read()
             except OSError as e:
                 raise ConfigurationError(f"Failed to read {precommit_path}: {e}") from e
@@ -231,7 +230,7 @@ class PreCommitIntegrator:
         old_content = ""
         if precommit_path.exists():
             try:
-                with open(precommit_path, encoding="utf-8") as f:
+                with precommit_path.open(encoding="utf-8") as f:
                     old_content = f.read()
             except OSError as e:
                 raise ConfigurationError(f"Failed to read {precommit_path}: {e}") from e
@@ -264,7 +263,7 @@ class PreCommitIntegrator:
             return {}
 
         try:
-            with open(precommit_path, encoding="utf-8") as f:
+            with precommit_path.open(encoding="utf-8") as f:
                 content = f.read()
             return self._parse_yaml_content(content)
         except Exception as e:

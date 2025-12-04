@@ -80,9 +80,7 @@ class StructuredFormatter(logging.Formatter):
             "taskName",
         }
 
-        for key, value in record.__dict__.items():
-            if key not in reserved_fields:
-                extra_fields[key] = value
+        extra_fields = {key: value for key, value in record.__dict__.items() if key not in reserved_fields}
 
         if extra_fields:
             log_entry["extra"] = extra_fields
@@ -332,10 +330,6 @@ class SecuorityLogger:
         return self.logger.isEnabledFor(logging.DEBUG)
 
 
-# Global logger instance
-_logger_instance: SecuorityLogger | None = None
-
-
 def get_logger(name: str = "secuority") -> SecuorityLogger:
     """Get the global logger instance.
 
@@ -345,10 +339,9 @@ def get_logger(name: str = "secuority") -> SecuorityLogger:
     Returns:
         SecuorityLogger instance
     """
-    global _logger_instance
-    if _logger_instance is None:
-        _logger_instance = SecuorityLogger(name)
-    return _logger_instance
+    if not hasattr(get_logger, "_instance"):
+        get_logger._instance = SecuorityLogger(name)  # type: ignore[attr-defined]
+    return get_logger._instance  # type: ignore[attr-defined, return-value]
 
 
 def configure_logging(

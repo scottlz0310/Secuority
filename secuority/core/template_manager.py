@@ -138,7 +138,7 @@ class TemplateManager(TemplateManagerInterface):
                     "CODEOWNERS",
                 }:
                     try:
-                        with open(file_path, encoding="utf-8") as f:
+                        with file_path.open(encoding="utf-8") as f:
                             template_key = f"{prefix}{file_path.name}" if prefix else file_path.name
                             templates[template_key] = f.read()
                     except OSError as e:
@@ -233,10 +233,10 @@ class TemplateManager(TemplateManagerInterface):
         }
 
         if yaml is not None:
-            with open(config_path, "w", encoding="utf-8") as f:
+            with config_path.open("w", encoding="utf-8") as f:
                 yaml.dump(default_config, f, default_flow_style=False, indent=2)
         else:
-            with open(config_path.with_suffix(".json"), "w", encoding="utf-8") as f:  # type: ignore[unreachable]
+            with config_path.with_suffix(".json").open("w", encoding="utf-8") as f:  # type: ignore[unreachable]
                 json.dump(default_config, f, indent=2)
 
     def _create_version_file(self, version_path: Path) -> None:
@@ -248,7 +248,7 @@ class TemplateManager(TemplateManagerInterface):
             "templates_version": "1.0.0",
         }
 
-        with open(version_path, "w", encoding="utf-8") as f:
+        with version_path.open("w", encoding="utf-8") as f:
             json.dump(version_data, f, indent=2)
 
     def _copy_default_templates(self, templates_path: Path) -> None:
@@ -446,9 +446,7 @@ class TemplateManager(TemplateManagerInterface):
         ]
 
         # Also search for any directory named 'templates'
-        for path in base_path.rglob("templates"):
-            if path.is_dir():
-                possible_paths.append(path)
+        possible_paths.extend(path for path in base_path.rglob("templates") if path.is_dir())
 
         # Return the first valid templates directory found
         for path in possible_paths:
@@ -488,14 +486,14 @@ class TemplateManager(TemplateManagerInterface):
 
         if version_path.exists():
             try:
-                with open(version_path, encoding="utf-8") as f:
+                with version_path.open(encoding="utf-8") as f:
                     existing_data = json.load(f)
                 version_data.update(existing_data)
                 version_data["last_update"] = datetime.now().isoformat()
             except (OSError, json.JSONDecodeError):
                 pass  # Use default version_data
 
-        with open(version_path, "w", encoding="utf-8") as f:
+        with version_path.open("w", encoding="utf-8") as f:
             json.dump(version_data, f, indent=2)
 
         # Also update config.yaml if yaml is available
@@ -503,7 +501,7 @@ class TemplateManager(TemplateManagerInterface):
             config_path = template_dir / "config.yaml"
             if config_path.exists():
                 try:
-                    with open(config_path, encoding="utf-8") as f:
+                    with config_path.open(encoding="utf-8") as f:
                         config_data = yaml.safe_load(f)
 
                     if "templates" not in config_data:
@@ -511,7 +509,7 @@ class TemplateManager(TemplateManagerInterface):
 
                     config_data["templates"]["last_update"] = datetime.now().isoformat()
 
-                    with open(config_path, "w", encoding="utf-8") as f:
+                    with config_path.open("w", encoding="utf-8") as f:
                         yaml.dump(config_data, f, default_flow_style=False, indent=2)
                 except (OSError, yaml.YAMLError):
                     pass  # Ignore config update errors
@@ -529,7 +527,7 @@ class TemplateManager(TemplateManagerInterface):
             return []
 
         try:
-            with open(version_path, encoding="utf-8") as f:
+            with version_path.open(encoding="utf-8") as f:
                 version_data = json.load(f)
 
             history = []
@@ -563,12 +561,7 @@ class TemplateManager(TemplateManagerInterface):
             List of backup directory paths
         """
         template_dir = self.get_template_directory()
-        backups = []
-
-        for path in template_dir.glob("templates_backup_*"):
-            if path.is_dir():
-                backups.append(path)
-
+        backups = [path for path in template_dir.glob("templates_backup_*") if path.is_dir()]
         return sorted(backups, reverse=True)  # Most recent first
 
     def restore_from_backup(self, backup_path: Path) -> bool:
@@ -655,7 +648,7 @@ class TemplateManager(TemplateManagerInterface):
         # Try YAML first, then JSON fallback
         if config_path.exists() and yaml is not None:
             try:
-                with open(config_path, encoding="utf-8") as f:
+                with config_path.open(encoding="utf-8") as f:
                     result: dict[str, Any] = yaml.safe_load(f)
                     return result
             except (OSError, yaml.YAMLError) as e:
@@ -663,7 +656,7 @@ class TemplateManager(TemplateManagerInterface):
                 raise TemplateError(msg) from e
         elif json_config_path.exists():
             try:
-                with open(json_config_path, encoding="utf-8") as f:
+                with json_config_path.open(encoding="utf-8") as f:
                     json_result: dict[str, Any] = json.load(f)
                     return json_result
             except (OSError, json.JSONDecodeError) as e:

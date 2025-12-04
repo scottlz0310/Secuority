@@ -89,7 +89,7 @@ class TestConfigurationMerger:
         existing_content = "# Custom ignore\ncustom_file.txt\n"
         template_content = "*.pyc\n"
 
-        merged, conflicts = merger.merge_text_configs(existing_content, template_content, tmp_path / ".gitignore")
+        merged, _conflicts = merger.merge_text_configs(existing_content, template_content, tmp_path / ".gitignore")
 
         assert "custom_file.txt" in merged
         assert "*.pyc" in merged
@@ -372,7 +372,7 @@ class TestConfigurationApplier:
         template_content = "[tool.mypy]\nstrict = true\n"
 
         try:
-            merged_content, conflicts = applier._merge_toml_file(
+            merged_content, _conflicts = applier._merge_toml_file(
                 existing_content,
                 template_content,
                 tmp_path / "test.toml",

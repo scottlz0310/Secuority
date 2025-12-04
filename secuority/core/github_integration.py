@@ -339,7 +339,7 @@ class GitHubIntegration:
         elif api_status["has_token"]:
             self.console.print("⚠️  GitHub API: Token provided but authentication failed")
         else:
-            self.console.print("ℹ️  GitHub API: No token provided (limited analysis)")
+            self.console.print("📝 GitHub API: No token provided (limited analysis)")
 
         # Security Analysis
         security = analysis_result["security_analysis"]

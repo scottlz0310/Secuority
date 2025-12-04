@@ -1,9 +1,15 @@
 """Project analyzer for detecting configuration files and project state."""
 
+import contextlib
 import re
 import tomllib
 from pathlib import Path
 from typing import Any
+
+try:
+    import yaml  # type: ignore[import-untyped]
+except ImportError:
+    yaml = None  # type: ignore[assignment]
 
 from ..models.exceptions import GitHubAPIError, ProjectAnalysisError
 from ..models.interfaces import (
@@ -156,7 +162,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         pyproject_path = project_path / "pyproject.toml"
         if pyproject_path.exists():
             try:
-                with open(pyproject_path, "rb") as f:
+                with pyproject_path.open("rb") as f:
                     data = tomllib.load(f)
                     if "tool" in data and "setuptools_scm" in data["tool"]:
                         return DependencyManager.SETUPTOOLS_SCM
@@ -201,16 +207,16 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         packages = []
 
         try:
-            with open(requirements_path, encoding="utf-8") as f:
+            with requirements_path.open(encoding="utf-8") as f:
                 lines = f.readlines()
 
             for line in lines:
-                line = line.strip()
-                if not line or line.startswith("#") or line.startswith("-"):
+                stripped_line = line.strip()
+                if not stripped_line or stripped_line.startswith("#") or stripped_line.startswith("-"):
                     continue
 
                 # Parse package specification
-                package = self._parse_package_spec(line)
+                package = self._parse_package_spec(stripped_line)
                 if package:
                     packages.append(package)
 
@@ -225,7 +231,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         extras = []
 
         try:
-            with open(pyproject_path, "rb") as f:
+            with pyproject_path.open("rb") as f:
                 data = tomllib.load(f)
 
             # Parse project dependencies
@@ -310,7 +316,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return conflicts
 
-    def _detect_configured_tools(self, project_path: Path, config_files: dict[str, Path]) -> dict[str, ToolConfig]:
+    def _detect_configured_tools(self, _project_path: Path, config_files: dict[str, Path]) -> dict[str, ToolConfig]:
         """Detect configured development tools."""
         tools = {}
 
@@ -345,7 +351,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         tools: dict[str, ToolConfig] = {}
 
         try:
-            with open(pyproject_path, "rb") as f:
+            with pyproject_path.open("rb") as f:
                 data = tomllib.load(f)
 
             if "tool" not in data:
@@ -376,7 +382,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return tools
 
-    def _check_security_tools(self, project_path: Path, config_files: dict[str, Path]) -> dict[SecurityTool, bool]:
+    def _check_security_tools(self, _project_path: Path, config_files: dict[str, Path]) -> dict[SecurityTool, bool]:
         """Check which security tools are configured."""
         security_tools = dict.fromkeys(SecurityTool, False)
 
@@ -398,9 +404,8 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         # Check for gitleaks in pre-commit config
         precommit_configs = [".pre-commit-config.yaml", ".pre-commit-config.yml"]
         for config_name in precommit_configs:
-            if config_name in config_files:
-                if self._check_gitleaks_in_precommit(config_files[config_name]):
-                    security_tools[SecurityTool.GITLEAKS] = True
+            if config_name in config_files and self._check_gitleaks_in_precommit(config_files[config_name]):
+                security_tools[SecurityTool.GITLEAKS] = True
 
         # Check for security tools in pre-commit config
         for config_name in precommit_configs:
@@ -415,7 +420,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return security_tools
 
-    def _check_quality_tools(self, project_path: Path, config_files: dict[str, Path]) -> dict[QualityTool, bool]:
+    def _check_quality_tools(self, _project_path: Path, config_files: dict[str, Path]) -> dict[QualityTool, bool]:
         """Check which quality tools are configured."""
         quality_tools = dict.fromkeys(QualityTool, False)
 
@@ -497,16 +502,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         """Check if gitleaks is configured in pre-commit config."""
         try:
             # Try to import yaml, if not available, fall back to text search
-            try:
-                import yaml  # type: ignore[import-untyped, unused-ignore]
-
-                yaml_available = True
-            except ImportError:
-                yaml_available = False
-
-            if yaml_available:
+            if yaml is not None:
                 # Use YAML parser for accurate parsing
-                with open(precommit_path, encoding="utf-8") as f:
+                with precommit_path.open(encoding="utf-8") as f:
                     data = yaml.safe_load(f)
 
                 if not isinstance(data, dict) or "repos" not in data:
@@ -519,7 +517,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                             return True
             else:
                 # Fallback to text search
-                with open(precommit_path, encoding="utf-8") as f:
+                with precommit_path.open(encoding="utf-8") as f:
                     content = f.read().lower()
                     return "gitleaks" in content
 
@@ -540,16 +538,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         try:
             # Try to import yaml, if not available, fall back to text search
-            try:
-                import yaml  # type: ignore[import-untyped, unused-ignore]
-
-                yaml_available = True
-            except ImportError:
-                yaml_available = False
-
-            if yaml_available:
+            if yaml is not None:
                 # Use YAML parser for accurate parsing
-                with open(precommit_path, encoding="utf-8") as f:
+                with precommit_path.open(encoding="utf-8") as f:
                     data = yaml.safe_load(f)
 
                 if isinstance(data, dict) and "repos" in data:
@@ -585,14 +576,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                                             tools.append(tool_name)
             else:
                 # Fallback to text search
-                with open(precommit_path, encoding="utf-8") as f:
+                with precommit_path.open(encoding="utf-8") as f:
                     content = f.read().lower()
 
                     # Search for common tool names in the content
                     tool_names = ["ruff", "mypy", "black", "isort", "flake8", "pylint", "bandit", "safety", "gitleaks"]
-                    for tool_name in tool_names:
-                        if tool_name in content:
-                            tools.append(tool_name)
+                    tools.extend(tool_name for tool_name in tool_names if tool_name in content)
 
         except (OSError, UnicodeDecodeError) as e:
             # If file can't be read, return empty list
@@ -628,16 +617,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         """Parse a GitHub Actions workflow file."""
         try:
             # Try to import yaml, if not available, fall back to basic parsing
-            try:
-                import yaml  # type: ignore[import-untyped, unused-ignore]
-
-                yaml_available = True
-            except ImportError:
-                yaml_available = False
-
-            if yaml_available:
+            if yaml is not None:
                 # Use YAML parser for full parsing
-                with open(workflow_path, encoding="utf-8") as f:
+                with workflow_path.open(encoding="utf-8") as f:
                     data = yaml.safe_load(f)
 
                 if not isinstance(data, dict):
@@ -662,7 +644,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                     jobs = list(data["jobs"].keys())
             else:
                 # Fallback to basic text parsing
-                with open(workflow_path, encoding="utf-8") as f:
+                with workflow_path.open(encoding="utf-8") as f:
                     content = f.read()
 
                 # Extract name using regex
@@ -709,7 +691,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             # For any other parsing errors, return None
             return None
 
-    def _detect_python_version(self, project_path: Path, config_files: dict[str, Path]) -> str | None:
+    def _detect_python_version(self, _project_path: Path, config_files: dict[str, Path]) -> str | None:
         """Detect the Python version requirement for the project."""
         # Check pyproject.toml first
         if "pyproject.toml" in config_files:
@@ -828,11 +810,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             github_client = GitHubClient()
 
             if github_client.is_authenticated():
-                try:
+                # Continue with local analysis only if API fails
+                with contextlib.suppress(GitHubAPIError):
                     remote_workflows = github_client.list_workflows(owner, repo)
-                except GitHubAPIError:
-                    # Continue with local analysis only
-                    pass
 
         # Analyze workflow coverage
         has_security_workflow = any(wf.has_security_checks for wf in local_workflows) or any(
@@ -889,7 +869,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             return None
 
         try:
-            with open(git_config_path, encoding="utf-8") as f:
+            with git_config_path.open(encoding="utf-8") as f:
                 config_content = f.read()
 
             # Look for GitHub remote origin URL

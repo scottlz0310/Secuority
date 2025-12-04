@@ -1,5 +1,6 @@
 """Unit tests for TemplateManager."""
 
+import contextlib
 import json
 import os
 import shutil
@@ -84,9 +85,11 @@ class TestTemplateManager:
         manager: TemplateManager,
     ) -> None:
         """Test getting default template directory on Windows."""
-        with patch("platform.system", return_value="Windows"):
-            with patch.dict(os.environ, {"APPDATA": "C:\\Users\\Test\\AppData\\Roaming"}):
-                template_dir = manager.get_template_directory()
+        with (
+            patch("platform.system", return_value="Windows"),
+            patch.dict(os.environ, {"APPDATA": "C:\\Users\\Test\\AppData\\Roaming"}),
+        ):
+            template_dir = manager.get_template_directory()
 
         assert "secuority" in str(template_dir)
 
@@ -153,12 +156,9 @@ class TestTemplateManager:
 
         # Use the actual package templates (they exist in the package)
         # This will copy from the real secuority/templates directory
-        try:
+        # If templates can't be found, that's okay for this test
+        with contextlib.suppress(TemplateError):
             manager.initialize_templates()
-        except TemplateError:
-            # If templates can't be found, that's okay for this test
-            # Just verify the basic structure was created
-            pass
 
         # Verify the templates directory was created
         assert (tmp_path / "templates").exists()
@@ -194,7 +194,7 @@ class TestTemplateManager:
 
         assert version_path.exists()
 
-        with open(version_path) as f:
+        with version_path.open() as f:
             version_data = json.load(f)
 
         assert "version" in version_data
@@ -305,7 +305,7 @@ class TestTemplateManager:
             "templates_version": "1.0.0",
         }
 
-        with open(version_path, "w") as f:
+        with version_path.open("w") as f:
             json.dump(version_data, f)
 
         history = manager.get_template_history()
@@ -423,7 +423,7 @@ class TestTemplateManager:
 
         config_data = {"version": "1.0", "preferences": {"auto_backup": True}}
 
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             json.dump(config_data, f)
 
         config = manager.get_config()
@@ -458,13 +458,13 @@ class TestTemplateManager:
             "last_update": None,
         }
 
-        with open(version_path, "w") as f:
+        with version_path.open("w") as f:
             json.dump(initial_data, f)
 
         manager._update_version_info()
 
         # Verify last_update was set
-        with open(version_path) as f:
+        with version_path.open() as f:
             updated_data = json.load(f)
 
         assert updated_data["last_update"] is not None
@@ -508,7 +508,7 @@ class TestTemplateManager:
         config_path = tmp_path / "config.json"
         config_data = {"templates": {"source": "ftp://example.com/templates"}}
 
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             json.dump(config_data, f)
 
         with pytest.raises(TemplateError, match="Unsupported template source"):

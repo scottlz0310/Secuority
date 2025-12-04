@@ -333,7 +333,7 @@ Please email us at custom@example.com
 
     def test_security_md_template_not_found(
         self,
-        applier: ConfigurationApplier,
+        _applier: ConfigurationApplier,
         tmp_path: Path,
     ) -> None:
         """Test handling when SECURITY.md template is not found."""
@@ -384,7 +384,7 @@ name = "minimal"
 
     def test_security_md_preserves_github_actions_syntax(
         self,
-        template_manager: TemplateManager,
+        _template_manager: TemplateManager,
         applier: ConfigurationApplier,
         tmp_path: Path,
     ) -> None:

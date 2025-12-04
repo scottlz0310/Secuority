@@ -69,14 +69,16 @@ repos:
         exclude: ^tests/
 
   # Dependency vulnerability scanning with osv-scanner
-  - repo: https://github.com/google/osv-scanner
-    rev: v1.9.1
-    hooks:
-      - id: osv-scanner
-        name: OSV vulnerability scanner
-        args: ['--lockfile=uv.lock']
-        pass_filenames: false
-        files: ^(pyproject\.toml|uv\.lock)$
+  # Note: osv-scanner doesn't support uv.lock format yet
+  # Skipped in local runs - use 'uv export --format requirements-txt | osv-scanner --' manually
+  # - repo: https://github.com/google/osv-scanner
+  #   rev: v1.9.1
+  #   hooks:
+  #     - id: osv-scanner
+  #       name: OSV vulnerability scanner
+  #       args: ['--lockfile=uv.lock']
+  #       pass_filenames: false
+  #       files: ^(pyproject\.toml|uv\.lock)$
 
   # Check for common security issues
   - repo: https://github.com/Yelp/detect-secrets

@@ -287,7 +287,7 @@ class CppAnalyzer(LanguageAnalyzer):
             try:
                 import json
 
-                with open(vcpkg_json) as f:
+                with vcpkg_json.open() as f:
                     vcpkg_data = json.load(f)
                     deps = vcpkg_data.get("dependencies", [])
                     for dep in deps:
@@ -312,7 +312,7 @@ class CppAnalyzer(LanguageAnalyzer):
                     if line.startswith("["):
                         in_requires = False
                     if in_requires and line:
-                        # Format: package/version
+                        # Parse dependency name from "package/version" format
                         dep_name = line.split("/")[0]
                         dependencies.append(dep_name)
             except Exception:

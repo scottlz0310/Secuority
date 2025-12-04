@@ -68,41 +68,51 @@ class TestGitHubClient:
         """Test API request with 401 authentication error."""
         mock_error = HTTPError("url", 401, "Unauthorized", {}, None)
 
-        with patch("secuority.core.github_client.urlopen", side_effect=mock_error):
-            with pytest.raises(GitHubAPIError, match="authentication failed"):
-                client._make_request("/test")
+        with (
+            patch("secuority.core.github_client.urlopen", side_effect=mock_error),
+            pytest.raises(GitHubAPIError, match="authentication failed"),
+        ):
+            client._make_request("/test")
 
     def test_make_request_403_error(self, client: GitHubClient) -> None:
         """Test API request with 403 rate limit error."""
         mock_error = HTTPError("url", 403, "Forbidden", {}, None)
 
-        with patch("secuority.core.github_client.urlopen", side_effect=mock_error):
-            with pytest.raises(GitHubAPIError, match="rate limit"):
-                client._make_request("/test")
+        with (
+            patch("secuority.core.github_client.urlopen", side_effect=mock_error),
+            pytest.raises(GitHubAPIError, match="rate limit"),
+        ):
+            client._make_request("/test")
 
     def test_make_request_404_error(self, client: GitHubClient) -> None:
         """Test API request with 404 not found error."""
         mock_error = HTTPError("url", 404, "Not Found", {}, None)
 
-        with patch("secuority.core.github_client.urlopen", side_effect=mock_error):
-            with pytest.raises(GitHubAPIError, match="not found"):
-                client._make_request("/test")
+        with (
+            patch("secuority.core.github_client.urlopen", side_effect=mock_error),
+            pytest.raises(GitHubAPIError, match="not found"),
+        ):
+            client._make_request("/test")
 
     def test_make_request_network_error(self, client: GitHubClient) -> None:
         """Test API request with network error."""
         mock_error = URLError("Network error")
 
-        with patch("secuority.core.github_client.urlopen", side_effect=mock_error):
-            with pytest.raises(GitHubAPIError, match="Network error"):
-                client._make_request("/test")
+        with (
+            patch("secuority.core.github_client.urlopen", side_effect=mock_error),
+            pytest.raises(GitHubAPIError, match="Network error"),
+        ):
+            client._make_request("/test")
 
     def test_make_request_invalid_json(self, client: GitHubClient) -> None:
         """Test API request with invalid JSON response."""
         mock_response = create_mock_response(b"invalid json")
 
-        with patch("secuority.core.github_client.urlopen", return_value=mock_response):
-            with pytest.raises(GitHubAPIError, match="Invalid JSON"):
-                client._make_request("/test")
+        with (
+            patch("secuority.core.github_client.urlopen", return_value=mock_response),
+            pytest.raises(GitHubAPIError, match="Invalid JSON"),
+        ):
+            client._make_request("/test")
 
     def test_check_push_protection_enabled(self, client: GitHubClient) -> None:
         """Test checking push protection when enabled."""
@@ -306,9 +316,11 @@ class TestGitHubClient:
         """Test safe API call without error logging."""
         mock_error = HTTPError("url", 404, "Not Found", {}, None)
 
-        with patch("secuority.core.github_client.urlopen", side_effect=mock_error):
-            with patch("secuority.core.github_client.logger") as mock_logger:
-                result = client.safe_api_call("test operation", "/test", fallback_value=None, log_errors=False)
+        with (
+            patch("secuority.core.github_client.urlopen", side_effect=mock_error),
+            patch("secuority.core.github_client.logger") as mock_logger,
+        ):
+            result = client.safe_api_call("test operation", "/test", fallback_value=None, log_errors=False)
 
         assert result is None
         mock_logger.warning.assert_not_called()

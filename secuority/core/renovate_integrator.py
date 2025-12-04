@@ -60,7 +60,7 @@ class RenovateIntegrator:
         old_content = ""
         if renovate_path.exists():
             try:
-                with open(renovate_path, encoding="utf-8") as f:
+                with renovate_path.open(encoding="utf-8") as f:
                     old_content = f.read()
             except OSError as e:
                 msg = f"Failed to read {renovate_path}: {e}"
@@ -91,7 +91,7 @@ class RenovateIntegrator:
             return {}
 
         try:
-            with open(renovate_path, encoding="utf-8") as f:
+            with renovate_path.open(encoding="utf-8") as f:
                 config: dict[str, Any] = json.load(f)
                 return config
         except (OSError, json.JSONDecodeError) as e:
@@ -285,9 +285,9 @@ class RenovateIntegrator:
                 "auto-merge-dependabot.yml",
                 "auto-merge-dependabot.yaml",
             ]
-            for pattern in workflow_patterns:
-                if (workflows_dir / pattern).exists():
-                    deprecated_workflows.append(f".github/workflows/{pattern}")
+            deprecated_workflows.extend(
+                f".github/workflows/{pattern}" for pattern in workflow_patterns if (workflows_dir / pattern).exists()
+            )
 
         needs_migration = bool(dependabot_files or deprecated_workflows)
         recommendations: list[str] = []

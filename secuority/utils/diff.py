@@ -137,15 +137,13 @@ class DiffGenerator:
         existing_str = str(existing_value) if not isinstance(existing_value, str) else existing_value
         template_str = str(template_value) if not isinstance(template_value, str) else template_value
 
-        diff = self.generate_unified_diff(
+        return self.generate_unified_diff(
             existing_str,
             template_str,
             Path(f"[{section}]"),
             old_label=f"existing [{section}]",
             new_label=f"template [{section}]",
         )
-
-        return diff
 
     def get_diff_stats(self, old_content: str, new_content: str) -> dict[str, Any]:
         """Get statistics about the differences between two contents.

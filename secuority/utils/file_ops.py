@@ -81,7 +81,7 @@ class FileOperations:
             temp_path = file_path.with_suffix(file_path.suffix + ".tmp")
 
             try:
-                with open(temp_path, "w", encoding="utf-8") as f:
+                with temp_path.open("w", encoding="utf-8") as f:
                     f.write(content)
 
                 # Atomic move to final location

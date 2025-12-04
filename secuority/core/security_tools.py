@@ -85,7 +85,7 @@ class SecurityToolsIntegrator:
         old_content = ""
         if pyproject_path.exists():
             try:
-                with open(pyproject_path, encoding="utf-8") as f:
+                with pyproject_path.open(encoding="utf-8") as f:
                     old_content = f.read()
             except OSError as e:
                 raise ConfigurationError(f"Failed to read {pyproject_path}: {e}") from e
@@ -159,7 +159,7 @@ class SecurityToolsIntegrator:
         old_content = ""
         if pyproject_path.exists():
             try:
-                with open(pyproject_path, encoding="utf-8") as f:
+                with pyproject_path.open(encoding="utf-8") as f:
                     old_content = f.read()
             except OSError as e:
                 raise ConfigurationError(f"Failed to read {pyproject_path}: {e}") from e
@@ -248,7 +248,7 @@ class SecurityToolsIntegrator:
             raise ConfigurationError("TOML support not available")
 
         try:
-            with open(pyproject_path, "rb") as f:
+            with pyproject_path.open("rb") as f:
                 return tomllib.load(f)
         except Exception as e:
             raise ConfigurationError(f"Failed to load pyproject.toml: {e}") from e

@@ -33,7 +33,7 @@ class TestConflict:
         assert conflict.section == "tool.ruff"
         assert conflict.resolution is None
 
-    def test_conflict_creation_empty_path(self, tmp_path: Path) -> None:
+    def test_conflict_creation_empty_path(self, _tmp_path: Path) -> None:
         """Test creating Conflict with empty path string raises ValidationError."""
         # Path("") is technically valid, so we test with a more realistic invalid case
         # The validation happens at the string level in __post_init__

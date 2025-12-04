@@ -281,7 +281,7 @@ class TestSecuorityLogger:
                 success=False,
             )
             mock_error.assert_called_once()
-            args, kwargs = mock_error.call_args
+            args, _kwargs = mock_error.call_args
             assert "failed" in args[0]
 
     def test_log_github_api_call_success(self, logger: SecuorityLogger) -> None:
@@ -311,7 +311,7 @@ class TestSecuorityLogger:
                 error_message="Not found",
             )
             mock_warning.assert_called_once()
-            args, kwargs = mock_warning.call_args
+            args, _kwargs = mock_warning.call_args
             assert "failed" in args[0]
             assert "Not found" in args[0]
 

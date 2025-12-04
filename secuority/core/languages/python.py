@@ -183,7 +183,7 @@ class PythonAnalyzer(LanguageAnalyzer):
         tools = {}
 
         try:
-            with open(pyproject_path, "rb") as f:
+            with pyproject_path.open("rb") as f:
                 data = tomllib.load(f)
 
             # Check [tool.*] sections
@@ -330,7 +330,7 @@ class PythonAnalyzer(LanguageAnalyzer):
         dependencies = []
 
         try:
-            with open(pyproject_path, "rb") as f:
+            with pyproject_path.open("rb") as f:
                 data = tomllib.load(f)
 
             if "project" in data and "dependencies" in data["project"]:
@@ -350,7 +350,7 @@ class PythonAnalyzer(LanguageAnalyzer):
         dependencies = []
 
         try:
-            with open(requirements_path, encoding="utf-8") as f:
+            with requirements_path.open(encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     # Skip comments and empty lines

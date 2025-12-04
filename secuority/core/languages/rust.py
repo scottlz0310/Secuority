@@ -142,7 +142,7 @@ class RustAnalyzer(LanguageAnalyzer):
             try:
                 import tomllib
 
-                with open(cargo_toml, "rb") as f:
+                with cargo_toml.open("rb") as f:
                     cargo_data = tomllib.load(f)
                     # Check if cargo-audit is in dev-dependencies
                     dev_deps = cargo_data.get("dev-dependencies", {})
@@ -262,7 +262,7 @@ class RustAnalyzer(LanguageAnalyzer):
             try:
                 import tomllib
 
-                with open(cargo_toml, "rb") as f:
+                with cargo_toml.open("rb") as f:
                     cargo_data = tomllib.load(f)
 
                     # Parse dependencies

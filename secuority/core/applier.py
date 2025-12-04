@@ -19,7 +19,7 @@ except ImportError:
     tomli_w = None  # type: ignore[assignment]
 
 try:
-    import yaml
+    import yaml  # type: ignore[import-untyped]
 except ImportError:
     yaml = None  # type: ignore[assignment]
 
@@ -142,7 +142,7 @@ class ConfigurationMerger:
         self,
         existing_content: str,
         template_content: str,
-        file_path: Path,
+        _file_path: Path,
     ) -> tuple[str, list[Conflict]]:
         """Merge text-based configurations like .gitignore."""
         existing_lines = set(existing_content.strip().splitlines())
@@ -380,9 +380,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         # Replace template variables (but not GitHub Actions variables like ${{ }})
         # Match {{ }} that are NOT preceded by $
-        processed_content = re.sub(r"(?<!\$)\{\{\s*([^}]+)\s*\}\}", replace_variable, template_content)
-
-        return processed_content
+        return re.sub(r"(?<!\$)\{\{\s*([^}]+)\s*\}\}", replace_variable, template_content)
 
     def _extract_project_info(self, file_path: Path) -> dict[str, Any]:
         """Extract project information from existing pyproject.toml."""
@@ -394,7 +392,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
                 if tomllib is None:
                     raise ImportError("tomllib not available")
 
-                with open(file_path, "rb") as f:
+                with file_path.open("rb") as f:
                     existing_data = tomllib.load(f)
 
                 project_section = existing_data.get("project", {})
@@ -601,7 +599,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         if pyproject_path.exists():
             # Read existing pyproject.toml
             try:
-                with open(pyproject_path, "rb") as f:
+                with pyproject_path.open("rb") as f:
                     existing_data = tomllib.loads(f.read().decode("utf-8"))
             except Exception:
                 existing_data = {}
@@ -756,7 +754,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         # Read existing pyproject.toml or create new structure
         if pyproject_path.exists():
             try:
-                with open(pyproject_path, "rb") as f:
+                with pyproject_path.open("rb") as f:
                     existing_data = tomllib.loads(f.read().decode("utf-8"))
             except Exception:
                 existing_data = {}

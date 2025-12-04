@@ -118,7 +118,7 @@ class TestPreCommitIntegrator:
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         import yaml  # type: ignore[import-untyped]
 
-        with open(precommit_path, "w") as f:
+        with precommit_path.open("w") as f:
             yaml.dump(sample_precommit_config, f)
 
         change = integrator.integrate_security_hooks(tmp_path)
@@ -166,7 +166,7 @@ class TestPreCommitIntegrator:
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         import yaml  # type: ignore[import-untyped]
 
-        with open(precommit_path, "w") as f:
+        with precommit_path.open("w") as f:
             yaml.dump(sample_precommit_config, f)
 
         config = integrator._load_precommit_config(precommit_path)
@@ -394,7 +394,7 @@ class TestPreCommitIntegrator:
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         import yaml  # type: ignore[import-untyped]
 
-        with open(precommit_path, "w") as f:
+        with precommit_path.open("w") as f:
             yaml.dump(config, f)
 
         status = integrator.check_precommit_security_status(tmp_path)
@@ -450,7 +450,7 @@ class TestPreCommitIntegrator:
         precommit_path = tmp_path / ".pre-commit-config.yaml"
         import yaml  # type: ignore[import-untyped]
 
-        with open(precommit_path, "w") as f:
+        with precommit_path.open("w") as f:
             yaml.dump(sample_precommit_config, f)
 
         template_content = """repos:

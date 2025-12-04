@@ -37,7 +37,7 @@ class WorkflowIntegrator:
                 return {}
 
         try:
-            with open(pyproject_path, "rb") as f:
+            with pyproject_path.open("rb") as f:
                 return tomllib.load(f)
         except Exception:
             return {}
@@ -102,7 +102,7 @@ class WorkflowIntegrator:
         old_content = ""
         if security_workflow_path.exists():
             try:
-                with open(security_workflow_path, encoding="utf-8") as f:
+                with security_workflow_path.open(encoding="utf-8") as f:
                     old_content = f.read()
             except OSError as e:
                 raise ConfigurationError(f"Failed to read {security_workflow_path}: {e}") from e
@@ -162,7 +162,7 @@ class WorkflowIntegrator:
         old_content = ""
         if quality_workflow_path.exists():
             try:
-                with open(quality_workflow_path, encoding="utf-8") as f:
+                with quality_workflow_path.open(encoding="utf-8") as f:
                     old_content = f.read()
             except OSError as e:
                 raise ConfigurationError(f"Failed to read {quality_workflow_path}: {e}") from e
@@ -221,7 +221,7 @@ class WorkflowIntegrator:
         old_content = ""
         if cicd_workflow_path.exists():
             try:
-                with open(cicd_workflow_path, encoding="utf-8") as f:
+                with cicd_workflow_path.open(encoding="utf-8") as f:
                     old_content = f.read()
             except OSError as e:
                 raise ConfigurationError(f"Failed to read {cicd_workflow_path}: {e}") from e
