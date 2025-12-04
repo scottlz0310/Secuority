@@ -5,7 +5,7 @@ import re
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 try:
     import yaml  # type: ignore[import-untyped]
@@ -29,6 +29,21 @@ from ..utils.logger import get_logger
 from .github_client import GitHubClient
 
 logger = get_logger(__name__)
+
+ConfigFiles = dict[str, Path]
+
+
+class ProjectInfo(TypedDict, total=False):
+    name: str
+    version: str
+    description: str
+    license: str
+    author_name: str
+    author_email: str
+    homepage: str
+    repository: str
+    issues: str
+
 
 PRECOMMIT_TOOL_PATTERNS: dict[str, list[str]] = {
     "ruff": ["ruff", "astral-sh/ruff"],
@@ -86,12 +101,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return project_state
 
-    def detect_configuration_files(self, project_path: Path) -> dict[str, Path]:
+    def detect_configuration_files(self, project_path: Path) -> ConfigFiles:
         """Detect existing configuration files in the project."""
         if not validate_project_path(project_path):
             raise ProjectAnalysisError(f"Invalid project path: {project_path}")
 
-        config_files = {}
+        config_files: ConfigFiles = {}
 
         # Standard Python configuration files
         standard_files = [
@@ -237,7 +252,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
     def _parse_requirements_txt(self, requirements_path: Path) -> list[Package]:
         """Parse requirements.txt file and extract packages."""
-        packages = []
+        packages: list[Package] = []
 
         try:
             with requirements_path.open(encoding="utf-8") as f:
@@ -260,8 +275,8 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
     def _parse_pyproject_dependencies(self, pyproject_path: Path) -> tuple[list[Package], list[str]]:
         """Parse pyproject.toml dependencies and return packages and extras."""
-        packages = []
-        extras = []
+        packages: list[Package] = []
+        extras: list[str] = []
 
         try:
             with pyproject_path.open("rb") as f:
@@ -311,7 +326,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         markers = match.group(4).strip() if match.group(4) else None
 
         # Parse extras
-        extras = []
+        extras: list[str] = []
         if extras_str:
             extras_content = extras_str.strip("[]")
             extras = [e.strip() for e in extras_content.split(",") if e.strip()]
@@ -349,9 +364,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return conflicts
 
-    def _detect_configured_tools(self, _project_path: Path, config_files: dict[str, Path]) -> dict[str, ToolConfig]:
+    def _detect_configured_tools(self, _project_path: Path, config_files: ConfigFiles) -> dict[str, ToolConfig]:
         """Detect configured development tools."""
-        tools = {}
+        tools: dict[str, ToolConfig] = {}
 
         # Check pyproject.toml for tool configurations
         if "pyproject.toml" in config_files:
@@ -415,7 +430,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return tools
 
-    def _check_security_tools(self, _project_path: Path, config_files: dict[str, Path]) -> dict[SecurityTool, bool]:
+    def _check_security_tools(self, _project_path: Path, config_files: ConfigFiles) -> dict[SecurityTool, bool]:
         """Check which security tools are configured."""
         security_tools = dict.fromkeys(SecurityTool, False)
 
@@ -451,7 +466,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
     def _mark_precommit_security_tools(
         self,
         security_tools: dict[SecurityTool, bool],
-        config_files: dict[str, Path],
+        config_files: ConfigFiles,
     ) -> None:
         precommit_files = [".pre-commit-config.yaml", ".pre-commit-config.yml"]
         for filename in precommit_files:
@@ -470,7 +485,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             if "gitleaks" in tools:
                 security_tools[SecurityTool.GITLEAKS] = True
 
-    def _check_quality_tools(self, _project_path: Path, config_files: dict[str, Path]) -> dict[QualityTool, bool]:
+    def _check_quality_tools(self, _project_path: Path, config_files: ConfigFiles) -> dict[QualityTool, bool]:
         """Check which quality tools are configured."""
         quality_tools = dict.fromkeys(QualityTool, False)
         self._mark_quality_tools_from_files(quality_tools, config_files)
@@ -481,7 +496,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
     @staticmethod
     def _mark_quality_tools_from_files(
         quality_tools: dict[QualityTool, bool],
-        config_files: dict[str, Path],
+        config_files: ConfigFiles,
     ) -> None:
         tool_file_mapping = {
             ".flake8": QualityTool.FLAKE8,
@@ -506,7 +521,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         except (tomllib.TOMLDecodeError, OSError):
             return
 
-        tool_config = data.get("tool", {})
+        tool_config = data.get("tool")
         if not isinstance(tool_config, dict):
             return
 
@@ -531,16 +546,16 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             return
 
         lint_config = ruff_config.get("lint", {})
-        lint_select = lint_config.get("select", []) if isinstance(lint_config, dict) else []
-        select_rules = ruff_config.get("select", [])
+        lint_select = self._ensure_str_list(lint_config.get("select") if isinstance(lint_config, dict) else [])
+        select_rules = self._ensure_str_list(ruff_config.get("select"))
         all_rules = select_rules + lint_select
-        if any(isinstance(rule, str) and rule.startswith("I") for rule in all_rules):
+        if any(rule.startswith("I") for rule in all_rules):
             quality_tools[QualityTool.ISORT] = True
 
     def _mark_quality_tools_from_precommit(
         self,
         quality_tools: dict[QualityTool, bool],
-        config_files: dict[str, Path],
+        config_files: ConfigFiles,
     ) -> None:
         precommit_files = [".pre-commit-config.yaml", ".pre-commit-config.yml"]
         tool_mapping = {
@@ -608,6 +623,8 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             return []
 
     def _parse_precommit_yaml(self, precommit_path: Path) -> list[str]:
+        if yaml is None:
+            return []
         with precommit_path.open(encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
@@ -640,6 +657,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         for tool_name, patterns in PRECOMMIT_TOOL_PATTERNS.items():
             if any(pattern in target for pattern in patterns):
                 tools.add(tool_name)
+
+    @staticmethod
+    def _ensure_str_list(value: Any) -> list[str]:
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, str)]
+        return []
 
     def _detect_ci_workflows(self, project_path: Path) -> list[Workflow]:
         """Detect CI/CD workflows in the project."""

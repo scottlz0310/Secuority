@@ -1,28 +1,12 @@
 """Configuration application engine with merge functionality and conflict resolution."""
 
+from __future__ import annotations
+
 import re
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 from rich.console import Console
-
-try:
-    import tomllib
-except ImportError:
-    try:
-        import tomli as tomllib  # type: ignore[no-redef]
-    except ImportError:
-        tomllib = None  # type: ignore[assignment]
-
-try:
-    import tomli_w
-except ImportError:
-    tomli_w = None  # type: ignore[assignment]
-
-try:
-    import yaml  # type: ignore[import-untyped]
-except ImportError:
-    yaml = None  # type: ignore[assignment]
 
 from ..models.config import ApplyResult, ConfigChange, Conflict
 from ..models.exceptions import ConfigurationError, ValidationError
@@ -32,6 +16,7 @@ from ..models.interfaces import (
     DependencyAnalysis,
     Package,
 )
+from ..types.configuration import ConfigMap, TomlLoader, TomlWriter, YamlModule
 from ..utils.diff import DiffGenerator
 from ..utils.file_ops import FileOperations
 from ..utils.user_interface import UserApprovalInterface
@@ -39,6 +24,63 @@ from .precommit_integrator import PreCommitIntegrator
 from .renovate_integrator import RenovateIntegrator
 from .security_tools import SecurityToolsIntegrator
 from .workflow_integrator import WorkflowIntegrator
+
+try:
+    import tomllib as _tomllib
+except ImportError:  # pragma: no cover - python<3.11 fallback
+    try:
+        import tomli as _tomllib  # type: ignore[import-untyped,no-redef]
+    except ImportError:
+        _tomllib = None
+
+try:
+    import tomli_w as _tomli_w  # type: ignore[import-untyped]
+except ImportError:
+    _tomli_w = None
+
+try:
+    import yaml as _yaml  # type: ignore[import-untyped]
+except ImportError:
+    _yaml = None
+
+tomllib: TomlLoader | None = cast("TomlLoader | None", _tomllib)
+tomli_w: TomlWriter | None = cast("TomlWriter | None", _tomli_w)
+yaml: YamlModule | None = cast("YamlModule | None", _yaml)
+
+
+def _ensure_config_map(value: object, *, context: str) -> ConfigMap:
+    """Validate that vendor parsers produced a mapping."""
+    if not isinstance(value, dict):
+        raise ConfigurationError(f"{context} must be a mapping.")
+    return cast(ConfigMap, value)
+
+
+def _require_tomllib() -> TomlLoader:
+    """Return an active TOML parser or raise a configuration error."""
+    if tomllib is None:
+        raise ConfigurationError("TOML parsing support is not available.")
+    return tomllib
+
+
+def _require_toml_writer() -> TomlWriter:
+    """Return an active TOML writer (tomli_w) or raise."""
+    if tomli_w is None:
+        raise ConfigurationError("TOML writing support is not available.")
+    return tomli_w
+
+
+def _require_yaml() -> YamlModule:
+    """Return the PyYAML module or raise."""
+    if yaml is None:
+        raise ConfigurationError("PyYAML is required for YAML merge operations.")
+    return yaml
+
+
+def _safe_load_yaml(content: str, *, context: str) -> ConfigMap:
+    """Load YAML content and ensure it results in a mapping."""
+    yaml_module = _require_yaml()
+    loaded: object = yaml_module.safe_load(content) or {}
+    return _ensure_config_map(loaded, context=context)
 
 
 class ConfigurationMerger:
@@ -49,13 +91,13 @@ class ConfigurationMerger:
 
     def merge_toml_configs(
         self,
-        existing: dict[str, Any],
-        template: dict[str, Any],
+        existing: ConfigMap,
+        template: ConfigMap,
         file_path: Path,
-    ) -> tuple[dict[str, Any], list[Conflict]]:
+    ) -> tuple[ConfigMap, list[Conflict]]:
         """Merge TOML configurations with conflict detection."""
-        merged = existing.copy()
-        conflicts = []
+        merged: ConfigMap = existing.copy()
+        conflicts: list[Conflict] = []
 
         for section, template_config in template.items():
             if section not in existing:
@@ -64,8 +106,8 @@ class ConfigurationMerger:
             elif isinstance(template_config, dict) and isinstance(existing[section], dict):
                 # Both are dictionaries, merge recursively
                 merged_section, section_conflicts = self._merge_dict_section(
-                    existing[section],
-                    template_config,
+                    cast(ConfigMap, existing[section]),
+                    cast(ConfigMap, template_config),
                     f"{section}",
                 )
                 merged[section] = merged_section
@@ -91,13 +133,13 @@ class ConfigurationMerger:
 
     def _merge_dict_section(
         self,
-        existing: dict[str, Any],
-        template: dict[str, Any],
+        existing: ConfigMap,
+        template: ConfigMap,
         section_path: str,
-    ) -> tuple[dict[str, Any], list[Conflict]]:
+    ) -> tuple[ConfigMap, list[Conflict]]:
         """Recursively merge dictionary sections with conflict detection."""
-        merged = existing.copy()
-        conflicts = []
+        merged: ConfigMap = existing.copy()
+        conflicts: list[Conflict] = []
 
         for key, template_value in template.items():
             full_path = f"{section_path}.{key}"
@@ -108,8 +150,8 @@ class ConfigurationMerger:
             elif isinstance(template_value, dict) and isinstance(existing[key], dict):
                 # Both are dictionaries, merge recursively
                 merged_subsection, subsection_conflicts = self._merge_dict_section(
-                    existing[key],
-                    template_value,
+                    cast(ConfigMap, existing[key]),
+                    cast(ConfigMap, template_value),
                     full_path,
                 )
                 merged[key] = merged_subsection
@@ -132,10 +174,10 @@ class ConfigurationMerger:
 
     def merge_yaml_configs(
         self,
-        existing: dict[str, Any],
-        template: dict[str, Any],
+        existing: ConfigMap,
+        template: ConfigMap,
         file_path: Path,
-    ) -> tuple[dict[str, Any], list[Conflict]]:
+    ) -> tuple[ConfigMap, list[Conflict]]:
         """Merge YAML configurations with conflict detection."""
         # YAML merging is similar to TOML
         return self.merge_toml_configs(existing, template, file_path)
@@ -151,7 +193,7 @@ class ConfigurationMerger:
         template_lines = template_content.strip().splitlines()
 
         # For text files like .gitignore, we typically append new lines
-        merged_lines = list(existing_lines)
+        merged_lines: list[str] = list(existing_lines)
         conflicts: list[Conflict] = []
 
         for raw_line in template_lines:
@@ -160,8 +202,8 @@ class ConfigurationMerger:
                 merged_lines.append(line)
 
         # Sort lines for consistency (except for comments)
-        comment_lines = [line for line in merged_lines if line.startswith("#")]
-        other_lines = sorted([line for line in merged_lines if not line.startswith("#") and line])
+        comment_lines: list[str] = [line for line in merged_lines if line.startswith("#")]
+        other_lines: list[str] = sorted([line for line in merged_lines if not line.startswith("#") and line])
 
         result_lines = comment_lines + other_lines
         return "\n".join(result_lines) + "\n", conflicts
@@ -258,7 +300,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         """Create a backup of the specified file."""
         return self.file_ops.create_backup(file_path)
 
-    def merge_configurations(self, existing: dict[str, Any], template: dict[str, Any]) -> dict[str, Any]:
+    def merge_configurations(self, existing: ConfigMap, template: ConfigMap) -> ConfigMap:
         """Merge existing configuration with template configuration."""
         merged, conflicts = self.merger.merge_toml_configs(existing, template, Path("config"))
 
@@ -313,13 +355,11 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         file_path: Path,
     ) -> tuple[str, list[Conflict]]:
         """Merge TOML file contents."""
-        if tomllib is None:
-            raise ConfigurationError("TOML support not available")
-
         try:
-            existing_data = tomllib.loads(existing_content)
-            template_data = tomllib.loads(template_content)
-        except Exception as e:
+            toml_module = _require_tomllib()
+            existing_data = _ensure_config_map(toml_module.loads(existing_content), context="Existing TOML content")
+            template_data = _ensure_config_map(toml_module.loads(template_content), context="Template TOML content")
+        except Exception as e:  # pragma: no cover - tomllib errors are environment dependent
             raise ConfigurationError(f"Failed to parse TOML content: {e}") from e
 
         merged_data, conflicts = self.merger.merge_toml_configs(existing_data, template_data, file_path)
@@ -342,7 +382,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         project_name = project_info.get("name") or project_dir_name or "my-project"
 
-        variables = {
+        variables: dict[str, str] = {
             "project_name": project_name,
             "project_version": project_info.get("version", "0.1.0"),
             "project_description": project_info.get("description", f"A Python project: {project_name}"),
@@ -373,74 +413,97 @@ class ConfigurationApplier(ConfigurationApplierInterface):
                 default_match = re.search(r"default\(['\"]([^'\"]*)['\"]", default_part)
                 default_value = default_match.group(1) if default_match else ""
 
-                result_value = variables.get(var_name, default_value)
-                return str(result_value) if result_value is not None else default_value
-            result_value = variables.get(var_expr, "")
-            return str(result_value) if result_value is not None else ""
+                return variables.get(var_name, default_value)
+            return variables.get(var_expr, "")
 
         # Replace template variables (but not GitHub Actions variables like ${{ }})
         # Match {{ }} that are NOT preceded by $
         return re.sub(r"(?<!\$)\{\{\s*([^}]+)\s*\}\}", replace_variable, template_content)
 
-    def _extract_project_info(self, file_path: Path) -> dict[str, Any]:
+    def _extract_project_info(self, file_path: Path) -> dict[str, str]:
         """Extract project information from existing pyproject.toml."""
-        project_info = {}
+        project_info: dict[str, str] = {}
+        project_section = self._load_project_section(file_path)
+        if project_section is None:
+            return project_info
 
-        # If we're processing pyproject.toml, try to read existing values
-        if file_path.name == "pyproject.toml" and file_path.exists():
-            try:
-                if tomllib is None:
-                    raise ImportError("tomllib not available")
-
-                with file_path.open("rb") as f:
-                    existing_data = tomllib.load(f)
-
-                project_section = existing_data.get("project", {})
-                project_info.update(
-                    {
-                        "name": project_section.get("name", ""),
-                        "version": project_section.get("version", ""),
-                        "description": project_section.get("description", ""),
-                    },
-                )
-
-                # Extract license
-                license_info = project_section.get("license", {})
-                if isinstance(license_info, dict):
-                    project_info["license"] = license_info.get("text", "MIT")
-                elif isinstance(license_info, str):
-                    project_info["license"] = license_info
-
-                # Extract author info
-                authors = project_section.get("authors", [])
-                if authors and isinstance(authors[0], dict):
-                    project_info["author_name"] = authors[0].get("name", "")
-                    project_info["author_email"] = authors[0].get("email", "")
-
-                # Extract URLs
-                urls = project_section.get("urls", {})
-                project_info.update(
-                    {
-                        "homepage": urls.get("Homepage", ""),
-                        "repository": urls.get("Repository", ""),
-                        "issues": urls.get("Issues", urls.get("Bug Tracker", "")),
-                    },
-                )
-
-            except Exception as parse_error:
-                # If parsing fails, use defaults
-                # Silently ignore parsing errors as we have fallback defaults
-                _ = parse_error  # Acknowledge the exception
-
+        self._populate_basic_project_fields(project_section, project_info)
+        self._populate_license_info(project_section, project_info)
+        self._populate_author_info(project_section, project_info)
+        self._populate_project_urls(project_section, project_info)
         return project_info
 
-    def _format_toml_content(self, data: dict[str, Any]) -> str:
+    def _load_project_section(self, file_path: Path) -> ConfigMap | None:
+        if file_path.name != "pyproject.toml" or not file_path.exists():
+            return None
+
+        try:
+            toml_module = _require_tomllib()
+            with file_path.open("rb") as f:
+                existing_data = _ensure_config_map(
+                    toml_module.load(f),
+                    context=f"{file_path} content",
+                )
+        except Exception:
+            return None
+
+        project_section_raw = existing_data.get("project", {})
+        if isinstance(project_section_raw, dict):
+            return cast(ConfigMap, project_section_raw)
+        return None
+
+    def _populate_basic_project_fields(self, project_section: ConfigMap, project_info: dict[str, str]) -> None:
+        for key in ("name", "version", "description"):
+            value = project_section.get(key)
+            if isinstance(value, str) and value:
+                project_info[key] = value
+
+    def _populate_license_info(self, project_section: ConfigMap, project_info: dict[str, str]) -> None:
+        license_info = project_section.get("license")
+        if isinstance(license_info, dict):
+            license_map = cast(ConfigMap, license_info)
+            text_value = license_map.get("text")
+            if isinstance(text_value, str):
+                project_info["license"] = text_value or "MIT"
+        elif isinstance(license_info, str):
+            project_info["license"] = license_info
+
+    def _populate_author_info(self, project_section: ConfigMap, project_info: dict[str, str]) -> None:
+        authors = project_section.get("authors")
+        if not isinstance(authors, list):
+            return
+        first_candidate = next((author for author in authors if isinstance(author, dict)), None)
+        if not isinstance(first_candidate, dict):
+            return
+
+        author_map = cast(ConfigMap, first_candidate)
+        name_value = author_map.get("name")
+        email_value = author_map.get("email")
+        if isinstance(name_value, str) and name_value:
+            project_info["author_name"] = name_value
+        if isinstance(email_value, str) and email_value:
+            project_info["author_email"] = email_value
+
+    def _populate_project_urls(self, project_section: ConfigMap, project_info: dict[str, str]) -> None:
+        urls = project_section.get("urls")
+        if not isinstance(urls, dict):
+            return
+        urls_map = cast(ConfigMap, urls)
+        homepage = urls_map.get("Homepage")
+        repository = urls_map.get("Repository")
+        issues = urls_map.get("Issues") or urls_map.get("Bug Tracker")
+        if isinstance(homepage, str) and homepage:
+            project_info["homepage"] = homepage
+        if isinstance(repository, str) and repository:
+            project_info["repository"] = repository
+        if isinstance(issues, str) and issues:
+            project_info["issues"] = issues
+
+    def _format_toml_content(self, data: ConfigMap) -> str:
         """Format TOML data as string."""
         try:
-            if tomli_w is None:
-                raise ImportError("tomli_w not available")
-
-            result: str = tomli_w.dumps(data)
+            writer = _require_toml_writer()
+            result: str = writer.dumps(data)
             return result
         except Exception as e:
             raise ConfigurationError(f"Failed to format TOML content: {e}") from e
@@ -453,15 +516,21 @@ class ConfigurationApplier(ConfigurationApplierInterface):
     ) -> tuple[str, list[Conflict]]:
         """Merge YAML file contents."""
         try:
-            existing_data = yaml.safe_load(existing_content) or {}
-            template_data = yaml.safe_load(template_content) or {}
+            existing_data = _safe_load_yaml(existing_content, context="Existing YAML content")
+            template_data = _safe_load_yaml(template_content, context="Template YAML content")
         except Exception as e:
             raise ConfigurationError(f"Failed to parse YAML content: {e}") from e
 
         merged_data, conflicts = self.merger.merge_yaml_configs(existing_data, template_data, file_path)
 
         try:
-            merged_content = yaml.dump(merged_data, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            yaml_module = _require_yaml()
+            merged_content = yaml_module.dump(
+                merged_data,
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+            )
         except Exception as e:
             raise ConfigurationError(f"Failed to generate YAML content: {e}") from e
 
@@ -609,19 +678,11 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         if tools is None:
             tools = ["ruff", "mypy"]
 
-        changes = []
+        changes: list[ConfigChange] = []
         pyproject_path = project_path / "pyproject.toml"
 
         # Generate quality tools configuration for pyproject.toml
-        if pyproject_path.exists():
-            # Read existing pyproject.toml
-            try:
-                with pyproject_path.open("rb") as f:
-                    existing_data = tomllib.loads(f.read().decode("utf-8"))
-            except Exception:
-                existing_data = {}
-        else:
-            existing_data = {}
+        existing_data = self._load_pyproject_data(pyproject_path)
 
         modified = False
         if "ruff" in tools:
@@ -648,8 +709,16 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         return changes
 
-    def _ensure_ruff_config(self, existing_data: dict[str, Any]) -> bool:
-        tool_config = existing_data.setdefault("tool", {})
+    def _get_tool_section(self, existing_data: ConfigMap) -> ConfigMap:
+        tool_section = existing_data.get("tool")
+        if isinstance(tool_section, dict):
+            return cast(ConfigMap, tool_section)
+        new_section: ConfigMap = {}
+        existing_data["tool"] = new_section
+        return new_section
+
+    def _ensure_ruff_config(self, existing_data: ConfigMap) -> bool:
+        tool_config = self._get_tool_section(existing_data)
         if "ruff" in tool_config:
             return False
 
@@ -729,8 +798,8 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         }
         return True
 
-    def _ensure_mypy_config(self, existing_data: dict[str, Any]) -> bool:
-        tool_config = existing_data.setdefault("tool", {})
+    def _ensure_mypy_config(self, existing_data: ConfigMap) -> bool:
+        tool_config = self._get_tool_section(existing_data)
         if "mypy" in tool_config:
             return False
 
@@ -754,7 +823,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
     def get_dependency_migration_change(
         self,
         project_path: Path,
-        dependency_analysis: "DependencyAnalysis",
+        dependency_analysis: DependencyAnalysis,
     ) -> ConfigChange | None:
         """Get dependency migration change from requirements.txt to pyproject.toml.
 
@@ -774,8 +843,11 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             return None
 
         existing_data = self._load_pyproject_data(pyproject_path)
-        existing_data.setdefault("project", {})
-        existing_data["project"]["dependencies"] = self._build_dependency_specs(
+        project_section = existing_data.get("project")
+        if not isinstance(project_section, dict):
+            project_section = {}
+            existing_data["project"] = project_section
+        project_section["dependencies"] = self._build_dependency_specs(
             dependency_analysis.requirements_packages,
         )
 
@@ -785,16 +857,20 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             description="Migrate dependencies from requirements.txt to pyproject.toml",
         )
 
-    def _load_pyproject_data(self, pyproject_path: Path) -> dict[str, Any]:
+    def _load_pyproject_data(self, pyproject_path: Path) -> ConfigMap:
         if not pyproject_path.exists():
             return {}
         try:
+            toml_module = _require_tomllib()
             with pyproject_path.open("rb") as f:
-                return tomllib.loads(f.read().decode("utf-8"))
+                return _ensure_config_map(
+                    toml_module.load(f),
+                    context=f"{pyproject_path} content",
+                )
         except Exception:
             return {}
 
-    def _build_dependency_specs(self, packages: list["Package"]) -> list[str]:
+    def _build_dependency_specs(self, packages: list[Package]) -> list[str]:
         dependencies: list[str] = []
         for package in packages:
             extras_part = f"[{','.join(package.extras)}]" if package.extras else ""
@@ -808,14 +884,12 @@ class ConfigurationApplier(ConfigurationApplierInterface):
     def _create_pyproject_change(
         self,
         pyproject_path: Path,
-        existing_data: dict[str, Any],
+        existing_data: ConfigMap,
         description: str,
     ) -> ConfigChange | None:
-        if tomli_w is None:
-            raise ConfigurationError("TOML writing support not available")
-
         try:
-            new_content = tomli_w.dumps(existing_data)
+            writer = _require_toml_writer()
+            new_content = writer.dumps(existing_data)
         except Exception as exc:
             raise ConfigurationError(f"Failed to generate dependency migration: {exc}") from exc
 
@@ -964,7 +1038,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         Returns:
             ApplyResult with complete integration results
         """
-        all_changes = []
+        all_changes: list[ConfigChange] = []
 
         # Get security tools integration changes
         if security_tools is None:

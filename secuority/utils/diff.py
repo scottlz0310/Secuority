@@ -91,7 +91,7 @@ class DiffGenerator:
         Returns:
             Summary string
         """
-        summary_lines = []
+        summary_lines: list[str] = []
 
         # Header with file and change type
         summary_lines.append(f"File: {change.file_path}")
@@ -122,7 +122,7 @@ class DiffGenerator:
 
         return "\n".join(summary_lines)
 
-    def generate_conflict_diff(self, existing_value: str, template_value: str, section: str) -> str:
+    def generate_conflict_diff(self, existing_value: object, template_value: object, section: str) -> str:
         """Generate diff for a configuration conflict.
 
         Args:
@@ -194,7 +194,7 @@ class DiffGenerator:
             Formatted diff string
         """
         lines = diff.splitlines()
-        formatted_lines = []
+        formatted_lines: list[str] = []
 
         for line in lines:
             if len(line) <= max_width:
@@ -233,7 +233,7 @@ class DiffGenerator:
             Diff with basic ANSI color codes
         """
         lines = diff.splitlines()
-        highlighted_lines = []
+        highlighted_lines: list[str] = []
 
         # ANSI color codes
         red = "\033[31m"
