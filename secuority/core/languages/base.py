@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
 
 
 @dataclass
@@ -35,6 +35,22 @@ class LanguageDetectionResult:
     language: str  # "python", "nodejs", "cpp", "csharp", etc.
     confidence: float  # 0.0 to 1.0
     indicators: list[str]  # Files/patterns that indicated this language
+
+
+type ToolStatusMap = dict[str, bool]
+
+
+class LanguageAnalysisResult(TypedDict):
+    """Typed result structure returned by LanguageAnalyzer.analyze()."""
+
+    detected: bool
+    confidence: float
+    language: str
+    indicators: list[str]
+    config_files: list[ConfigFile]
+    tools: ToolStatusMap
+    recommendations: list[ToolRecommendation]
+    dependencies: list[str]
 
 
 class LanguageAnalyzer(ABC):
@@ -88,7 +104,7 @@ class LanguageAnalyzer(ABC):
         """
 
     @abstractmethod
-    def detect_tools(self, project_path: Path, config_files: list[ConfigFile]) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, config_files: list[ConfigFile]) -> ToolStatusMap:
         """Detect which tools are configured in the project.
 
         Args:
@@ -144,7 +160,7 @@ class LanguageAnalyzer(ABC):
             List of dependency names
         """
 
-    def analyze(self, project_path: Path) -> dict[str, Any]:
+    def analyze(self, project_path: Path) -> LanguageAnalysisResult:
         """Perform a complete analysis of the project for this language.
 
         This is a convenience method that orchestrates the analysis.
@@ -158,27 +174,32 @@ class LanguageAnalyzer(ABC):
         detection = self.detect(project_path)
 
         if detection.confidence < 0.3:
-            return {
-                "detected": False,
-                "confidence": detection.confidence,
-                "language": self.language_name,
-            }
+            return LanguageAnalysisResult(
+                detected=False,
+                confidence=detection.confidence,
+                language=self.language_name,
+                indicators=detection.indicators,
+                config_files=[],
+                tools={},
+                recommendations=[],
+                dependencies=[],
+            )
 
         config_files = self.detect_config_files(project_path)
         tools = self.detect_tools(project_path, config_files)
         recommendations = self.get_recommended_tools()
         dependencies = self.parse_dependencies(project_path, config_files)
 
-        return {
-            "detected": True,
-            "confidence": detection.confidence,
-            "language": self.language_name,
-            "indicators": detection.indicators,
-            "config_files": config_files,
-            "tools": tools,
-            "recommendations": recommendations,
-            "dependencies": dependencies,
-        }
+        return LanguageAnalysisResult(
+            detected=True,
+            confidence=detection.confidence,
+            language=self.language_name,
+            indicators=detection.indicators,
+            config_files=config_files,
+            tools=tools,
+            recommendations=recommendations,
+            dependencies=dependencies,
+        )
 
     def get_missing_tools(self, project_path: Path) -> list[ToolRecommendation]:
         """Get recommendations for tools that are not yet configured.

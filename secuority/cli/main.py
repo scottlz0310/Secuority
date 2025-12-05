@@ -13,11 +13,11 @@ from ..core.analyzer import ProjectAnalyzer
 from ..core.applier import ConfigurationApplier
 from ..core.engine import CoreEngine
 from ..core.github_client import GitHubClient
-from ..core.languages import get_global_registry
+from ..core.languages import LanguageAnalysisResult, get_global_registry
 from ..core.template_manager import TemplateManager
 from ..models.config import ConfigChange
 from ..models.exceptions import ConfigurationError, ProjectAnalysisError, TemplateError
-from ..models.interfaces import GitHubAnalysisResult
+from ..models.interfaces import GitHubAnalysisResult, ProjectState
 from ..utils.logger import configure_logging, get_logger
 
 console = Console()
@@ -66,6 +66,7 @@ def check(
     logger = get_logger()
 
     project_path = _resolve_project_path(project_path)
+    requested_languages = list(language) if language else []
     detected_languages = _determine_target_languages(project_path, language)
 
     try:
@@ -76,12 +77,21 @@ def check(
         core_engine = _get_core_engine()
         project_state = core_engine.analyze_project(project_path)
         config_files_info = _build_config_file_info(project_state)
+        language_results, detected_languages = _resolve_cli_languages(
+            project_state=project_state,
+            project_path=project_path,
+            requested_languages=requested_languages,
+            detected_languages=detected_languages,
+            logger=logger,
+        )
 
         if not structured_output:
             _render_analysis_header(project_path, detected_languages)
+            _render_language_summary(language_results)
             _render_config_table(config_files_info)
 
         _log_config_file_info(logger, project_path, config_files_info)
+        _log_language_summary(logger, project_path, language_results)
 
         if not structured_output:
             _render_dependency_manager(project_state)
@@ -155,6 +165,7 @@ def apply(
     logger = get_logger()
 
     project_path = _resolve_project_path(project_path)
+    requested_languages = list(language) if language else []
     detected_languages = _determine_target_languages(project_path, language)
 
     try:
@@ -166,6 +177,15 @@ def apply(
 
         core_engine = _get_core_engine()
         project_state = core_engine.analyze_project(project_path)
+        language_results, detected_languages = _resolve_cli_languages(
+            project_state=project_state,
+            project_path=project_path,
+            requested_languages=requested_languages,
+            detected_languages=detected_languages,
+            logger=logger,
+        )
+        _log_language_summary(logger, project_path, language_results)
+
         templates = _load_all_templates(
             core_engine=core_engine,
             detected_languages=detected_languages,
@@ -1059,6 +1079,117 @@ def _log_config_file_info(
             file_path=str(project_path / filename),
             analysis_type="file_existence",
             result={"exists": exists, "description": note, "is_recommended": is_recommended},
+        )
+
+
+def _get_language_results(
+    project_state: ProjectState,
+    project_path: Path,
+    requested_languages: list[str],
+    logger: Any,
+) -> dict[str, LanguageAnalysisResult]:
+    """Resolve language analysis results from the ProjectState or registry."""
+    analysis = getattr(project_state, "language_analysis", {}) or {}
+
+    if requested_languages:
+        filtered = {lang: analysis[lang] for lang in requested_languages if lang in analysis}
+        if filtered:
+            return filtered
+    elif analysis:
+        return dict(analysis)
+
+    try:
+        registry = get_global_registry()
+        analyzed = registry.analyze_project(project_path, languages=requested_languages or None)
+        project_state.language_analysis = analyzed
+        return analyzed
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("Failed to analyze languages", error=str(exc))
+        return {}
+
+
+def _resolve_cli_languages(
+    *,
+    project_state: ProjectState,
+    project_path: Path,
+    requested_languages: list[str],
+    detected_languages: list[str],
+    logger: Any,
+) -> tuple[dict[str, LanguageAnalysisResult], list[str]]:
+    """Determine which languages to report in the CLI along with their results."""
+    language_results = _get_language_results(
+        project_state=project_state,
+        project_path=project_path,
+        requested_languages=requested_languages,
+        logger=logger,
+    )
+
+    if not language_results:
+        return language_results, detected_languages
+
+    if requested_languages:
+        return language_results, requested_languages
+
+    return language_results, list(language_results.keys())
+
+
+def _render_language_summary(language_results: dict[str, LanguageAnalysisResult]) -> None:
+    """Render a table summarizing language analysis results."""
+    if not language_results:
+        return
+
+    table = Table(title="Language Detection", show_header=True, header_style="bold cyan")
+    table.add_column("Language", style="cyan")
+    table.add_column("Confidence", justify="right")
+    table.add_column("Detected", justify="center")
+    table.add_column("Config Files", justify="right")
+    table.add_column("Configured Tools", justify="right")
+    table.add_column("Missing Recommended", style="yellow")
+
+    for language, result in language_results.items():
+        total_configs = len(result["config_files"])
+        existing_configs = sum(1 for cfg in result["config_files"] if cfg.exists)
+        total_tools = len(result["tools"])
+        configured_tools = sum(1 for enabled in result["tools"].values() if enabled)
+        missing_tools = [
+            rec.tool_name for rec in result["recommendations"] if not result["tools"].get(rec.tool_name, False)
+        ]
+
+        table.add_row(
+            language,
+            f"{result['confidence']:.0%}",
+            "[green]✓[/green]" if result["detected"] else "[red]✗[/red]",
+            f"{existing_configs}/{total_configs}",
+            f"{configured_tools}/{total_tools}",
+            ", ".join(missing_tools[:3]) if missing_tools else "-",
+        )
+
+    console.print(table)
+    console.print()
+
+
+def _log_language_summary(
+    logger: Any,
+    project_path: Path,
+    language_results: dict[str, LanguageAnalysisResult],
+) -> None:
+    """Log structured language analysis information."""
+    if not language_results:
+        return
+
+    for language, result in language_results.items():
+        missing_tools = [
+            rec.tool_name for rec in result["recommendations"] if not result["tools"].get(rec.tool_name, False)
+        ]
+        logger.log_analysis_result(
+            file_path=str(project_path),
+            analysis_type=f"language:{language}",
+            result={
+                "detected": result["detected"],
+                "confidence": result["confidence"],
+                "configured_tools": {name: enabled for name, enabled in result["tools"].items() if enabled},
+                "missing_tools": missing_tools,
+            },
         )
 
 

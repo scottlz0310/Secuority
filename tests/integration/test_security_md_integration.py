@@ -134,6 +134,16 @@ We would like to thank the following individuals for responsibly disclosing secu
         """Create ConfigurationApplier instance."""
         return ConfigurationApplier(backup_dir=tmp_path / "backups")
 
+    @pytest.fixture(name="_applier")
+    def alias_applier(self, applier: ConfigurationApplier) -> ConfigurationApplier:
+        """Backward-compatible alias used by legacy tests."""
+        return applier
+
+    @pytest.fixture(name="_template_manager")
+    def alias_template_manager(self, template_manager: TemplateManager) -> TemplateManager:
+        """Backward-compatible alias used by legacy tests."""
+        return template_manager
+
     def test_generate_security_md_with_real_template(
         self,
         template_manager: TemplateManager,

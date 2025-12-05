@@ -5,7 +5,7 @@ import re
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 try:
     import yaml  # type: ignore[import-untyped]
@@ -16,6 +16,8 @@ from ..models.exceptions import GitHubAPIError, ProjectAnalysisError
 from ..models.interfaces import (
     DependencyAnalysis,
     DependencyManager,
+    GitHubAnalysisResult,
+    GitHubWorkflowSummary,
     Package,
     ProjectAnalyzerInterface,
     ProjectState,
@@ -27,6 +29,7 @@ from ..models.interfaces import (
 )
 from ..utils.logger import get_logger
 from .github_client import GitHubClient
+from .languages import LanguageAnalysisResult, get_global_registry
 
 logger = get_logger(__name__)
 
@@ -98,6 +101,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         # Detect Python version
         project_state.python_version = self._detect_python_version(project_path, config_files)
+        project_state.language_analysis = self._analyze_languages(project_path)
 
         return project_state
 
@@ -347,7 +351,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         pyproject_packages: list[Package],
     ) -> list[str]:
         """Find conflicts between requirements.txt and pyproject.toml dependencies."""
-        conflicts = []
+        conflicts: list[str] = []
 
         # Create a mapping of package names to versions
         req_packages = {pkg.name.lower(): pkg.version for pkg in requirements_packages}
@@ -521,9 +525,10 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         except (tomllib.TOMLDecodeError, OSError):
             return
 
-        tool_config = data.get("tool")
-        if not isinstance(tool_config, dict):
+        tool_config_section = data.get("tool")
+        if not isinstance(tool_config_section, dict):
             return
+        tool_config: dict[str, object] = cast(dict[str, object], tool_config_section)
 
         tool_mapping = {
             "ruff": QualityTool.RUFF,
@@ -541,12 +546,18 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         if "ruff" not in tool_config:
             return
 
-        ruff_config = tool_config["ruff"]
-        if not isinstance(ruff_config, dict):
+        ruff_section = tool_config.get("ruff")
+        if not isinstance(ruff_section, dict):
             return
+        ruff_config: dict[str, object] = cast(dict[str, object], ruff_section)
 
-        lint_config = ruff_config.get("lint", {})
-        lint_select = self._ensure_str_list(lint_config.get("select") if isinstance(lint_config, dict) else [])
+        lint_config = ruff_config.get("lint")
+        lint_select_source: object | None = None
+        if isinstance(lint_config, dict):
+            lint_section: dict[str, object] = cast(dict[str, object], lint_config)
+            lint_select_source = lint_section.get("select")
+
+        lint_select = self._ensure_str_list(lint_select_source)
         select_rules = self._ensure_str_list(ruff_config.get("select"))
         all_rules = select_rules + lint_select
         if any(rule.startswith("I") for rule in all_rules):
@@ -577,37 +588,45 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
     def _check_gitleaks_in_precommit(self, precommit_path: Path) -> bool:
         """Check if gitleaks is configured in pre-commit config."""
+        yaml_module = yaml
         try:
-            # Try to import yaml, if not available, fall back to text search
-            if yaml is not None:
-                # Use YAML parser for accurate parsing
-                with precommit_path.open(encoding="utf-8") as f:
-                    data = yaml.safe_load(f)
+            if yaml_module is None:
+                return self._gitleaks_text_search(precommit_path)
 
-                if not isinstance(data, dict) or "repos" not in data:
-                    return False
+            with precommit_path.open(encoding="utf-8") as f:
+                parsed = yaml_module.safe_load(f)
 
-                for repo in data["repos"]:
-                    if isinstance(repo, dict) and "repo" in repo:
-                        repo_url = repo["repo"]
-                        if "gitleaks" in repo_url.lower():
-                            return True
-            else:
-                # Fallback to text search
-                with precommit_path.open(encoding="utf-8") as f:
-                    content = f.read().lower()
-                    return "gitleaks" in content
-
-        except (OSError, UnicodeDecodeError) as e:
-            # If file can't be read, return False
-            logger.debug(f"Failed to read pre-commit config: {e}")
+            return self._gitleaks_from_yaml_data(parsed)
+        except (OSError, UnicodeDecodeError) as exc:
+            logger.debug(f"Failed to read pre-commit config: {exc}")
             return False
-        except Exception as e:
-            # For any other errors, return False
-            logger.debug(f"Unexpected error checking gitleaks in pre-commit: {e}")
+        except Exception as exc:
+            logger.debug(f"Unexpected error checking gitleaks in pre-commit: {exc}")
             return False
+
+    def _gitleaks_from_yaml_data(self, data: object) -> bool:
+        if not isinstance(data, dict):
+            return False
+        parsed_dict: dict[str, object] = cast(dict[str, object], data)
+
+        repos_raw = parsed_dict.get("repos")
+        if not isinstance(repos_raw, list):
+            return False
+        repos_data: list[object] = cast(list[object], repos_raw)
+
+        for repo in repos_data:
+            if not isinstance(repo, dict):
+                continue
+            repo_dict: dict[str, object] = cast(dict[str, object], repo)
+            repo_url = repo_dict.get("repo")
+            if isinstance(repo_url, str) and "gitleaks" in repo_url.lower():
+                return True
 
         return False
+
+    def _gitleaks_text_search(self, precommit_path: Path) -> bool:
+        content = precommit_path.read_text(encoding="utf-8").lower()
+        return "gitleaks" in content
 
     def _check_tools_in_precommit(self, precommit_path: Path) -> list[str]:
         """Check which tools are configured in pre-commit config."""
@@ -623,27 +642,42 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             return []
 
     def _parse_precommit_yaml(self, precommit_path: Path) -> list[str]:
-        if yaml is None:
+        yaml_module = yaml
+        if yaml_module is None:
             return []
         with precommit_path.open(encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+            parsed = yaml_module.safe_load(f)
 
-        if not (isinstance(data, dict) and "repos" in data):
+        if not isinstance(parsed, dict):
             return []
+        parsed_dict: dict[str, object] = cast(dict[str, object], parsed)
+
+        repos_raw = parsed_dict.get("repos")
+        if not isinstance(repos_raw, list):
+            return []
+        repos_data: list[object] = cast(list[object], repos_raw)
 
         tools: set[str] = set()
-        for repo in data["repos"]:
+        for repo in repos_data:
             if not isinstance(repo, dict):
                 continue
+            repo_dict: dict[str, object] = cast(dict[str, object], repo)
 
-            repo_url = repo.get("repo", "").lower()
-            self._collect_tools_from_string(tools, repo_url)
+            repo_url = repo_dict.get("repo")
+            if isinstance(repo_url, str):
+                self._collect_tools_from_string(tools, repo_url.lower())
 
-            hooks = repo.get("hooks", [])
+            hooks_raw = repo_dict.get("hooks")
+            if not isinstance(hooks_raw, list):
+                continue
+            hooks: list[object] = cast(list[object], hooks_raw)
             for hook in hooks:
-                if isinstance(hook, dict):
-                    hook_id = hook.get("id", "").lower()
-                    self._collect_tools_from_string(tools, hook_id)
+                if not isinstance(hook, dict):
+                    continue
+                hook_dict: dict[str, object] = cast(dict[str, object], hook)
+                hook_id = hook_dict.get("id")
+                if isinstance(hook_id, str):
+                    self._collect_tools_from_string(tools, hook_id.lower())
 
         return list(tools)
 
@@ -659,14 +693,15 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 tools.add(tool_name)
 
     @staticmethod
-    def _ensure_str_list(value: Any) -> list[str]:
+    def _ensure_str_list(value: object) -> list[str]:
         if isinstance(value, list):
-            return [item for item in value if isinstance(item, str)]
+            typed_items: list[object] = cast(list[object], value)
+            return [item for item in typed_items if isinstance(item, str)]
         return []
 
     def _detect_ci_workflows(self, project_path: Path) -> list[Workflow]:
         """Detect CI/CD workflows in the project."""
-        workflows = []
+        workflows: list[Workflow] = []
 
         # Check for GitHub Actions workflows
         github_workflows_dir = project_path / ".github" / "workflows"
@@ -696,32 +731,41 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             return None
 
     def _parse_workflow_yaml(self, workflow_path: Path) -> Workflow | None:
-        with workflow_path.open(encoding="utf-8") as f:
-            raw_content = f.read()
-        data = yaml.safe_load(raw_content)
-        if not isinstance(data, dict):
+        yaml_module = yaml
+        if yaml_module is None:
             return None
 
+        with workflow_path.open(encoding="utf-8") as f:
+            raw_content = f.read()
+        parsed = yaml_module.safe_load(raw_content)
+        if not isinstance(parsed, dict):
+            return None
+        data: dict[str, Any] = cast(dict[str, Any], parsed)
+
         name = data.get("name", workflow_path.stem)
+        name_str = str(name) if name is not None else workflow_path.stem
         triggers = self._extract_yaml_triggers(data)
         jobs = self._extract_yaml_jobs(data)
-        return self._build_workflow_result(workflow_path, name, triggers, jobs, raw_content)
+        return self._build_workflow_result(workflow_path, name_str, triggers, jobs, raw_content)
 
     def _extract_yaml_triggers(self, data: dict[str, Any]) -> list[str]:
         triggers: list[str] = []
-        on_data = data.get("on")
+        on_data: Any = data.get("on")
         if isinstance(on_data, str):
             triggers.append(on_data)
         elif isinstance(on_data, list):
-            triggers.extend(str(item) for item in on_data)
+            list_entries: list[object] = cast(list[object], on_data)
+            triggers.extend(str(item) for item in list_entries)
         elif isinstance(on_data, dict):
-            triggers.extend(on_data.keys())
+            on_dict: dict[str, object] = cast(dict[str, object], on_data)
+            triggers.extend(str(key) for key in on_dict)
         return triggers
 
     def _extract_yaml_jobs(self, data: dict[str, Any]) -> list[str]:
-        jobs_data = data.get("jobs")
+        jobs_data: Any = data.get("jobs")
         if isinstance(jobs_data, dict):
-            return list(jobs_data.keys())
+            jobs_dict: dict[str, object] = cast(dict[str, object], jobs_data)
+            return list(jobs_dict.keys())
         return []
 
     def _parse_workflow_text(self, workflow_path: Path) -> Workflow | None:
@@ -776,15 +820,17 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
     def _detect_python_version(self, _project_path: Path, config_files: dict[str, Path]) -> str | None:
         """Detect the Python version requirement for the project."""
         # Check pyproject.toml first
-        if "pyproject.toml" in config_files:
+        pyproject_path = config_files.get("pyproject.toml")
+        if pyproject_path:
             try:
-                pyproject_path = config_files["pyproject.toml"]
                 with pyproject_path.open("rb") as f:
-                    data = tomllib.load(f)
+                    loaded = cast(object, tomllib.load(f))
 
-                if "project" in data and "requires-python" in data["project"]:
-                    project_data = data["project"]
-                    if isinstance(project_data, dict):
+                if isinstance(loaded, dict):
+                    pyproject_data: dict[str, object] = cast(dict[str, object], loaded)
+                    project_section = pyproject_data.get("project")
+                    if isinstance(project_section, dict):
+                        project_data: dict[str, object] = cast(dict[str, object], project_section)
                         requires_python = project_data.get("requires-python")
                         if isinstance(requires_python, str):
                             return requires_python
@@ -805,7 +851,23 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return None
 
-    def analyze_github_repository(self, project_path: Path) -> dict[str, Any]:
+    def _analyze_languages(self, project_path: Path) -> dict[str, LanguageAnalysisResult]:
+        """Run language analyzers and return structured results."""
+        try:
+            registry = get_global_registry()
+        except Exception as exc:  # pragma: no cover - registry import issues
+            logger.warning("Language registry unavailable", error=str(exc))
+            return {}
+
+        try:
+            analysis = registry.analyze_project(project_path)
+            logger.debug("Language analysis completed", languages=list(analysis.keys()))
+            return analysis
+        except Exception as exc:
+            logger.warning("Language analysis failed", error=str(exc))
+            return {}
+
+    def analyze_github_repository(self, project_path: Path) -> "GitHubAnalysisResult":
         """Analyze GitHub repository settings and configuration.
 
         Args:
@@ -974,11 +1036,11 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return None
 
-    def _workflow_has_security_checks(self, workflow: dict[str, Any]) -> bool:
+    def _workflow_has_security_checks(self, workflow: GitHubWorkflowSummary) -> bool:
         """Check if a remote workflow has security checks.
 
         Args:
-            workflow: Workflow dictionary from GitHub API
+            workflow: Workflow summary from GitHub API
 
         Returns:
             True if workflow likely contains security checks
@@ -1000,11 +1062,11 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         return any(keyword in workflow_name or keyword in workflow_path for keyword in security_keywords)
 
-    def _workflow_has_quality_checks(self, workflow: dict[str, Any]) -> bool:
+    def _workflow_has_quality_checks(self, workflow: GitHubWorkflowSummary) -> bool:
         """Check if a remote workflow has quality checks.
 
         Args:
-            workflow: Workflow dictionary from GitHub API
+            workflow: Workflow summary from GitHub API
 
         Returns:
             True if workflow likely contains quality checks
@@ -1039,7 +1101,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         Returns:
             List of recommendation strings
         """
-        recommendations = []
+        recommendations: list[str] = []
 
         if not has_security:
             recommendations.append("Add security workflow with Bandit, Safety, and gitleaks checks")

@@ -1,6 +1,7 @@
 """GitHub integration module with comprehensive error handling."""
 
 import logging
+from collections.abc import Mapping
 
 from rich.console import Console
 
@@ -124,7 +125,7 @@ class GitHubIntegration:
             show_warnings=self.show_warnings,
         )
 
-        security_settings = raw_settings if isinstance(raw_settings, dict) else self._default_security_settings()
+        security_settings = self._merge_security_settings(raw_settings)
 
         push_protection = bool(
             safe_github_call(
@@ -273,16 +274,16 @@ class GitHubIntegration:
         """Get security recommendations based on current settings."""
         recommendations: list[str] = []
 
-        if not security_settings["secret_scanning"]:
+        if not security_settings.get("secret_scanning", False):
             recommendations.append("Enable secret scanning in repository security settings")
 
         if not push_protection:
             recommendations.append("Enable push protection for secret scanning")
 
-        if not security_settings["dependency_graph"]:
+        if not security_settings.get("dependency_graph", False):
             recommendations.append("Enable dependency graph for vulnerability alerts")
 
-        if not security_settings["private_vulnerability_reporting"]:
+        if not security_settings.get("private_vulnerability_reporting", False):
             recommendations.append("Enable private vulnerability reporting")
 
         return recommendations
@@ -308,6 +309,24 @@ class GitHubIntegration:
             security_policy=False,
             is_private=False,
         )
+
+    def _merge_security_settings(
+        self,
+        raw_settings: GitHubSecuritySettings | Mapping[str, object] | None,
+    ) -> GitHubSecuritySettings:
+        """Merge GitHub responses with defaults to avoid missing-key errors."""
+        default_settings = self._default_security_settings()
+        merged: GitHubSecuritySettings = GitHubSecuritySettings(**default_settings)
+
+        if not raw_settings:
+            return merged
+
+        source: Mapping[str, object] = raw_settings
+        for key in merged:
+            value = source.get(key)  # type: ignore[call-arg]
+            if isinstance(value, bool):
+                merged[key] = value
+        return merged
 
     def _empty_security_report(self) -> SecurityAnalysisReport:
         return SecurityAnalysisReport(

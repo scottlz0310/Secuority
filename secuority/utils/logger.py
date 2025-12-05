@@ -7,7 +7,7 @@ configurable log levels, and integration with the CLI verbose flag.
 import json
 import logging
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -32,7 +32,7 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as structured JSON."""
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -86,6 +86,9 @@ class StructuredFormatter(logging.Formatter):
             log_entry["extra"] = extra_fields
 
         return json.dumps(log_entry, default=str, ensure_ascii=False)
+
+
+_logger_instance: "SecuorityLogger | None" = None
 
 
 class SecuorityLogger:
@@ -339,9 +342,11 @@ def get_logger(name: str = "secuority") -> SecuorityLogger:
     Returns:
         SecuorityLogger instance
     """
-    if not hasattr(get_logger, "_instance"):
-        get_logger._instance = SecuorityLogger(name)  # type: ignore[attr-defined]
-    return get_logger._instance  # type: ignore[attr-defined, return-value]
+    logger = _logger_instance
+    if logger is None or logger.name != name:
+        logger = SecuorityLogger(name)
+        globals()["_logger_instance"] = logger
+    return logger
 
 
 def configure_logging(

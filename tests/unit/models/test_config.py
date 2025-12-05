@@ -16,6 +16,12 @@ from secuority.models.exceptions import ValidationError
 from secuority.models.interfaces import ChangeType
 
 
+@pytest.fixture(name="_tmp_path")
+def alias_tmp_path(tmp_path: Path) -> Path:
+    """Backward-compatible alias for tmp_path fixture."""
+    return tmp_path
+
+
 class TestConflict:
     """Test Conflict model."""
 

@@ -20,6 +20,7 @@ Usage:
 
 from .base import (
     ConfigFile,
+    LanguageAnalysisResult,
     LanguageAnalyzer,
     LanguageDetectionResult,
     ToolRecommendation,
@@ -49,6 +50,7 @@ __all__ = [
     "ConfigFile",
     "CppAnalyzer",
     "GoAnalyzer",
+    "LanguageAnalysisResult",
     "LanguageAnalyzer",
     "LanguageDetectionResult",
     "LanguageRegistry",

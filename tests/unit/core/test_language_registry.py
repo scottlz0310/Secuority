@@ -9,6 +9,7 @@ from secuority.core.languages.base import (
     LanguageAnalyzer,
     LanguageDetectionResult,
     ToolRecommendation,
+    ToolStatusMap,
 )
 from secuority.core.languages.registry import LanguageRegistry
 
@@ -50,10 +51,12 @@ class StubAnalyzer(LanguageAnalyzer):
     def get_config_file_patterns(self) -> dict[str, str]:
         return {}
 
-    def detect_config_files(self, _project_path: Path) -> list[ConfigFile]:
+    def detect_config_files(self, project_path: Path) -> list[ConfigFile]:
+        del project_path
         return [ConfigFile(name=f"{self.language_name}.cfg", path=None, exists=False, file_type="text")]
 
-    def detect_tools(self, _project_path: Path, _config_files: list[ConfigFile]) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, config_files: list[ConfigFile]) -> ToolStatusMap:
+        del project_path, config_files
         return {f"{self.language_name}-tool": True}
 
     def get_recommended_tools(self) -> list[ToolRecommendation]:
@@ -68,10 +71,12 @@ class StubAnalyzer(LanguageAnalyzer):
     def get_formatting_tools(self) -> list[str]:
         return []
 
-    def parse_dependencies(self, _project_path: Path, _config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
+        del project_path, config_files
         return [f"{self.language_name}-dep"]
 
-    def get_missing_tools(self, _project_path: Path) -> list[ToolRecommendation]:
+    def get_missing_tools(self, project_path: Path) -> list[ToolRecommendation]:
+        del project_path
         return self._missing
 
 

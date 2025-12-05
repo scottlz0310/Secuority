@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..core.languages import LanguageAnalysisResult
 from .exceptions import ValidationError
 from .interfaces import (
     DependencyAnalysis,
@@ -33,6 +34,7 @@ class ProjectState:
     ci_workflows: list[Workflow] = field(default_factory=list)
     dependency_analysis: DependencyAnalysis | None = None
     python_version: str | None = None
+    language_analysis: dict[str, LanguageAnalysisResult] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate project state data after initialization."""

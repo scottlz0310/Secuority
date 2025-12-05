@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
+    from ..core.languages import LanguageAnalysisResult
     from .config import ApplyResult
     from .config import ConfigChange as ConfigChangeType
 
@@ -354,6 +355,7 @@ class ProjectState:
     ci_workflows: list[Workflow] = field(default_factory=list)
     dependency_analysis: DependencyAnalysis | None = None
     python_version: str | None = None
+    language_analysis: dict[str, "LanguageAnalysisResult"] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate project state data."""

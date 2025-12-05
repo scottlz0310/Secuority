@@ -29,6 +29,7 @@ email = "team@secuority.dev"
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "pytest-xdist>=3.0.0",
     "ruff>=0.9.0",
     "basedpyright>=1.0.0",
     "pre-commit>=3.0.0",
@@ -149,7 +150,7 @@ testpaths = [ "tests",]
 python_files = [ "test_*.py",]
 python_classes = [ "Test*",]
 python_functions = [ "test_*",]
-addopts = "--cov=secuority --cov-report=term-missing --cov-report=html"
+addopts = "-n logical --cov=secuority --cov-report=term-missing --cov-report=html"
 
 [tool.secuority.safety]
 # Safety requires string CVE IDs; start with placeholder list.
