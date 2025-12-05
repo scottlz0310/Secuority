@@ -57,13 +57,13 @@ repos:
 
   # Security scanning with gitleaks
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.28.0
+    rev: v8.30.0
     hooks:
       - id: gitleaks
 
   # Security linting with bandit
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.9.1
+    rev: 1.9.2
     hooks:
       - id: bandit
         args: ["-c", "pyproject.toml"]
@@ -101,7 +101,7 @@ repos:
 
   # Upgrade Python syntax
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.21.0
+    rev: v3.21.2
     hooks:
       - id: pyupgrade
         args: [--py313-plus]
