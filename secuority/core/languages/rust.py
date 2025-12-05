@@ -33,6 +33,13 @@ class RustAnalyzer(LanguageAnalyzer):
         """Get the name of this language."""
         return "rust"
 
+    @staticmethod
+    def _coerce_str_mapping(mapping: object) -> dict[str, Any]:
+        if not isinstance(mapping, dict):
+            return {}
+        typed_mapping = cast(dict[Any, Any], mapping)
+        return {str(key): value for key, value in typed_mapping.items() if isinstance(key, str)}
+
     def detect(self, project_path: Path) -> LanguageDetectionResult:
         """Detect if the project uses Rust.
 
@@ -260,31 +267,35 @@ class RustAnalyzer(LanguageAnalyzer):
 
         cargo_data = self._load_cargo_toml(cargo_toml)
         if cargo_data:
-            deps = cargo_data.get("dependencies")
-            if isinstance(deps, dict):
-                dependencies.extend(str(name) for name in deps)
+            deps = self._coerce_str_mapping(cargo_data.get("dependencies"))
+            if deps:
+                self._extend_with_keys(dependencies, deps)
 
-            dev_deps = cargo_data.get("dev-dependencies")
-            if isinstance(dev_deps, dict):
-                dependencies.extend(str(name) for name in dev_deps)
+            dev_deps = self._coerce_str_mapping(cargo_data.get("dev-dependencies"))
+            if dev_deps:
+                self._extend_with_keys(dependencies, dev_deps)
 
         return dependencies
 
     def _has_cargo_audit_dependency(self, cargo_data: dict[str, Any]) -> bool:
-        dev_deps = cargo_data.get("dev-dependencies")
-        if isinstance(dev_deps, dict):
-            return "cargo-audit" in dev_deps
-        return False
+        dev_deps = self._coerce_str_mapping(cargo_data.get("dev-dependencies"))
+        return "cargo-audit" in dev_deps
 
     def _load_cargo_toml(self, path: Path) -> dict[str, Any] | None:
-        if tomllib is None or not path.exists():
+        loader = tomllib
+        if loader is None or not path.exists():
             return None
+        active_loader = cast(Any, loader)
         try:
             with path.open("rb") as f:
-                raw_data: Any = tomllib.load(f)
+                raw_data: object = active_loader.load(f)
         except Exception as exc:  # pragma: no cover - defensive
             debug(f"Failed to parse Cargo.toml at {path}: {exc}")
             return None
         if not isinstance(raw_data, dict):
             return None
         return cast(dict[str, Any], raw_data)
+
+    @staticmethod
+    def _extend_with_keys(target: list[str], mapping: dict[str, Any]) -> None:
+        target.extend(str(name) for name in mapping)

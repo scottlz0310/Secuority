@@ -27,6 +27,13 @@ class PythonAnalyzer(LanguageAnalyzer):
         """Get the name of this language."""
         return "python"
 
+    @staticmethod
+    def _normalize_dependency_list(raw_value: object) -> list[str]:
+        if not isinstance(raw_value, list):
+            return []
+        items = cast(list[object], raw_value)
+        return [item for item in items if isinstance(item, str) and item]
+
     def detect(self, project_path: Path) -> LanguageDetectionResult:
         """Detect if the project uses Python.
 
@@ -219,9 +226,9 @@ class PythonAnalyzer(LanguageAnalyzer):
             if isinstance(project_section_raw, dict):
                 project_section = cast(dict[str, Any], project_section_raw)
                 dependencies_value = project_section.get("dependencies")
-                if isinstance(dependencies_value, list):
-                    dep_tokens = [dep for dep in dependencies_value if isinstance(dep, str) and dep]
-                    dep_str = " ".join(dep_tokens)
+                dep_tokens = self._normalize_dependency_list(dependencies_value)
+                dep_str = " ".join(dep_tokens)
+                if dep_str:
                     tools["pytest"] = tools.get("pytest", False) or "pytest" in dep_str
 
         except (OSError, tomllib.TOMLDecodeError) as exc:
@@ -360,12 +367,10 @@ class PythonAnalyzer(LanguageAnalyzer):
             if isinstance(project_section_raw, dict):
                 project_section = cast(dict[str, Any], project_section_raw)
                 dep_list_raw = project_section.get("dependencies")
-                if isinstance(dep_list_raw, list):
-                    for dep in dep_list_raw:
-                        if isinstance(dep, str):
-                            match = re.match(r"([a-zA-Z0-9_-]+)", dep)
-                            if match:
-                                dependencies.append(match.group(1))
+                for dep in self._normalize_dependency_list(dep_list_raw):
+                    match = re.match(r"([a-zA-Z0-9_-]+)", dep)
+                    if match:
+                        dependencies.append(match.group(1))
 
         except (OSError, tomllib.TOMLDecodeError) as exc:
             debug(f"Failed to parse dependencies from {pyproject_path}: {exc}")

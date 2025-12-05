@@ -1,7 +1,7 @@
 """Pre-commit hooks configuration integration for Secuority."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     import yaml  # type: ignore[import-untyped]
@@ -11,6 +11,13 @@ except ImportError:
 from ..models.config import ConfigChange, Conflict
 from ..models.exceptions import ConfigurationError
 from ..models.interfaces import ChangeType
+
+
+def _require_yaml_module() -> Any:
+    """Ensure PyYAML is available and return the module."""
+    if yaml is None:
+        raise ConfigurationError("PyYAML is required to manage pre-commit configurations.")
+    return yaml
 
 
 class PreCommitIntegrator:
@@ -43,6 +50,8 @@ class PreCommitIntegrator:
         # Load existing configuration if not provided
         if existing_config is None:
             existing_config = self._load_precommit_config(precommit_path)
+        else:
+            existing_config = self._coerce_config(existing_config)
 
         # Default gitleaks hook configuration
         gitleaks_repo = {
@@ -53,17 +62,16 @@ class PreCommitIntegrator:
 
         # Check if gitleaks is already configured
         gitleaks_exists = False
-        if "repos" in existing_config:
-            for repo in existing_config["repos"]:
-                if isinstance(repo, dict) and "repo" in repo and "gitleaks" in repo["repo"].lower():
-                    gitleaks_exists = True
-                    break
+        repos = self._ensure_repos(existing_config)
+        for repo in repos:
+            repo_url = self._get_repo_url(repo)
+            if repo_url and "gitleaks" in repo_url.lower():
+                gitleaks_exists = True
+                break
 
         # Add gitleaks if not already present
         if not gitleaks_exists:
-            if "repos" not in existing_config:
-                existing_config["repos"] = []
-            existing_config["repos"].append(gitleaks_repo)
+            repos.append(self._clone_repo(gitleaks_repo))
 
         # Ensure basic pre-commit configuration is present
         if "default_language_version" not in existing_config:
@@ -155,24 +163,23 @@ class PreCommitIntegrator:
             },
         }
 
-        # Initialize repos if not present
-        if "repos" not in existing_config:
-            existing_config["repos"] = []
+        repos = self._ensure_repos(existing_config)
 
         # Track existing repos to avoid duplicates
-        existing_repo_urls = set()
-        for repo in existing_config["repos"]:
-            if isinstance(repo, dict) and "repo" in repo:
-                existing_repo_urls.add(repo["repo"])
+        existing_repo_urls: set[str] = set()
+        for repo in repos:
+            repo_url = self._get_repo_url(repo)
+            if repo_url:
+                existing_repo_urls.add(repo_url)
 
         # Add requested security hooks
         for hook_name in hooks:
             if hook_name in security_repos:
                 hook_config = security_repos[hook_name]
-                # Check if this repo is already configured
-                if hook_config["repo"] not in existing_repo_urls:
-                    existing_config["repos"].append(hook_config)
-                    existing_repo_urls.add(hook_config["repo"])
+                repo_url = str(hook_config["repo"])
+                if repo_url not in existing_repo_urls:
+                    repos.append(self._clone_repo(hook_config))
+                    existing_repo_urls.add(repo_url)
 
         # Ensure basic pre-commit configuration is present
         self._ensure_basic_precommit_config(existing_config)
@@ -262,10 +269,12 @@ class PreCommitIntegrator:
         if not precommit_path.exists():
             return {}
 
+        parser = _require_yaml_module()
         try:
             with precommit_path.open(encoding="utf-8") as f:
                 content = f.read()
-            return self._parse_yaml_content(content)
+            raw_config: object = parser.safe_load(content) or {}
+            return self._coerce_config(raw_config)
         except Exception as e:
             raise ConfigurationError(f"Failed to load pre-commit config: {e}") from e
 
@@ -281,8 +290,10 @@ class PreCommitIntegrator:
         Raises:
             ConfigurationError: If YAML parsing fails
         """
+        parser = _require_yaml_module()
         try:
-            return yaml.safe_load(content) or {}
+            data: object = parser.safe_load(content) or {}
+            return self._coerce_config(data)
         except Exception as e:
             raise ConfigurationError(f"Failed to parse YAML content: {e}") from e
 
@@ -298,8 +309,9 @@ class PreCommitIntegrator:
         Raises:
             ConfigurationError: If YAML generation fails
         """
+        dumper = _require_yaml_module()
         try:
-            return str(yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2))
+            return str(dumper.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2))
         except Exception as e:
             raise ConfigurationError(f"Failed to generate YAML content: {e}") from e
 
@@ -349,19 +361,23 @@ class PreCommitIntegrator:
         Returns:
             Tuple of (merged_config, conflicts)
         """
-        merged = existing.copy()
-        merged["repos"] = list(existing.get("repos", []))
+        existing_sanitized = self._coerce_config(existing)
+        template_sanitized = self._coerce_config(template)
+
+        merged: dict[str, Any] = {key: value for key, value in existing_sanitized.items() if key != "repos"}
+        merged_repos = [self._clone_repo(repo) for repo in existing_sanitized.get("repos", [])]
+        merged["repos"] = merged_repos
         conflicts: list[Conflict] = []
 
         conflicts.extend(
             self._merge_repos_section(
-                merged_repos=merged["repos"],
-                template_repos=template.get("repos", []),
+                merged_repos=merged_repos,
+                template_repos=template_sanitized.get("repos", []),
                 file_path=file_path,
             ),
         )
 
-        conflicts.extend(self._merge_top_level_settings(existing, merged, template, file_path))
+        conflicts.extend(self._merge_top_level_settings(existing_sanitized, merged, template_sanitized, file_path))
 
         return merged, conflicts
 
@@ -376,18 +392,24 @@ class PreCommitIntegrator:
         if not template_repos:
             return conflicts
 
-        repo_lookup: dict[str, dict[str, Any]] = {
-            repo["repo"]: repo for repo in merged_repos if isinstance(repo, dict) and "repo" in repo
-        }
+        repo_lookup: dict[str, dict[str, Any]] = {}
+        for repo in merged_repos:
+            repo_url = self._get_repo_url(repo)
+            if repo_url:
+                repo_lookup[repo_url] = repo
 
         for template_repo in template_repos:
-            if not isinstance(template_repo, dict) or "repo" not in template_repo:
+            if not isinstance(template_repo, dict):
                 continue
 
-            repo_url = template_repo["repo"]
+            repo_url = self._get_repo_url(template_repo)
+            if not repo_url:
+                continue
+
             if repo_url not in repo_lookup:
-                merged_repos.append(template_repo)
-                repo_lookup[repo_url] = template_repo
+                cloned_repo = self._clone_repo(template_repo)
+                merged_repos.append(cloned_repo)
+                repo_lookup[repo_url] = cloned_repo
                 continue
 
             existing_repo = repo_lookup[repo_url]
@@ -433,27 +455,33 @@ class PreCommitIntegrator:
         file_path: Path,
     ) -> list[Conflict]:
         """Merge hooks within a repository configuration."""
-        if "hooks" not in template_repo:
+        hooks_value = template_repo.get("hooks")
+        if not isinstance(hooks_value, list):
             return []
+
+        sanitized_hooks = [hook for hook in hooks_value if isinstance(hook, dict)]
 
         existing_hooks = self._ensure_hook_collection(existing_repo)
         hook_lookup = self._build_hook_lookup(existing_hooks)
 
+        repo_name_value = self._get_repo_url(existing_repo) or "unknown"
+
         conflicts: list[Conflict] = []
-        for template_hook in template_repo["hooks"]:
-            if not self._is_valid_hook(template_hook):
+        for template_hook in sanitized_hooks:
+            hook_id = self._extract_hook_id(template_hook)
+            if hook_id is None:
                 continue
 
-            hook_id = template_hook["id"]
             if hook_id not in hook_lookup:
-                existing_hooks.append(template_hook)
-                hook_lookup[hook_id] = template_hook
+                cloned_hook = self._clone_hook(template_hook)
+                existing_hooks.append(cloned_hook)
+                hook_lookup[hook_id] = cloned_hook
                 continue
 
             existing_hook = hook_lookup[hook_id]
             conflicts.extend(
                 self._merge_hook_settings(
-                    repo_name=existing_repo.get("repo", "unknown"),
+                    repo_name=repo_name_value,
                     hook_id=hook_id,
                     existing_hook=existing_hook,
                     template_hook=template_hook,
@@ -463,28 +491,25 @@ class PreCommitIntegrator:
 
         return conflicts
 
-    @staticmethod
-    def _ensure_hook_collection(repo: dict[str, Any]) -> list[Any]:
+    def _ensure_hook_collection(self, repo: dict[str, Any]) -> list[dict[str, Any]]:
         """Return the mutable hook list for a repo."""
-        hooks = repo.get("hooks")
-        if not isinstance(hooks, list):
-            hooks = []
-            repo["hooks"] = hooks
+        hooks = self._sanitize_hook_list(repo.get("hooks"))
+        repo["hooks"] = hooks
         return hooks
 
-    @staticmethod
-    def _build_hook_lookup(hooks: list[Any]) -> dict[str, dict[str, Any]]:
+    def _build_hook_lookup(self, hooks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         """Map hook IDs to their dicts for quick access."""
         lookup: dict[str, dict[str, Any]] = {}
         for hook in hooks:
-            if isinstance(hook, dict) and "id" in hook:
-                lookup[hook["id"]] = hook
+            hook_id = self._extract_hook_id(hook)
+            if hook_id:
+                lookup[hook_id] = hook
         return lookup
 
     @staticmethod
     def _is_valid_hook(hook: Any) -> bool:
         """Ensure hook data has the expected structure."""
-        return isinstance(hook, dict) and "id" in hook
+        return isinstance(hook, dict) and isinstance(hook.get("id"), str)
 
     def _merge_hook_settings(
         self,
@@ -516,6 +541,55 @@ class PreCommitIntegrator:
 
         return conflicts
 
+    def _coerce_config(self, raw: object) -> dict[str, Any]:
+        config: dict[str, Any] = {str(key): value for key, value in raw.items()} if isinstance(raw, dict) else {}
+        config["repos"] = self._sanitize_repo_list(config.get("repos"))
+        return config
+
+    def _sanitize_repo_list(self, repos_value: object) -> list[dict[str, Any]]:
+        if not isinstance(repos_value, list):
+            return []
+        repos: list[dict[str, Any]] = []
+        for repo in repos_value:
+            if isinstance(repo, dict):
+                sanitized = dict(cast(dict[str, Any], repo))
+                sanitized["hooks"] = self._sanitize_hook_list(sanitized.get("hooks"))
+                repos.append(sanitized)
+        return repos
+
+    def _sanitize_hook_list(self, hooks_value: object) -> list[dict[str, Any]]:
+        if not isinstance(hooks_value, list):
+            return []
+        return [dict(cast(dict[str, Any], hook)) for hook in hooks_value if isinstance(hook, dict)]
+
+    def _ensure_repos(self, config: dict[str, Any]) -> list[dict[str, Any]]:
+        repos_value = config.get("repos")
+        sanitized = self._sanitize_repo_list(repos_value)
+        config["repos"] = sanitized
+        return sanitized
+
+    @staticmethod
+    def _get_repo_url(repo: dict[str, Any]) -> str | None:
+        repo_value = repo.get("repo")
+        if isinstance(repo_value, str) and repo_value:
+            return repo_value
+        return None
+
+    @staticmethod
+    def _extract_hook_id(hook: dict[str, Any]) -> str | None:
+        hook_value = hook.get("id")
+        if isinstance(hook_value, str) and hook_value:
+            return hook_value
+        return None
+
+    def _clone_repo(self, repo: dict[str, Any]) -> dict[str, Any]:
+        sanitized = self._sanitize_repo_list([repo])
+        return sanitized[0] if sanitized else {}
+
+    def _clone_hook(self, hook: dict[str, Any]) -> dict[str, Any]:
+        sanitized = self._sanitize_hook_list([hook])
+        return sanitized[0] if sanitized else {}
+
     def check_precommit_security_status(self, project_path: Path) -> dict[str, bool]:
         """Check which security hooks are configured in pre-commit.
 
@@ -533,23 +607,21 @@ class PreCommitIntegrator:
 
         try:
             config = self._load_precommit_config(precommit_path)
-
-            if "repos" in config:
-                for repo in config["repos"]:
-                    if isinstance(repo, dict) and "repo" in repo:
-                        repo_url = repo["repo"].lower()
-
-                        if "gitleaks" in repo_url:
-                            status["gitleaks"] = True
-                        elif "bandit" in repo_url:
-                            status["bandit"] = True
-                        elif "safety" in repo_url:
-                            status["safety"] = True
-                        elif "detect-secrets" in repo_url:
-                            status["detect-secrets"] = True
-
+            repos = config.get("repos", [])
+            for repo in repos:
+                repo_url = self._get_repo_url(repo)
+                if not repo_url:
+                    continue
+                repo_url_lower = repo_url.lower()
+                if "gitleaks" in repo_url_lower:
+                    status["gitleaks"] = True
+                elif "bandit" in repo_url_lower:
+                    status["bandit"] = True
+                elif "safety" in repo_url_lower:
+                    status["safety"] = True
+                elif "detect-secrets" in repo_url_lower:
+                    status["detect-secrets"] = True
         except ConfigurationError:
-            # If we can't load the config, assume hooks are not configured
             pass
 
         return status

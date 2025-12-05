@@ -186,10 +186,16 @@ class NodeJSAnalyzer(LanguageAnalyzer):
 
         return tools
 
-    def _iter_dependency_keys(self, section: object) -> list[str]:
+    @staticmethod
+    def _coerce_str_mapping(section: object) -> dict[str, Any]:
         if not isinstance(section, dict):
-            return []
-        return [str(package_name) for package_name in section]
+            return {}
+        typed_section = cast(dict[Any, Any], section)
+        return {str(key): value for key, value in typed_section.items() if isinstance(key, str)}
+
+    def _iter_dependency_keys(self, section: object) -> list[str]:
+        mapping = self._coerce_str_mapping(section)
+        return list(mapping.keys())
 
     def _detect_tools_in_package_json(self, package_json_path: Path) -> dict[str, bool]:
         """Detect tools configured in package.json."""
