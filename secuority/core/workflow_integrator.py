@@ -3,7 +3,7 @@
 import importlib.resources
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     import tomllib
@@ -13,14 +13,12 @@ except ModuleNotFoundError:
     except ModuleNotFoundError:
         tomllib = None  # type: ignore[assignment]
 
-try:
-    import yaml
-except ImportError:
-    yaml = None  # type: ignore[assignment,unused-ignore]
-
 from ..models.config import ConfigChange
 from ..models.exceptions import ConfigurationError
 from ..models.interfaces import ChangeType
+from ..types import TomlLoader
+
+TOML_PARSER: TomlLoader | None = cast(TomlLoader | None, tomllib)
 
 
 class WorkflowIntegrator:
@@ -37,12 +35,12 @@ class WorkflowIntegrator:
         if not pyproject_path.exists():
             return {}
 
-        if tomllib is None:
+        if TOML_PARSER is None:
             return {}
 
         try:
             with pyproject_path.open("rb") as f:
-                return tomllib.load(f)
+                return TOML_PARSER.load(f)
         except Exception:
             return {}
 
@@ -53,7 +51,7 @@ class WorkflowIntegrator:
             return ["3.12", "3.13", "3.14"]
 
         classifiers = data.get("project", {}).get("classifiers", [])
-        versions = []
+        versions: list[str] = []
         for classifier in classifiers:
             if classifier.startswith("Programming Language :: Python :: 3."):
                 version = classifier.split(" :: ")[-1]
@@ -260,7 +258,7 @@ class WorkflowIntegrator:
         if workflows is None:
             workflows = ["security", "quality", "cicd"]
 
-        changes = []
+        changes: list[ConfigChange] = []
 
         # Ensure .github/workflows directory exists
         workflows_dir = project_path / ".github" / "workflows"
@@ -338,7 +336,7 @@ class WorkflowIntegrator:
         Returns:
             List of recommendation strings
         """
-        recommendations = []
+        recommendations: list[str] = []
         status = self.check_existing_workflows(project_path)
 
         if not status["has_workflows_dir"]:
@@ -405,7 +403,7 @@ class WorkflowIntegrator:
                 if file_path.exists():
                     deprecated_files.append(file_path)
 
-        recommendations = []
+        recommendations: list[str] = []
         if deprecated_files:
             recommendations.append("Migrate from Dependabot to Renovate for better dependency management")
             recommendations.append("Remove deprecated Dependabot configuration files")

@@ -302,7 +302,7 @@ class ChangeSet:
     description: str = ""
     created_at: datetime = field(default_factory=datetime.now)
 
-    def add_change(self, change: ConfigChange) -> None:
+    def add_change(self, change: object) -> None:
         """Add a configuration change to the set."""
         if not isinstance(change, ConfigChange):
             raise ValidationError("Can only add ConfigChange instances")
@@ -329,7 +329,7 @@ class ChangeSet:
 
     def get_all_conflicts(self) -> list[Conflict]:
         """Get all conflicts from all changes."""
-        conflicts = []
+        conflicts: list[Conflict] = []
         for change in self.changes:
             conflicts.extend(change.conflicts)
         return conflicts

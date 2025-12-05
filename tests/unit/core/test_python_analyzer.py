@@ -5,8 +5,6 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
-
 from secuority.core.languages.python import PythonAnalyzer
 
 
@@ -38,7 +36,7 @@ class TestPythonAnalyzer:
         result = analyzer.detect(tmp_path)
 
         assert result.language == "python"
-        assert result.confidence == pytest.approx(1.0)
+        assert abs(result.confidence - 1.0) < 1e-6
         assert "pyproject.toml" in result.indicators
         assert "requirements.txt" in result.indicators
         assert any(indicator.endswith(".py files") for indicator in result.indicators)

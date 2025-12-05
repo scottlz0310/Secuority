@@ -1,6 +1,6 @@
 """C# language analyzer implementation."""
 
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 - parses repository-local csproj files only
 from pathlib import Path
 
 from secuority.utils.logger import debug
@@ -305,7 +305,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
             csproj_files = list(project_path.glob("**/*.csproj"))
         for csproj in csproj_files:
             try:
-                tree = ET.parse(csproj)  # noqa: S314  # Parsing local project files, not untrusted data
+                tree = ET.parse(csproj)  # noqa: S314  # nosec B314 - parsing trusted repository csproj metadata
                 root = tree.getroot()
 
                 # Find PackageReference elements

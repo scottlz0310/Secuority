@@ -121,10 +121,9 @@ class TestLanguageRegistry:
         recommendations = registry.get_all_recommendations(tmp_path)
 
         assert recommendations["nodeish"]["missing_tools"] == missing
-        assert (
-            recommendations["nodeish"]["all_recommendations"]
-            == registry.get_analyzer("nodeish").get_recommended_tools()
-        )
+        analyzer = registry.get_analyzer("nodeish")
+        assert analyzer is not None
+        assert recommendations["nodeish"]["all_recommendations"] == analyzer.get_recommended_tools()
 
     def test_unregister_and_language_name_tracking(self) -> None:
         registry = LanguageRegistry()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -11,6 +12,7 @@ from secuority.core.security_tools import SecurityToolsIntegrator, tomli_w
 from secuority.core.security_tools import tomllib as module_tomllib
 from secuority.models.exceptions import ConfigurationError
 from secuority.models.interfaces import ChangeType
+from secuority.types import ConfigMap
 
 
 class TestSecurityToolsIntegrator:
@@ -19,7 +21,7 @@ class TestSecurityToolsIntegrator:
     def test_integrate_bandit_adds_default_config(self, tmp_path: Path) -> None:
         integrator = SecurityToolsIntegrator()
 
-        change = integrator.integrate_bandit_config(tmp_path, existing_config={})
+        change = integrator.integrate_bandit_config(tmp_path, existing_config=cast(ConfigMap, {}))
         assert change.change_type == ChangeType.CREATE
         config = tomllib.loads(change.new_content or "")
         bandit_cfg = config["tool"]["bandit"]
@@ -30,7 +32,7 @@ class TestSecurityToolsIntegrator:
         integrator = SecurityToolsIntegrator()
         pyproject_path = tmp_path / "pyproject.toml"
         pyproject_path.write_text('[tool.bandit]\nseverity = "LOW"\n', encoding="utf-8")
-        existing = {"tool": {"bandit": {"skips": ["B900"]}}}
+        existing = cast(ConfigMap, {"tool": {"bandit": {"skips": ["B900"]}}})
 
         change = integrator.integrate_bandit_config(tmp_path, existing_config=existing)
 
@@ -43,7 +45,7 @@ class TestSecurityToolsIntegrator:
     def test_integrate_safety_creates_nested_structure(self, tmp_path: Path) -> None:
         integrator = SecurityToolsIntegrator()
 
-        change = integrator.integrate_safety_config(tmp_path, existing_config={})
+        change = integrator.integrate_safety_config(tmp_path, existing_config=cast(ConfigMap, {}))
 
         config = tomllib.loads(change.new_content or "")
         safety_cfg = config["tool"]["secuority"]["safety"]

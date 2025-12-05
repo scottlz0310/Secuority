@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import IO, Protocol, TypedDict
+from typing import IO, Any, Protocol, TypedDict
 
 # Config dictionaries that originate from TOML/YAML parsing.
-type ConfigMap = dict[str, object]
+type ConfigMap = dict[str, Any]
 
 
 class AnalyzerFinding(TypedDict, total=False):

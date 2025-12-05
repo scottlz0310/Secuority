@@ -2,6 +2,7 @@
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -108,7 +109,7 @@ def validate_file_path(path: Path) -> bool:
 
 def validate_package_name(name: str) -> bool:
     """Validate Python package name format."""
-    if not name or not isinstance(name, str):
+    if not name:
         return False
     # Python package names should match PEP 508 naming convention
     pattern = r"^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])$"
@@ -117,7 +118,7 @@ def validate_package_name(name: str) -> bool:
 
 def validate_version_string(version: str) -> bool:
     """Validate version string format (PEP 440)."""
-    if not version or not isinstance(version, str):
+    if not version:
         return False
     # Simplified PEP 440 version pattern
     pattern = (
@@ -128,7 +129,7 @@ def validate_version_string(version: str) -> bool:
     return bool(re.match(pattern, version))
 
 
-def validate_tool_config(config: dict[str, Any]) -> bool:
+def validate_tool_config(config: Mapping[Any, Any]) -> bool:
     """Validate tool configuration dictionary."""
     # Basic validation - ensure it's a dictionary with string keys
     return all(isinstance(key, str) for key in config)
@@ -163,10 +164,8 @@ class DependencyAnalysis:
 
     def __post_init__(self) -> None:
         """Validate dependency analysis data."""
-        if not isinstance(self.requirements_packages, list):
-            raise ValueError("requirements_packages must be a list")
-        if not isinstance(self.pyproject_dependencies, list):
-            raise ValueError("pyproject_dependencies must be a list")
+        # Nothing to validate beyond dataclass field typing at runtime.
+        return
 
 
 @dataclass

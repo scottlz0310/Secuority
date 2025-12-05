@@ -6,7 +6,7 @@ import pytest
 
 from secuority.core.analyzer import ProjectAnalyzer
 from secuority.models.exceptions import ProjectAnalysisError
-from secuority.models.interfaces import DependencyManager, Package, QualityTool, SecurityTool
+from secuority.models.interfaces import DependencyManager, GitHubWorkflowSummary, Package, QualityTool, SecurityTool
 
 
 class TestProjectAnalyzer:
@@ -849,7 +849,7 @@ class TestProjectAnalyzer:
         analyzer: ProjectAnalyzer,
     ) -> None:
         """Test detecting security checks in remote workflow."""
-        workflow = {
+        workflow: GitHubWorkflowSummary = {
             "name": "Security Scan",
             "path": ".github/workflows/security.yml",
         }
@@ -863,7 +863,7 @@ class TestProjectAnalyzer:
         analyzer: ProjectAnalyzer,
     ) -> None:
         """Test detecting quality checks in remote workflow."""
-        workflow = {
+        workflow: GitHubWorkflowSummary = {
             "name": "Lint and Test",
             "path": ".github/workflows/ci.yml",
         }
@@ -877,7 +877,7 @@ class TestProjectAnalyzer:
         analyzer: ProjectAnalyzer,
     ) -> None:
         """Test detecting no security checks in remote workflow."""
-        workflow = {
+        workflow: GitHubWorkflowSummary = {
             "name": "Build",
             "path": ".github/workflows/build.yml",
         }

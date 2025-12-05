@@ -1,7 +1,8 @@
 """Pre-commit hooks configuration integration for Secuority."""
 
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, NotRequired, TypedDict, cast
 
 try:
     import yaml  # type: ignore[import-untyped]
@@ -13,11 +14,37 @@ from ..models.exceptions import ConfigurationError
 from ..models.interfaces import ChangeType
 
 
+class HookConfig(TypedDict):
+    """Typed representation of a pre-commit hook section."""
+
+    id: str
+    args: NotRequired[list[str]]
+    additional_dependencies: NotRequired[list[str]]
+    files: NotRequired[str]
+    exclude: NotRequired[str]
+
+
+class RepoConfig(TypedDict):
+    """Typed representation of a repo entry inside .pre-commit-config.yaml."""
+
+    repo: str
+    rev: NotRequired[str]
+    hooks: NotRequired[list[HookConfig]]
+
+
 def _require_yaml_module() -> Any:
     """Ensure PyYAML is available and return the module."""
     if yaml is None:
         raise ConfigurationError("PyYAML is required to manage pre-commit configurations.")
     return yaml
+
+
+class PreCommitConfig(TypedDict, total=False):
+    repos: list[RepoConfig]
+    default_language_version: dict[str, str]
+    fail_fast: bool
+    minimum_pre_commit_version: str
+    exclude: str
 
 
 class PreCommitIntegrator:
@@ -31,7 +58,7 @@ class PreCommitIntegrator:
     def integrate_gitleaks_hook(
         self,
         project_path: Path,
-        existing_config: dict[str, Any] | None = None,
+        existing_config: PreCommitConfig | None = None,
     ) -> ConfigChange:
         """Integrate gitleaks hook into .pre-commit-config.yaml.
 
@@ -54,11 +81,14 @@ class PreCommitIntegrator:
             existing_config = self._coerce_config(existing_config)
 
         # Default gitleaks hook configuration
-        gitleaks_repo = {
-            "repo": "https://github.com/gitleaks/gitleaks",
-            "rev": "v8.18.0",
-            "hooks": [{"id": "gitleaks"}],
-        }
+        gitleaks_repo: RepoConfig = cast(
+            RepoConfig,
+            {
+                "repo": "https://github.com/gitleaks/gitleaks",
+                "rev": "v8.18.0",
+                "hooks": [cast(HookConfig, {"id": "gitleaks"})],
+            },
+        )
 
         # Check if gitleaks is already configured
         gitleaks_exists = False
@@ -107,7 +137,11 @@ class PreCommitIntegrator:
             conflicts=[],
         )
 
-    def integrate_security_hooks(self, project_path: Path, hooks: list[str] | None = None) -> ConfigChange:
+    def integrate_security_hooks(
+        self,
+        project_path: Path,
+        hooks: list[str] | None = None,
+    ) -> ConfigChange:
         """Integrate multiple security hooks into .pre-commit-config.yaml.
 
         Args:
@@ -127,40 +161,65 @@ class PreCommitIntegrator:
         existing_config = self._load_precommit_config(precommit_path)
 
         # Security hooks configurations
-        security_repos = {
-            "gitleaks": {
-                "repo": "https://github.com/gitleaks/gitleaks",
-                "rev": "v8.18.0",
-                "hooks": [{"id": "gitleaks"}],
-            },
-            "bandit": {
-                "repo": "https://github.com/PyCQA/bandit",
-                "rev": "1.7.5",
-                "hooks": [
-                    {"id": "bandit", "args": ["-c", "pyproject.toml"], "additional_dependencies": ["bandit[toml]"]},
-                ],
-            },
-            "safety": {
-                "repo": "https://github.com/Lucas-C/pre-commit-hooks-safety",
-                "rev": "v1.3.2",
-                "hooks": [
-                    {
-                        "id": "python-safety-dependencies-check",
-                        "args": ["--ignore=70612"],  # Ignore jinja2 vulnerability in dev dependencies
-                    },
-                ],
-            },
-            "detect-secrets": {
-                "repo": "https://github.com/Yelp/detect-secrets",
-                "rev": "v1.4.0",
-                "hooks": [
-                    {
-                        "id": "detect-secrets",
-                        "args": ["--baseline", ".secrets.baseline"],
-                        "exclude": "package.lock.json",
-                    },
-                ],
-            },
+        security_repos: dict[str, RepoConfig] = {
+            "gitleaks": cast(
+                RepoConfig,
+                {
+                    "repo": "https://github.com/gitleaks/gitleaks",
+                    "rev": "v8.18.0",
+                    "hooks": [cast(HookConfig, {"id": "gitleaks"})],
+                },
+            ),
+            "bandit": cast(
+                RepoConfig,
+                {
+                    "repo": "https://github.com/PyCQA/bandit",
+                    "rev": "1.7.5",
+                    "hooks": [
+                        cast(
+                            HookConfig,
+                            {
+                                "id": "bandit",
+                                "args": ["-c", "pyproject.toml"],
+                                "additional_dependencies": ["bandit[toml]"],
+                            },
+                        ),
+                    ],
+                },
+            ),
+            "safety": cast(
+                RepoConfig,
+                {
+                    "repo": "https://github.com/Lucas-C/pre-commit-hooks-safety",
+                    "rev": "v1.3.2",
+                    "hooks": [
+                        cast(
+                            HookConfig,
+                            {
+                                "id": "python-safety-dependencies-check",
+                                "args": ["--ignore=70612"],
+                            },
+                        ),
+                    ],
+                },
+            ),
+            "detect-secrets": cast(
+                RepoConfig,
+                {
+                    "repo": "https://github.com/Yelp/detect-secrets",
+                    "rev": "v1.4.0",
+                    "hooks": [
+                        cast(
+                            HookConfig,
+                            {
+                                "id": "detect-secrets",
+                                "args": ["--baseline", ".secrets.baseline"],
+                                "exclude": "package.lock.json",
+                            },
+                        ),
+                    ],
+                },
+            ),
         }
 
         repos = self._ensure_repos(existing_config)
@@ -254,7 +313,7 @@ class PreCommitIntegrator:
             conflicts=conflicts,
         )
 
-    def _load_precommit_config(self, precommit_path: Path) -> dict[str, Any]:
+    def _load_precommit_config(self, precommit_path: Path) -> PreCommitConfig:
         """Load existing .pre-commit-config.yaml configuration.
 
         Args:
@@ -267,7 +326,7 @@ class PreCommitIntegrator:
             ConfigurationError: If configuration cannot be loaded
         """
         if not precommit_path.exists():
-            return {}
+            return cast(PreCommitConfig, {})
 
         parser = _require_yaml_module()
         try:
@@ -278,7 +337,7 @@ class PreCommitIntegrator:
         except Exception as e:
             raise ConfigurationError(f"Failed to load pre-commit config: {e}") from e
 
-    def _parse_yaml_content(self, content: str) -> dict[str, Any]:
+    def _parse_yaml_content(self, content: str) -> PreCommitConfig:
         """Parse YAML content into configuration dictionary.
 
         Args:
@@ -297,7 +356,7 @@ class PreCommitIntegrator:
         except Exception as e:
             raise ConfigurationError(f"Failed to parse YAML content: {e}") from e
 
-    def _generate_yaml_content(self, config: dict[str, Any]) -> str:
+    def _generate_yaml_content(self, config: PreCommitConfig) -> str:
         """Generate YAML content from configuration dictionary.
 
         Args:
@@ -315,7 +374,7 @@ class PreCommitIntegrator:
         except Exception as e:
             raise ConfigurationError(f"Failed to generate YAML content: {e}") from e
 
-    def _ensure_basic_precommit_config(self, config: dict[str, Any]) -> None:
+    def _ensure_basic_precommit_config(self, config: PreCommitConfig) -> None:
         """Ensure basic pre-commit configuration is present.
 
         Args:
@@ -347,10 +406,10 @@ class PreCommitIntegrator:
 
     def _merge_precommit_configs(
         self,
-        existing: dict[str, Any],
-        template: dict[str, Any],
+        existing: PreCommitConfig,
+        template: PreCommitConfig,
         file_path: Path,
-    ) -> tuple[dict[str, Any], list[Conflict]]:
+    ) -> tuple[PreCommitConfig, list[Conflict]]:
         """Merge existing and template pre-commit configurations.
 
         Args:
@@ -364,15 +423,23 @@ class PreCommitIntegrator:
         existing_sanitized = self._coerce_config(existing)
         template_sanitized = self._coerce_config(template)
 
-        merged: dict[str, Any] = {key: value for key, value in existing_sanitized.items() if key != "repos"}
-        merged_repos = [self._clone_repo(repo) for repo in existing_sanitized.get("repos", [])]
+        existing_repos = self._ensure_repos(existing_sanitized)
+        template_repos = self._ensure_repos(template_sanitized)
+
+        merged: PreCommitConfig = cast(PreCommitConfig, {})
+        for key, value in existing_sanitized.items():
+            if key == "repos":
+                continue
+            merged[key] = value
+
+        merged_repos = [self._clone_repo(repo) for repo in existing_repos]
         merged["repos"] = merged_repos
         conflicts: list[Conflict] = []
 
         conflicts.extend(
             self._merge_repos_section(
                 merged_repos=merged_repos,
-                template_repos=template_sanitized.get("repos", []),
+                template_repos=template_repos,
                 file_path=file_path,
             ),
         )
@@ -383,8 +450,8 @@ class PreCommitIntegrator:
 
     def _merge_repos_section(
         self,
-        merged_repos: list[Any],
-        template_repos: list[Any],
+        merged_repos: list[RepoConfig],
+        template_repos: list[RepoConfig],
         file_path: Path,
     ) -> list[Conflict]:
         """Merge the 'repos' section while tracking conflicts."""
@@ -392,36 +459,33 @@ class PreCommitIntegrator:
         if not template_repos:
             return conflicts
 
-        repo_lookup: dict[str, dict[str, Any]] = {}
+        repo_lookup: dict[str, RepoConfig] = {}
         for repo in merged_repos:
             repo_url = self._get_repo_url(repo)
             if repo_url:
                 repo_lookup[repo_url] = repo
 
         for template_repo in template_repos:
-            if not isinstance(template_repo, dict):
-                continue
-
-            repo_url = self._get_repo_url(template_repo)
+            template_repo_typed = self._clone_repo(template_repo)
+            repo_url = self._get_repo_url(template_repo_typed)
             if not repo_url:
                 continue
 
             if repo_url not in repo_lookup:
-                cloned_repo = self._clone_repo(template_repo)
-                merged_repos.append(cloned_repo)
-                repo_lookup[repo_url] = cloned_repo
+                merged_repos.append(template_repo_typed)
+                repo_lookup[repo_url] = template_repo_typed
                 continue
 
             existing_repo = repo_lookup[repo_url]
-            conflicts.extend(self._merge_repo_hooks(existing_repo, template_repo, file_path))
+            conflicts.extend(self._merge_repo_hooks(existing_repo, template_repo_typed, file_path))
 
         return conflicts
 
     def _merge_top_level_settings(
         self,
-        existing: dict[str, Any],
-        merged: dict[str, Any],
-        template: dict[str, Any],
+        existing: PreCommitConfig,
+        merged: PreCommitConfig,
+        template: PreCommitConfig,
         file_path: Path,
     ) -> list[Conflict]:
         """Merge non-repo settings while tracking conflicts."""
@@ -450,16 +514,13 @@ class PreCommitIntegrator:
 
     def _merge_repo_hooks(
         self,
-        existing_repo: dict[str, Any],
-        template_repo: dict[str, Any],
+        existing_repo: RepoConfig,
+        template_repo: RepoConfig,
         file_path: Path,
     ) -> list[Conflict]:
         """Merge hooks within a repository configuration."""
-        hooks_value = template_repo.get("hooks")
-        if not isinstance(hooks_value, list):
-            return []
-
-        sanitized_hooks = [hook for hook in hooks_value if isinstance(hook, dict)]
+        template_repo_typed = self._clone_repo(template_repo)
+        sanitized_hooks = template_repo_typed.get("hooks", [])
 
         existing_hooks = self._ensure_hook_collection(existing_repo)
         hook_lookup = self._build_hook_lookup(existing_hooks)
@@ -491,15 +552,15 @@ class PreCommitIntegrator:
 
         return conflicts
 
-    def _ensure_hook_collection(self, repo: dict[str, Any]) -> list[dict[str, Any]]:
+    def _ensure_hook_collection(self, repo: RepoConfig) -> list[HookConfig]:
         """Return the mutable hook list for a repo."""
         hooks = self._sanitize_hook_list(repo.get("hooks"))
         repo["hooks"] = hooks
         return hooks
 
-    def _build_hook_lookup(self, hooks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def _build_hook_lookup(self, hooks: list[HookConfig]) -> dict[str, HookConfig]:
         """Map hook IDs to their dicts for quick access."""
-        lookup: dict[str, dict[str, Any]] = {}
+        lookup: dict[str, HookConfig] = {}
         for hook in hooks:
             hook_id = self._extract_hook_id(hook)
             if hook_id:
@@ -509,14 +570,17 @@ class PreCommitIntegrator:
     @staticmethod
     def _is_valid_hook(hook: Any) -> bool:
         """Ensure hook data has the expected structure."""
-        return isinstance(hook, dict) and isinstance(hook.get("id"), str)
+        if not isinstance(hook, dict):
+            return False
+        hook_dict = cast(dict[str, Any], hook)
+        return isinstance(hook_dict.get("id"), str)
 
     def _merge_hook_settings(
         self,
         repo_name: str,
         hook_id: str,
-        existing_hook: dict[str, Any],
-        template_hook: dict[str, Any],
+        existing_hook: HookConfig,
+        template_hook: HookConfig,
         file_path: Path,
     ) -> list[Conflict]:
         """Merge non-ID settings for a hook."""
@@ -541,54 +605,68 @@ class PreCommitIntegrator:
 
         return conflicts
 
-    def _coerce_config(self, raw: object) -> dict[str, Any]:
-        config: dict[str, Any] = {str(key): value for key, value in raw.items()} if isinstance(raw, dict) else {}
-        config["repos"] = self._sanitize_repo_list(config.get("repos"))
-        return config
+    def _coerce_config(self, raw: object) -> PreCommitConfig:
+        sanitized: dict[str, Any] = {}
+        if isinstance(raw, dict):
+            raw_dict = cast(dict[Any, Any], raw)
+            for key_obj, value in raw_dict.items():
+                sanitized[str(key_obj)] = value
 
-    def _sanitize_repo_list(self, repos_value: object) -> list[dict[str, Any]]:
+        base = cast(PreCommitConfig, sanitized)
+        base["repos"] = self._sanitize_repo_list(base.get("repos"))
+        return base
+
+    def _sanitize_repo_list(self, repos_value: object) -> list[RepoConfig]:
         if not isinstance(repos_value, list):
             return []
-        repos: list[dict[str, Any]] = []
-        for repo in repos_value:
+        repo_list = cast(list[object], repos_value)
+        repos: list[RepoConfig] = []
+        for repo in repo_list:
             if isinstance(repo, dict):
-                sanitized = dict(cast(dict[str, Any], repo))
-                sanitized["hooks"] = self._sanitize_hook_list(sanitized.get("hooks"))
-                repos.append(sanitized)
+                repo_dict = cast(dict[str, Any], repo)
+                sanitized = dict(repo_dict)
+                sanitized["hooks"] = self._sanitize_hook_list(repo_dict.get("hooks"))
+                repos.append(cast(RepoConfig, sanitized))
         return repos
 
-    def _sanitize_hook_list(self, hooks_value: object) -> list[dict[str, Any]]:
+    def _sanitize_hook_list(self, hooks_value: object) -> list[HookConfig]:
         if not isinstance(hooks_value, list):
             return []
-        return [dict(cast(dict[str, Any], hook)) for hook in hooks_value if isinstance(hook, dict)]
+        hook_list = cast(list[object], hooks_value)
+        hooks: list[HookConfig] = []
+        for hook in hook_list:
+            if isinstance(hook, dict):
+                hook_dict = cast(dict[str, Any], hook)
+                hooks.append(cast(HookConfig, dict(hook_dict)))
+        return hooks
 
-    def _ensure_repos(self, config: dict[str, Any]) -> list[dict[str, Any]]:
+    def _ensure_repos(self, config: PreCommitConfig) -> list[RepoConfig]:
         repos_value = config.get("repos")
         sanitized = self._sanitize_repo_list(repos_value)
         config["repos"] = sanitized
         return sanitized
 
     @staticmethod
-    def _get_repo_url(repo: dict[str, Any]) -> str | None:
+    def _get_repo_url(repo: Mapping[str, Any]) -> str | None:
         repo_value = repo.get("repo")
         if isinstance(repo_value, str) and repo_value:
             return repo_value
         return None
 
     @staticmethod
-    def _extract_hook_id(hook: dict[str, Any]) -> str | None:
+    def _extract_hook_id(hook: Mapping[str, Any]) -> str | None:
         hook_value = hook.get("id")
         if isinstance(hook_value, str) and hook_value:
             return hook_value
         return None
 
-    def _clone_repo(self, repo: dict[str, Any]) -> dict[str, Any]:
+    def _clone_repo(self, repo: Mapping[str, Any]) -> RepoConfig:
         sanitized = self._sanitize_repo_list([repo])
-        return sanitized[0] if sanitized else {}
+        return sanitized[0] if sanitized else cast(RepoConfig, {"hooks": []})
 
-    def _clone_hook(self, hook: dict[str, Any]) -> dict[str, Any]:
+    def _clone_hook(self, hook: Mapping[str, Any]) -> HookConfig:
         sanitized = self._sanitize_hook_list([hook])
-        return sanitized[0] if sanitized else {}
+        return sanitized[0] if sanitized else cast(HookConfig, {})
 
     def check_precommit_security_status(self, project_path: Path) -> dict[str, bool]:
         """Check which security hooks are configured in pre-commit.
@@ -607,7 +685,7 @@ class PreCommitIntegrator:
 
         try:
             config = self._load_precommit_config(precommit_path)
-            repos = config.get("repos", [])
+            repos = self._ensure_repos(config)
             for repo in repos:
                 repo_url = self._get_repo_url(repo)
                 if not repo_url:

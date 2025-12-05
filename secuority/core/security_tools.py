@@ -1,25 +1,33 @@
 """Security tools configuration integration for Secuority."""
 
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
-    import tomllib
-except ImportError:
+    import tomllib as _stdlib_tomllib  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover - fallback for older Python
+    _stdlib_tomllib = None
+
+if _stdlib_tomllib is None:  # pragma: no cover - executed only without tomllib
     try:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as _stdlib_tomllib  # type: ignore[import-not-found]
     except ImportError:
-        tomllib = None  # type: ignore[assignment]
+        _stdlib_tomllib = None
 
 try:
-    import tomli_w
+    import tomli_w as _tomli_w
 except ImportError:
-    tomli_w = None  # type: ignore[assignment]
+    _tomli_w = None
 
 from ..models.config import ConfigChange
 from ..models.exceptions import ConfigurationError
 from ..models.interfaces import ChangeType
+from ..types import ConfigMap, TomlLoader, TomlWriter
 from ..utils.logger import debug
+
+tomllib: TomlLoader | None = cast(TomlLoader | None, _stdlib_tomllib)
+tomli_w: TomlWriter | None = cast(TomlWriter | None, _tomli_w)
 
 
 class SecurityToolsIntegrator:
@@ -32,7 +40,7 @@ class SecurityToolsIntegrator:
     def integrate_bandit_config(
         self,
         project_path: Path,
-        existing_config: dict[str, Any] | None = None,
+        existing_config: ConfigMap | None = None,
     ) -> ConfigChange:
         """Integrate Bandit security linter configuration into pyproject.toml.
 
@@ -53,7 +61,7 @@ class SecurityToolsIntegrator:
             existing_config = self._load_pyproject_config(pyproject_path)
 
         # Default Bandit configuration
-        bandit_config: dict[str, Any] = {
+        bandit_config: ConfigMap = {
             "exclude_dirs": ["tests", "test_*"],
             "skips": ["B101", "B601"],  # Skip assert_used and shell_injection_process_args
         }
@@ -62,22 +70,13 @@ class SecurityToolsIntegrator:
         bandit_config["assert_used"] = {"skips": ["*_test.py", "test_*.py"]}
 
         # Merge with existing Bandit configuration if present
-        if "tool" in existing_config and "bandit" in existing_config["tool"]:
-            existing_bandit = existing_config["tool"]["bandit"]
-            # Merge configurations, keeping existing values where they exist
-            for key, value in bandit_config.items():
-                if key not in existing_bandit:
-                    existing_bandit[key] = value
-                elif isinstance(value, dict) and isinstance(existing_bandit[key], dict):
-                    # Merge nested dictionaries
-                    for nested_key, nested_value in value.items():
-                        if nested_key not in existing_bandit[key]:
-                            existing_bandit[key][nested_key] = nested_value
+        tool_section = self._ensure_section(existing_config, "tool")
+        bandit_section_value = tool_section.get("bandit")
+        if isinstance(bandit_section_value, dict):
+            existing_bandit = cast(ConfigMap, bandit_section_value)
+            self._merge_missing_values(existing_bandit, bandit_config)
         else:
-            # Add new Bandit configuration
-            if "tool" not in existing_config:
-                existing_config["tool"] = {}
-            existing_config["tool"]["bandit"] = bandit_config
+            tool_section["bandit"] = bandit_config
 
         # Generate new content
         new_content = self._generate_toml_content(existing_config)
@@ -106,7 +105,7 @@ class SecurityToolsIntegrator:
     def integrate_safety_config(
         self,
         project_path: Path,
-        existing_config: dict[str, Any] | None = None,
+        existing_config: ConfigMap | None = None,
     ) -> ConfigChange:
         """Integrate Safety dependency vulnerability scanner configuration.
 
@@ -127,7 +126,7 @@ class SecurityToolsIntegrator:
             existing_config = self._load_pyproject_config(pyproject_path)
 
         # Default Safety configuration
-        safety_config = {
+        safety_config: ConfigMap = {
             "ignore": [],  # Add CVE IDs to ignore specific vulnerabilities
             "full_report": True,
             "output": "json",
@@ -135,23 +134,15 @@ class SecurityToolsIntegrator:
         }
 
         # Merge with existing Safety configuration if present
-        if (
-            "tool" in existing_config
-            and "secuority" in existing_config["tool"]
-            and "safety" in existing_config["tool"]["secuority"]
-        ):
-            existing_safety = existing_config["tool"]["secuority"]["safety"]
-            # Merge configurations, keeping existing values where they exist
-            for key, value in safety_config.items():
-                if key not in existing_safety:
-                    existing_safety[key] = value
+        tool_section = self._ensure_section(existing_config, "tool")
+        secuority_section = self._ensure_section(tool_section, "secuority")
+
+        safety_section_value = secuority_section.get("safety")
+        if isinstance(safety_section_value, dict):
+            existing_safety = cast(ConfigMap, safety_section_value)
+            self._merge_missing_values(existing_safety, safety_config)
         else:
-            # Add new Safety configuration under tool.secuority.safety
-            if "tool" not in existing_config:
-                existing_config["tool"] = {}
-            if "secuority" not in existing_config["tool"]:
-                existing_config["tool"]["secuority"] = {}
-            existing_config["tool"]["secuority"]["safety"] = safety_config
+            secuority_section["safety"] = safety_config
 
         # Generate new content
         new_content = self._generate_toml_content(existing_config)
@@ -193,7 +184,7 @@ class SecurityToolsIntegrator:
         if tools is None:
             tools = ["bandit", "safety"]
 
-        changes = []
+        changes: list[ConfigChange] = []
 
         # Load existing pyproject.toml configuration once
         pyproject_path = project_path / "pyproject.toml"
@@ -204,29 +195,23 @@ class SecurityToolsIntegrator:
             if tool == "bandit":
                 change = self.integrate_bandit_config(project_path, existing_config.copy())
                 changes.append(change)
-                # Update existing_config with the changes for next tool
                 if change.new_content:
                     try:
-                        existing_config = tomllib.loads(change.new_content)
-                    except Exception as parse_error:
-                        # Continue with original config if parsing fails
-                        # This is expected during incremental config building
+                        existing_config = self._loads_toml(change.new_content)
+                    except ConfigurationError as parse_error:
                         debug(f"Could not parse intermediate config after bandit: {parse_error}")
             elif tool == "safety":
                 change = self.integrate_safety_config(project_path, existing_config.copy())
                 changes.append(change)
-                # Update existing_config with the changes for next tool
                 if change.new_content:
                     try:
-                        existing_config = tomllib.loads(change.new_content)
-                    except Exception as parse_error:
-                        # Continue with original config if parsing fails
-                        # This is expected during incremental config building
+                        existing_config = self._loads_toml(change.new_content)
+                    except ConfigurationError as parse_error:
                         debug(f"Could not parse intermediate config after safety: {parse_error}")
 
         return changes
 
-    def _load_pyproject_config(self, pyproject_path: Path) -> dict[str, Any]:
+    def _load_pyproject_config(self, pyproject_path: Path) -> ConfigMap:
         """Load existing pyproject.toml configuration.
 
         Args:
@@ -250,7 +235,7 @@ class SecurityToolsIntegrator:
         except Exception as e:
             raise ConfigurationError(f"Failed to load pyproject.toml: {e}") from e
 
-    def _generate_toml_content(self, config: dict[str, Any]) -> str:
+    def _generate_toml_content(self, config: ConfigMap) -> str:
         """Generate TOML content from configuration dictionary.
 
         Args:
@@ -280,7 +265,7 @@ class SecurityToolsIntegrator:
         Returns:
             Dictionary mapping tool names to configuration status
         """
-        status = {"bandit": False, "safety": False}
+        status: dict[str, bool] = {"bandit": False, "safety": False}
 
         pyproject_path = project_path / "pyproject.toml"
         if not pyproject_path.exists():
@@ -289,13 +274,18 @@ class SecurityToolsIntegrator:
         try:
             config = self._load_pyproject_config(pyproject_path)
 
-            # Check for Bandit configuration
-            if "tool" in config and "bandit" in config["tool"]:
-                status["bandit"] = True
+            tool_section_value = config.get("tool")
+            if isinstance(tool_section_value, dict):
+                tool_section = cast(ConfigMap, tool_section_value)
 
-            # Check for Safety configuration
-            if "tool" in config and "secuority" in config["tool"] and "safety" in config["tool"]["secuority"]:
-                status["safety"] = True
+                # Check for Bandit configuration
+                if "bandit" in tool_section:
+                    status["bandit"] = True
+
+                # Check for Safety configuration
+                sec_section_value = tool_section.get("secuority")
+                if isinstance(sec_section_value, dict) and "safety" in sec_section_value:
+                    status["safety"] = True
 
         except ConfigurationError:
             # If we can't load the config, assume tools are not configured
@@ -312,7 +302,7 @@ class SecurityToolsIntegrator:
         Returns:
             List of recommendation strings
         """
-        recommendations = []
+        recommendations: list[str] = []
         status = self.check_security_tools_status(project_path)
 
         if not status["bandit"]:
@@ -327,3 +317,30 @@ class SecurityToolsIntegrator:
             recommendations.append("Set up pre-commit hooks with security tools (gitleaks, bandit, safety)")
 
         return recommendations
+
+    def _loads_toml(self, content: str) -> ConfigMap:
+        if tomllib is None:
+            raise ConfigurationError("TOML support not available")
+        try:
+            return tomllib.loads(content)
+        except Exception as exc:  # pragma: no cover - tomli errors contain internal context
+            raise ConfigurationError(f"Failed to parse generated TOML content: {exc}") from exc
+
+    def _ensure_section(self, container: ConfigMap, key: str) -> ConfigMap:
+        section = container.get(key)
+        if not isinstance(section, dict):
+            section = {}
+            container[key] = section
+        return cast(ConfigMap, section)
+
+    def _merge_missing_values(self, target: ConfigMap, defaults: Mapping[str, Any]) -> None:
+        for key, value in defaults.items():
+            if key not in target:
+                target[key] = value
+                continue
+            existing_value = target.get(key)
+            if isinstance(existing_value, dict) and isinstance(value, dict):
+                self._merge_missing_values(cast(ConfigMap, existing_value), cast(dict[str, Any], value))
+            elif isinstance(value, dict):
+                value_dict = cast(ConfigMap, value)
+                target[key] = value_dict.copy()

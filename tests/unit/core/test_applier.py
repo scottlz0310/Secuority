@@ -1,6 +1,7 @@
 """Unit tests for ConfigurationApplier and ConfigurationMerger."""
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -8,6 +9,7 @@ from secuority.core.applier import ConfigurationApplier, ConfigurationMerger
 from secuority.models.config import ConfigChange, Conflict
 from secuority.models.exceptions import ConfigurationError
 from secuority.models.interfaces import ChangeType
+from secuority.types import ConfigMap
 
 
 class TestConfigurationMerger:
@@ -24,8 +26,8 @@ class TestConfigurationMerger:
         tmp_path: Path,
     ) -> None:
         """Test merging TOML configs with new section."""
-        existing = {"tool": {"ruff": {"line-length": 88}}}
-        template = {"tool": {"mypy": {"strict": True}}}
+        existing = cast(ConfigMap, {"tool": {"ruff": {"line-length": 88}}})
+        template = cast(ConfigMap, {"tool": {"mypy": {"strict": True}}})
 
         merged, conflicts = merger.merge_toml_configs(existing, template, tmp_path / "test.toml")
 
@@ -40,8 +42,8 @@ class TestConfigurationMerger:
         tmp_path: Path,
     ) -> None:
         """Test merging TOML configs with value conflict."""
-        existing = {"tool": {"ruff": {"line-length": 88}}}
-        template = {"tool": {"ruff": {"line-length": 120}}}
+        existing = cast(ConfigMap, {"tool": {"ruff": {"line-length": 88}}})
+        template = cast(ConfigMap, {"tool": {"ruff": {"line-length": 120}}})
 
         merged, conflicts = merger.merge_toml_configs(existing, template, tmp_path / "test.toml")
 
@@ -55,8 +57,11 @@ class TestConfigurationMerger:
         tmp_path: Path,
     ) -> None:
         """Test merging nested dictionary sections."""
-        existing = {"tool": {"ruff": {"select": ["E", "F"], "line-length": 88}}}
-        template = {"tool": {"ruff": {"select": ["E", "F", "I"], "target-version": "py312"}}}
+        existing = cast(ConfigMap, {"tool": {"ruff": {"select": ["E", "F"], "line-length": 88}}})
+        template = cast(
+            ConfigMap,
+            {"tool": {"ruff": {"select": ["E", "F", "I"], "target-version": "py312"}}},
+        )
 
         merged, conflicts = merger.merge_toml_configs(existing, template, tmp_path / "test.toml")
 
@@ -99,8 +104,11 @@ class TestConfigurationMerger:
         merger: ConfigurationMerger,
     ) -> None:
         """Test recursive dictionary section merging."""
-        existing = {"level1": {"level2": {"key": "value1"}}}
-        template = {"level1": {"level2": {"key": "value2", "new_key": "new_value"}}}
+        existing = cast(ConfigMap, {"level1": {"level2": {"key": "value1"}}})
+        template = cast(
+            ConfigMap,
+            {"level1": {"level2": {"key": "value2", "new_key": "new_value"}}},
+        )
 
         merged, conflicts = merger._merge_dict_section(existing, template, "test")
 
@@ -226,8 +234,8 @@ class TestConfigurationApplier:
         applier: ConfigurationApplier,
     ) -> None:
         """Test merging configurations."""
-        existing = {"tool": {"ruff": {"line-length": 88}}}
-        template = {"tool": {"mypy": {"strict": True}}}
+        existing = cast(ConfigMap, {"tool": {"ruff": {"line-length": 88}}})
+        template = cast(ConfigMap, {"tool": {"mypy": {"strict": True}}})
 
         merged = applier.merge_configurations(existing, template)
 

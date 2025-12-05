@@ -5,7 +5,6 @@ import os
 import platform
 import shutil
 import tempfile
-import urllib.error
 import urllib.request
 import zipfile
 from datetime import datetime
@@ -94,7 +93,7 @@ class TemplateManager(TemplateManagerInterface):
             msg = f"Templates directory not found: {templates_path}"
             raise TemplateError(msg)
 
-        templates = {}
+        templates: dict[str, str] = {}
 
         # Load common templates first
         common_path = templates_path / "common"
@@ -127,7 +126,7 @@ class TemplateManager(TemplateManagerInterface):
         Raises:
             TemplateError: If templates cannot be loaded
         """
-        templates = {}
+        templates: dict[str, str] = {}
 
         # Load template files and other relevant files in this directory
         for file_path in directory.iterdir():
@@ -531,7 +530,7 @@ class TemplateManager(TemplateManagerInterface):
             with version_path.open(encoding="utf-8") as f:
                 version_data = json.load(f)
 
-            history = []
+            history: list[dict[str, str]] = []
             if "created" in version_data:
                 history.append(
                     {
@@ -562,7 +561,7 @@ class TemplateManager(TemplateManagerInterface):
             List of backup directory paths
         """
         template_dir = self.get_template_directory()
-        backups = [path for path in template_dir.glob("templates_backup_*") if path.is_dir()]
+        backups: list[Path] = [path for path in template_dir.glob("templates_backup_*") if path.is_dir()]
         return sorted(backups, reverse=True)  # Most recent first
 
     def restore_from_backup(self, backup_path: Path) -> bool:

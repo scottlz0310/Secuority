@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
 from secuority.models.exceptions import ConfigurationError
-from secuority.utils.file_ops import FileOperations
+from secuority.utils.file_ops import BackupInfo, FileOperations
 
 
 class TestFileOperations:
@@ -65,7 +66,12 @@ class TestFileOperations:
 
         original_replace = Path.replace
 
-        def fail_replace(self: Path, target_path: Path, *, _orig=original_replace) -> Path:
+        def fail_replace(
+            self: Path,
+            target_path: Path,
+            *,
+            _orig: Callable[[Path, Path], Path] = original_replace,
+        ) -> Path:
             if self.name.endswith(".tmp"):
                 raise OSError("disk full")
             return _orig(self, target_path)
@@ -121,7 +127,7 @@ class TestFileOperations:
         os.utime(first, (1, 1))
         os.utime(second, (2, 2))
 
-        info = ops.get_backup_info(tmp_path / "demo.txt")
+        info: list[BackupInfo] = ops.get_backup_info(tmp_path / "demo.txt")
 
         assert info[0]["path"] == second
         assert info[1]["path"] == first

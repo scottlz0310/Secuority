@@ -2,11 +2,11 @@
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
-from secuority.core.renovate_integrator import RenovateIntegrator
+from secuority.core.renovate_integrator import RenovateConfig, RenovateIntegrator
 from secuority.models.exceptions import ConfigurationError
 from secuority.models.interfaces import ChangeType
 
@@ -20,15 +20,18 @@ class TestRenovateIntegrator:
         return RenovateIntegrator()
 
     @pytest.fixture
-    def sample_renovate_config(self) -> dict[str, Any]:
+    def sample_renovate_config(self) -> RenovateConfig:
         """Sample Renovate configuration."""
-        return {
-            "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-            "extends": ["config:recommended"],
-            "schedule": ["before 6am on monday"],
-            "timezone": "UTC",
-            "labels": ["dependencies"],
-        }
+        return cast(
+            RenovateConfig,
+            {
+                "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+                "extends": ["config:recommended"],
+                "schedule": ["before 6am on monday"],
+                "timezone": "UTC",
+                "labels": ["dependencies"],
+            },
+        )
 
     def test_integrate_renovate_config_new_file(
         self,
@@ -52,7 +55,7 @@ class TestRenovateIntegrator:
         assert "@reviewers" in change.new_content
 
         # Verify JSON is valid
-        config = json.loads(change.new_content)
+        config = cast(dict[str, Any], json.loads(change.new_content))
         assert config["timezone"] == "Asia/Tokyo"
         assert config["assignees"] == ["@team"]
         assert config["reviewers"] == ["@reviewers"]
@@ -61,7 +64,7 @@ class TestRenovateIntegrator:
         self,
         integrator: RenovateIntegrator,
         tmp_path: Path,
-        sample_renovate_config: dict[str, Any],
+        sample_renovate_config: RenovateConfig,
     ) -> None:
         """Test integrating Renovate config into existing file."""
         # Create existing file
@@ -85,7 +88,7 @@ class TestRenovateIntegrator:
             automerge_actions=False,
         )
 
-        config = json.loads(change.new_content)
+        config = cast(dict[str, Any], json.loads(change.new_content))
         # Find GitHub Actions package rule
         gh_actions_rule = next(
             (r for r in config["packageRules"] if r.get("matchManagers") == ["github-actions"]),
@@ -129,7 +132,7 @@ class TestRenovateIntegrator:
         self,
         integrator: RenovateIntegrator,
         tmp_path: Path,
-        sample_renovate_config: dict[str, Any],
+        sample_renovate_config: RenovateConfig,
     ) -> None:
         """Test loading existing Renovate config."""
         renovate_path = tmp_path / "renovate.json"
@@ -164,10 +167,10 @@ class TestRenovateIntegrator:
         )
 
         assert "$schema" in config
-        assert config["extends"] == ["config:recommended"]
-        assert config["timezone"] == "UTC"
-        assert config["assignees"] == ["@team"]
-        assert config["reviewers"] == ["@reviewers"]
+        assert config.get("extends") == ["config:recommended"]
+        assert config.get("timezone") == "UTC"
+        assert config.get("assignees") == ["@team"]
+        assert config.get("reviewers") == ["@reviewers"]
         assert "packageRules" in config
         assert len(config["packageRules"]) == 4  # pre-commit, pep621 (2x), github-actions
 
@@ -176,11 +179,14 @@ class TestRenovateIntegrator:
         integrator: RenovateIntegrator,
     ) -> None:
         """Test generating Renovate config with existing configuration."""
-        existing = {
-            "extends": ["config:base", "schedule:weekly"],
-            "ignoreDeps": ["some-package"],
-            "prConcurrentLimit": 5,
-        }
+        existing: RenovateConfig = cast(
+            RenovateConfig,
+            {
+                "extends": ["config:base", "schedule:weekly"],
+                "ignoreDeps": ["some-package"],
+                "prConcurrentLimit": 5,
+            },
+        )
 
         config = integrator._generate_renovate_config(
             timezone="UTC",
@@ -191,26 +197,29 @@ class TestRenovateIntegrator:
         )
 
         # Preserved keys from existing config
-        assert config["ignoreDeps"] == ["some-package"]
-        assert config["prConcurrentLimit"] == 5
+        assert config.get("ignoreDeps") == ["some-package"]
+        assert config.get("prConcurrentLimit") == 5
 
     def test_generate_renovate_config_merges_package_rules(
         self,
         integrator: RenovateIntegrator,
     ) -> None:
         """Test that custom package rules are preserved."""
-        existing = {
-            "packageRules": [
-                {
-                    "matchManagers": ["npm"],
-                    "groupName": "npm dependencies",
-                },
-                {
-                    "description": "Custom rule without matchManagers",
-                    "matchPackageNames": ["special-package"],
-                },
-            ],
-        }
+        existing: RenovateConfig = cast(
+            RenovateConfig,
+            {
+                "packageRules": [
+                    {
+                        "matchManagers": ["npm"],
+                        "groupName": "npm dependencies",
+                    },
+                    {
+                        "description": "Custom rule without matchManagers",
+                        "matchPackageNames": ["special-package"],
+                    },
+                ],
+            },
+        )
 
         config = integrator._generate_renovate_config(
             timezone="UTC",
@@ -220,12 +229,14 @@ class TestRenovateIntegrator:
             existing_config=existing,
         )
 
+        package_rules = config.get("packageRules")
+        assert package_rules is not None
         # Should have default rules + custom npm rule + custom special-package rule
-        assert len(config["packageRules"]) == 6  # 4 defaults + 2 custom
-        npm_rule = next((r for r in config["packageRules"] if r.get("matchManagers") == ["npm"]), None)
+        assert len(package_rules) == 6  # 4 defaults + 2 custom
+        npm_rule = next((r for r in package_rules if r.get("matchManagers") == ["npm"]), None)
         assert npm_rule is not None
         special_rule = next(
-            (r for r in config["packageRules"] if r.get("matchPackageNames") == ["special-package"]),
+            (r for r in package_rules if r.get("matchPackageNames") == ["special-package"]),
             None,
         )
         assert special_rule is not None
@@ -235,15 +246,18 @@ class TestRenovateIntegrator:
         integrator: RenovateIntegrator,
     ) -> None:
         """Test that conflicting package rules are not duplicated."""
-        existing = {
-            "packageRules": [
-                {
-                    "description": "Conflicts with default pre-commit rule",
-                    "matchManagers": ["pre-commit"],
-                    "automerge": True,  # Different from default
-                },
-            ],
-        }
+        existing = cast(
+            RenovateConfig,
+            {
+                "packageRules": [
+                    {
+                        "description": "Conflicts with default pre-commit rule",
+                        "matchManagers": ["pre-commit"],
+                        "automerge": True,  # Different from default
+                    },
+                ],
+            },
+        )
 
         config = integrator._generate_renovate_config(
             timezone="UTC",
@@ -253,9 +267,11 @@ class TestRenovateIntegrator:
             existing_config=existing,
         )
 
+        package_rules = config.get("packageRules")
+        assert package_rules is not None
         # Should only have default rules, not the conflicting one
-        assert len(config["packageRules"]) == 4  # Only defaults
-        pre_commit_rules = [r for r in config["packageRules"] if r.get("matchManagers") == ["pre-commit"]]
+        assert len(package_rules) == 4  # Only defaults
+        pre_commit_rules = [r for r in package_rules if r.get("matchManagers") == ["pre-commit"]]
         assert len(pre_commit_rules) == 1  # Only the default
 
     def test_get_renovate_status_not_enabled(
@@ -275,7 +291,7 @@ class TestRenovateIntegrator:
         self,
         integrator: RenovateIntegrator,
         tmp_path: Path,
-        sample_renovate_config: dict[str, Any],
+        sample_renovate_config: RenovateConfig,
     ) -> None:
         """Test getting Renovate status when enabled with renovate.json."""
         renovate_path = tmp_path / "renovate.json"
@@ -399,7 +415,7 @@ class TestRenovateIntegrator:
         self,
         integrator: RenovateIntegrator,
         tmp_path: Path,
-        sample_renovate_config: dict[str, Any],
+        sample_renovate_config: RenovateConfig,
     ) -> None:
         """Test detecting migration needs when Renovate is already present."""
         # Create Renovate config
@@ -423,7 +439,7 @@ class TestRenovateIntegrator:
         self,
         integrator: RenovateIntegrator,
         tmp_path: Path,
-        sample_renovate_config: dict[str, Any],
+        sample_renovate_config: RenovateConfig,
     ) -> None:
         """Test detecting Renovate config in .github directory."""
         github_dir = tmp_path / ".github"
@@ -444,7 +460,7 @@ class TestRenovateIntegrator:
         change = integrator.integrate_renovate_config(tmp_path)
 
         # Should be valid JSON
-        config = json.loads(change.new_content)
+        config = cast(dict[str, Any], json.loads(change.new_content))
         assert isinstance(config, dict)
 
         # Should have proper indentation
@@ -460,7 +476,7 @@ class TestRenovateIntegrator:
     ) -> None:
         """Test that generated config contains all required fields."""
         change = integrator.integrate_renovate_config(tmp_path)
-        config = json.loads(change.new_content)
+        config = cast(dict[str, Any], json.loads(change.new_content))
 
         # Required fields
         assert "$schema" in config
@@ -481,9 +497,9 @@ class TestRenovateIntegrator:
     ) -> None:
         """Test that package rules have correct structure."""
         change = integrator.integrate_renovate_config(tmp_path)
-        config = json.loads(change.new_content)
+        config = cast(dict[str, Any], json.loads(change.new_content))
 
-        package_rules = config["packageRules"]
+        package_rules = cast(list[dict[str, Any]], config.get("packageRules"))
         assert isinstance(package_rules, list)
         assert len(package_rules) == 4
 

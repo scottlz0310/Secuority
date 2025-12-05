@@ -4,9 +4,17 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
 
 from ..models.exceptions import ConfigurationError
+
+
+class BackupInfo(TypedDict):
+    """Metadata tracked for generated backup artifacts."""
+
+    path: Path
+    created: datetime
+    size: int
 
 
 class FileOperations:
@@ -159,7 +167,7 @@ class FileOperations:
 
         return removed_count
 
-    def get_backup_info(self, file_path: Path) -> list[dict[str, Any]]:
+    def get_backup_info(self, file_path: Path) -> list[BackupInfo]:
         """Get information about available backups for a file.
 
         Args:
@@ -168,20 +176,24 @@ class FileOperations:
         Returns:
             List of backup information dictionaries
         """
-        backups = []
+        backups: list[BackupInfo] = []
         pattern = f"{file_path.name}.*.backup"
 
         for backup_file in self.backup_dir.glob(pattern):
             try:
                 stat = backup_file.stat()
                 backups.append(
-                    {"path": backup_file, "created": datetime.fromtimestamp(stat.st_mtime), "size": stat.st_size},
+                    {
+                        "path": backup_file,
+                        "created": datetime.fromtimestamp(stat.st_mtime),
+                        "size": stat.st_size,
+                    },
                 )
             except OSError:
                 continue
 
         # Sort by creation time, newest first
-        backups.sort(key=lambda x: float(x["created"]) if isinstance(x["created"], int | float) else 0.0, reverse=True)
+        backups.sort(key=lambda info: info["created"], reverse=True)
         return backups
 
     def validate_file_permissions(self, file_path: Path) -> bool:

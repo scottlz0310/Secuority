@@ -91,7 +91,7 @@ class UserApprovalInterface:
         Returns:
             Dictionary mapping file paths to approval status
         """
-        approvals = {}
+        approvals: dict[Path, bool] = {}
 
         self.console.print(f"\n{'=' * 60}")
         self.console.print("Configuration Changes Summary")
@@ -145,7 +145,7 @@ class UserApprovalInterface:
         self.console.print(f"Configuration Conflicts ({len(conflicts)} found)")
         self.console.print(f"{'=' * 60}")
 
-        resolved_conflicts = []
+        resolved_conflicts: list[Conflict] = []
 
         for i, conflict in enumerate(conflicts, 1):
             self.console.print(f"\nConflict {i}/{len(conflicts)}:")

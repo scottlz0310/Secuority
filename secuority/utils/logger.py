@@ -31,7 +31,7 @@ class StructuredFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as structured JSON."""
-        log_entry = {
+        log_entry: dict[str, Any] = {
             "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": record.name,
@@ -53,7 +53,7 @@ class StructuredFormatter(logging.Formatter):
             }
 
         # Add extra fields from the log record
-        extra_fields = {}
+        extra_fields: dict[str, Any] = {}
         reserved_fields = {
             "name",
             "msg",
@@ -238,7 +238,7 @@ class SecuorityLogger:
             result: Analysis results
             recommendations: List of recommendations
         """
-        log_data = {
+        log_data: dict[str, Any] = {
             "file_path": file_path,
             "analysis_type": analysis_type,
             "result": result,
@@ -270,7 +270,7 @@ class SecuorityLogger:
             success: Whether the change was successful
             backup_path: Path to backup file if created
         """
-        log_data = {
+        log_data: dict[str, Any] = {
             "file_path": file_path,
             "change_type": change_type,
             "description": description,
@@ -305,7 +305,7 @@ class SecuorityLogger:
             success: Whether the call was successful
             error_message: Error message if call failed
         """
-        log_data = {
+        log_data: dict[str, Any] = {
             "endpoint": endpoint,
             "method": method,
             "github_api": True,

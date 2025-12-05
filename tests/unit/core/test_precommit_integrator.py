@@ -1,10 +1,11 @@
 """Unit tests for PreCommitIntegrator."""
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
-from secuority.core.precommit_integrator import PreCommitIntegrator
+from secuority.core.precommit_integrator import PreCommitConfig, PreCommitIntegrator, RepoConfig
 from secuority.models.exceptions import ConfigurationError
 from secuority.models.interfaces import ChangeType
 
@@ -23,18 +24,21 @@ class TestPreCommitIntegrator:
         return PreCommitIntegrator()
 
     @pytest.fixture
-    def sample_precommit_config(self) -> dict:
+    def sample_precommit_config(self) -> PreCommitConfig:
         """Sample pre-commit configuration."""
-        return {
-            "repos": [
-                {
-                    "repo": "https://github.com/pre-commit/pre-commit-hooks",
-                    "rev": "v4.4.0",
-                    "hooks": [{"id": "trailing-whitespace"}, {"id": "end-of-file-fixer"}],
-                },
-            ],
-            "default_language_version": {"python": "python3.12"},
-        }
+        return cast(
+            PreCommitConfig,
+            {
+                "repos": [
+                    {
+                        "repo": "https://github.com/pre-commit/pre-commit-hooks",
+                        "rev": "v4.4.0",
+                        "hooks": [{"id": "trailing-whitespace"}, {"id": "end-of-file-fixer"}],
+                    },
+                ],
+                "default_language_version": {"python": "python3.12"},
+            },
+        )
 
     def test_integrate_gitleaks_hook_new_file(
         self,
@@ -42,7 +46,7 @@ class TestPreCommitIntegrator:
         tmp_path: Path,
     ) -> None:
         """Test integrating gitleaks hook into new file."""
-        change = integrator.integrate_gitleaks_hook(tmp_path, existing_config={})
+        change = integrator.integrate_gitleaks_hook(tmp_path, existing_config=cast(PreCommitConfig, {}))
 
         assert change.file_path == tmp_path / ".pre-commit-config.yaml"
         assert change.change_type == ChangeType.CREATE
@@ -53,7 +57,7 @@ class TestPreCommitIntegrator:
         self,
         integrator: PreCommitIntegrator,
         tmp_path: Path,
-        sample_precommit_config: dict,
+        sample_precommit_config: PreCommitConfig,
     ) -> None:
         """Test integrating gitleaks hook into existing file."""
         # Create existing file
@@ -72,15 +76,18 @@ class TestPreCommitIntegrator:
         tmp_path: Path,
     ) -> None:
         """Test integrating gitleaks when it already exists."""
-        existing_config = {
-            "repos": [
-                {
-                    "repo": "https://github.com/gitleaks/gitleaks",
-                    "rev": "v8.18.0",
-                    "hooks": [{"id": "gitleaks"}],
-                },
-            ],
-        }
+        existing_config: PreCommitConfig = cast(
+            PreCommitConfig,
+            {
+                "repos": [
+                    {
+                        "repo": "https://github.com/gitleaks/gitleaks",
+                        "rev": "v8.18.0",
+                        "hooks": [{"id": "gitleaks"}],
+                    },
+                ],
+            },
+        )
 
         change = integrator.integrate_gitleaks_hook(tmp_path, existing_config=existing_config)
 
@@ -116,7 +123,7 @@ class TestPreCommitIntegrator:
         self,
         integrator: PreCommitIntegrator,
         tmp_path: Path,
-        sample_precommit_config: dict,
+        sample_precommit_config: PreCommitConfig,
     ) -> None:
         """Test integrating security hooks with existing configuration."""
         # Create existing file
@@ -166,7 +173,7 @@ class TestPreCommitIntegrator:
         self,
         integrator: PreCommitIntegrator,
         tmp_path: Path,
-        sample_precommit_config: dict,
+        sample_precommit_config: PreCommitConfig,
     ) -> None:
         """Test loading existing pre-commit config."""
         precommit_path = tmp_path / ".pre-commit-config.yaml"
@@ -219,7 +226,7 @@ class TestPreCommitIntegrator:
     def test_generate_yaml_content(
         self,
         integrator: PreCommitIntegrator,
-        sample_precommit_config: dict,
+        sample_precommit_config: PreCommitConfig,
     ) -> None:
         """Test generating YAML content."""
         yaml_content = integrator._generate_yaml_content(sample_precommit_config)
@@ -232,7 +239,7 @@ class TestPreCommitIntegrator:
         integrator: PreCommitIntegrator,
     ) -> None:
         """Test ensuring basic pre-commit configuration."""
-        config: dict = {}
+        config: PreCommitConfig = {}
 
         integrator._ensure_basic_precommit_config(config)
 
@@ -246,7 +253,7 @@ class TestPreCommitIntegrator:
         integrator: PreCommitIntegrator,
     ) -> None:
         """Test that basic config doesn't overwrite existing values."""
-        config = {
+        config: PreCommitConfig = {
             "default_language_version": {"python": "python3.11"},
             "fail_fast": True,
         }
@@ -262,7 +269,7 @@ class TestPreCommitIntegrator:
         tmp_path: Path,
     ) -> None:
         """Test merging pre-commit configs without conflicts."""
-        existing = {
+        existing: PreCommitConfig = {
             "repos": [
                 {
                     "repo": "https://github.com/pre-commit/pre-commit-hooks",
@@ -272,7 +279,7 @@ class TestPreCommitIntegrator:
             ],
         }
 
-        template = {
+        template: PreCommitConfig = {
             "repos": [
                 {
                     "repo": "https://github.com/gitleaks/gitleaks",
@@ -288,6 +295,7 @@ class TestPreCommitIntegrator:
             tmp_path / ".pre-commit-config.yaml",
         )
 
+        assert "repos" in merged
         assert len(merged["repos"]) == 2
         assert len(conflicts) == 0
 
@@ -297,12 +305,12 @@ class TestPreCommitIntegrator:
         tmp_path: Path,
     ) -> None:
         """Test merging pre-commit configs with conflicts."""
-        existing = {
+        existing: PreCommitConfig = {
             "repos": [],
             "fail_fast": True,
         }
 
-        template = {
+        template: PreCommitConfig = {
             "repos": [],
             "fail_fast": False,
         }
@@ -314,7 +322,7 @@ class TestPreCommitIntegrator:
         )
 
         # Should keep existing value
-        assert merged["fail_fast"] is True
+        assert merged.get("fail_fast") is True
         # Should have conflict
         assert len(conflicts) > 0
 
@@ -324,13 +332,13 @@ class TestPreCommitIntegrator:
         tmp_path: Path,
     ) -> None:
         """Test merging repo hooks without conflicts."""
-        existing_repo = {
+        existing_repo: RepoConfig = {
             "repo": "https://github.com/example/repo",
             "rev": "v1.0.0",
             "hooks": [{"id": "hook1"}],
         }
 
-        template_repo = {
+        template_repo: RepoConfig = {
             "repo": "https://github.com/example/repo",
             "rev": "v1.0.0",
             "hooks": [{"id": "hook2"}],
@@ -347,13 +355,13 @@ class TestPreCommitIntegrator:
         tmp_path: Path,
     ) -> None:
         """Test merging repo hooks with conflicts."""
-        existing_repo = {
+        existing_repo: RepoConfig = {
             "repo": "https://github.com/example/repo",
             "rev": "v1.0.0",
             "hooks": [{"id": "hook1", "args": ["--arg1"]}],
         }
 
-        template_repo = {
+        template_repo: RepoConfig = {
             "repo": "https://github.com/example/repo",
             "rev": "v1.0.0",
             "hooks": [{"id": "hook1", "args": ["--arg2"]}],
@@ -418,7 +426,7 @@ class TestPreCommitIntegrator:
         tmp_path: Path,
     ) -> None:
         """Test that integrating gitleaks adds basic configuration."""
-        change = integrator.integrate_gitleaks_hook(tmp_path, existing_config={})
+        change = integrator.integrate_gitleaks_hook(tmp_path, existing_config=cast(PreCommitConfig, {}))
 
         assert "default_language_version" in change.new_content
         assert "python3.13" in change.new_content
@@ -451,7 +459,7 @@ class TestPreCommitIntegrator:
         self,
         integrator: PreCommitIntegrator,
         tmp_path: Path,
-        sample_precommit_config: dict,
+        sample_precommit_config: PreCommitConfig,
     ) -> None:
         """Test that merging preserves existing structure."""
         # Create existing file

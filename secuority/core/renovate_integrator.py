@@ -2,11 +2,56 @@
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict, cast
 
 from ..models.config import ConfigChange
 from ..models.exceptions import ConfigurationError
 from ..models.interfaces import ChangeType
+
+
+class PackageRule(TypedDict, total=False):
+    """Subset of Renovate package rule configuration."""
+
+    description: str
+    matchManagers: list[str]
+    matchDepTypes: list[str]
+    matchUpdateTypes: list[str]
+    schedule: list[str]
+    automerge: bool
+    groupName: str
+
+
+class VulnerabilityAlertsConfig(TypedDict, total=False):
+    labels: list[str]
+    assignees: list[str]
+    reviewers: list[str]
+
+
+class LockFileMaintenanceConfig(TypedDict, total=False):
+    enabled: bool
+    schedule: list[str]
+
+
+RenovateConfig = TypedDict(
+    "RenovateConfig",
+    {
+        "$schema": str,
+        "extends": list[str],
+        "schedule": list[str],
+        "timezone": str,
+        "labels": list[str],
+        "assignees": list[str],
+        "reviewers": list[str],
+        "packageRules": list[PackageRule],
+        "repos": list[dict[str, Any]],
+        "vulnerabilityAlerts": VulnerabilityAlertsConfig,
+        "lockFileMaintenance": LockFileMaintenanceConfig,
+        "ignoreDeps": list[str],
+        "ignorePaths": list[str],
+        "prConcurrentLimit": int,
+    },
+    total=False,
+)
 
 
 class RenovateIntegrator:
@@ -78,7 +123,7 @@ class RenovateIntegrator:
             conflicts=[],
         )
 
-    def _load_renovate_config(self, renovate_path: Path) -> dict[str, Any]:
+    def _load_renovate_config(self, renovate_path: Path) -> RenovateConfig:
         """Load existing Renovate configuration.
 
         Args:
@@ -92,8 +137,8 @@ class RenovateIntegrator:
 
         try:
             with renovate_path.open(encoding="utf-8") as f:
-                config: dict[str, Any] = json.load(f)
-                return config
+                raw_config: object = json.load(f)
+                return self._coerce_config(raw_config)
         except (OSError, json.JSONDecodeError) as e:
             msg = f"Failed to load {renovate_path}: {e}"
             raise ConfigurationError(msg) from e
@@ -104,8 +149,8 @@ class RenovateIntegrator:
         assignees: str,
         reviewers: str,
         automerge_actions: bool,
-        existing_config: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+        existing_config: RenovateConfig | None = None,
+    ) -> RenovateConfig:
         """Generate Renovate configuration.
 
         Args:
@@ -119,7 +164,7 @@ class RenovateIntegrator:
             Dictionary containing Renovate configuration
         """
         # Base configuration
-        config: dict[str, Any] = {
+        config: RenovateConfig = {
             "$schema": "https://docs.renovatebot.com/renovate-schema.json",
             "extends": ["config:recommended"],
             "schedule": ["before 6am on monday"],
@@ -127,6 +172,7 @@ class RenovateIntegrator:
             "labels": ["dependencies"],
             "assignees": [assignees],
             "reviewers": [reviewers],
+            "repos": [],
             "packageRules": [
                 {
                     "description": "Pre-commit hooks - weekly updates",
@@ -180,37 +226,64 @@ class RenovateIntegrator:
                     config[key] = existing_config[key]
 
             # Merge packageRules if they exist
-            if "packageRules" in existing_config:
-                existing_rules = existing_config["packageRules"]
-                if isinstance(existing_rules, list):
-                    # Add custom rules that don't conflict with defaults
-                    default_managers = {
-                        "pre-commit",
-                        "pep621",
-                        "github-actions",
-                    }
-                    for rule_item in existing_rules:
-                        if not isinstance(rule_item, dict):
-                            continue
+            existing_rules = self._coerce_package_rules(existing_config.get("packageRules"))
+            if existing_rules:
+                default_managers = {
+                    "pre-commit",
+                    "pep621",
+                    "github-actions",
+                }
+                for rule_item in existing_rules:
+                    managers_value = rule_item.get("matchManagers")
+                    if managers_value is None:
+                        config["packageRules"].append(rule_item)
+                        continue
 
-                        # Check if rule has matchManagers that conflict
-                        managers_value = rule_item.get("matchManagers")
-                        if managers_value is None:
-                            # No matchManagers, include this rule
-                            config["packageRules"].append(rule_item)
-                            continue
-
-                        if not isinstance(managers_value, list):
-                            # Invalid matchManagers, skip
-                            continue
-
-                        # Convert to string set for comparison
-                        rule_managers: set[str] = {str(m) for m in managers_value}
-                        intersects = rule_managers.intersection(default_managers)
-                        if not intersects:
-                            config["packageRules"].append(rule_item)
+                    rule_managers = set(managers_value)
+                    if not rule_managers.intersection(default_managers):
+                        config["packageRules"].append(rule_item)
 
         return config
+
+    def _coerce_config(self, raw: object) -> RenovateConfig:
+        sanitized = dict(cast(dict[str, Any], raw)) if isinstance(raw, dict) else {}
+
+        if "packageRules" in sanitized:
+            sanitized["packageRules"] = self._coerce_package_rules(sanitized.get("packageRules"))
+        if "repos" in sanitized:
+            sanitized["repos"] = self._sanitize_repos_field(sanitized.get("repos"))
+
+        vulnerability_alerts = sanitized.get("vulnerabilityAlerts")
+        if isinstance(vulnerability_alerts, dict):
+            sanitized["vulnerabilityAlerts"] = cast(VulnerabilityAlertsConfig, vulnerability_alerts)
+
+        lock_file_maintenance = sanitized.get("lockFileMaintenance")
+        if isinstance(lock_file_maintenance, dict):
+            sanitized["lockFileMaintenance"] = cast(LockFileMaintenanceConfig, lock_file_maintenance)
+
+        return cast(RenovateConfig, sanitized)
+
+    def _sanitize_repos_field(self, value: object) -> list[dict[str, Any]]:
+        if not isinstance(value, list):
+            return []
+        repo_list = cast(list[object], value)
+        sanitized: list[dict[str, Any]] = []
+        for repo in repo_list:
+            if isinstance(repo, dict):
+                repo_dict = cast(dict[str, Any], repo)
+                sanitized.append(dict(repo_dict))
+        return sanitized
+
+    def _coerce_package_rules(self, value: object) -> list[PackageRule]:
+        if not isinstance(value, list):
+            return []
+        item_list = cast(list[object], value)
+        rules: list[PackageRule] = []
+        for item in item_list:
+            if isinstance(item, dict):
+                rule_dict = cast(dict[str, Any], item)
+                rules.append(cast(PackageRule, rule_dict))
+        return rules
 
     def get_renovate_status(self, project_path: Path) -> dict[str, Any]:
         """Get the status of Renovate configuration in the project.

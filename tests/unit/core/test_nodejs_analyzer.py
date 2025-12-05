@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from secuority.core.languages.nodejs import NodeJSAnalyzer
 
 
@@ -38,7 +36,7 @@ class TestNodeJSAnalyzer:
         result = analyzer.detect(tmp_path)
 
         assert result.language == "nodejs"
-        assert result.confidence == pytest.approx(1.0)
+        assert abs(result.confidence - 1.0) < 1e-6
         assert "package.json" in result.indicators
         assert "tsconfig.json" in result.indicators
         assert any(".js/.ts files" in indicator for indicator in result.indicators)
