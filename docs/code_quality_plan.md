@@ -16,7 +16,7 @@
 | PTH123 | 4 | `secuority/core/template_manager.py:613` 他 | `open()` 直接利用。pathlib推奨と乖離。 |
 | PLR0915 | 3 | `secuority/cli/main.py:47` 他 | 文が長すぎる関数。 |
 
-**重点ファイル（PLC0415）**: `secuority/core/workflow_integrator.py:32`, `tests/integration/test_security_features.py:101`, `tests/unit/utils/test_logger.py:64` など34箇所。  
+**重点ファイル（PLC0415）**: `secuority/core/workflow_integrator.py:32`, `tests/integration/test_security_features.py:101`, `tests/unit/utils/test_logger.py:64` など34箇所。
 **重点ファイル（S110）**: `secuority/core/languages/{cpp,csharp,go,nodejs,python,rust}.py` の例外処理部位（11箇所）。
 
 ### Basedpyright（型チェック）
@@ -56,7 +56,7 @@
 - テストフィクスチャ（`tests/unit/core/test_precommit_integrator.py` 36件ほか）: 擬似的な辞書フィクスチャ・モック関数の未注釈と `_logger_instance` 直接操作により `reportUnknownParameterType`/`reportAttributeAccessIssue` が残っている。TypedDict フィクスチャと `get_logger()` 経由のアクセスに切り替える。
 
 ### Bandit（セキュリティ）
-`uv run pre-commit run bandit --all-files` で Medium 1件（`xml.etree.ElementTree.parse` 利用、`secuority/core/languages/csharp.py:294`）と Low 12件（`B110 try/except/pass`、複数言語アナライザ）を検出。  
+`uv run pre-commit run bandit --all-files` で Medium 1件（`xml.etree.ElementTree.parse` 利用、`secuority/core/languages/csharp.py:294`）と Low 12件（`B110 try/except/pass`、複数言語アナライザ）を検出。
 → 既に `# noqa` コメントはあるが、`defusedxml` 採用や例外ログ化・粒度の細かい例外種別が推奨。
 
 ## 段階的アプローチ

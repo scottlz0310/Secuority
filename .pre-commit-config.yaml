@@ -7,19 +7,19 @@ repos:
     hooks:
       - id: ruff
         name: ruff
-        entry: ruff
+        entry: uv run ruff
         language: system
         types_or: [python, pyi]
         args: [check, --fix, --exit-non-zero-on-fix]
       - id: ruff-format
         name: ruff-format
-        entry: ruff
+        entry: uv run ruff
         language: system
         types_or: [python, pyi]
         args: [format]
       - id: basedpyright
         name: basedpyright
-        entry: basedpyright
+        entry: uv run basedpyright
         language: system
         pass_filenames: false
         args: [--project=pyproject.toml]
