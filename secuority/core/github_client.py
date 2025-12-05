@@ -254,7 +254,7 @@ class GitHubClient(GitHubClientInterface):
             workflows: list[GitHubWorkflowSummary] = []
             for workflow_data in workflow_entries:
                 raw_id = workflow_data.get("id", 0)
-                workflow_id = int(raw_id) if isinstance(raw_id, (int, str)) else 0
+                workflow_id = int(raw_id) if isinstance(raw_id, int | str) else 0
 
                 name_value = workflow_data.get("name", "unknown")
                 path_value = workflow_data.get("path", "")
