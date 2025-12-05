@@ -44,6 +44,10 @@ jobs:
             source .venv/bin/activate
           fi
 
+      - name: Install security tooling
+        run: |
+          uv pip install bandit[toml]
+
       - name: Lint with Ruff
         run: |
           # Ruff will use pyproject.toml configuration automatically
