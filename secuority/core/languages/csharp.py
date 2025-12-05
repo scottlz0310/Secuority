@@ -5,7 +5,13 @@ from pathlib import Path
 
 from secuority.utils.logger import debug
 
-from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
+from .base import (
+    ConfigFile,
+    LanguageAnalyzer,
+    LanguageDetectionResult,
+    ToolRecommendation,
+    ToolStatusMap,
+)
 
 
 class CSharpAnalyzer(LanguageAnalyzer):
@@ -28,7 +34,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
         Returns:
             LanguageDetectionResult with confidence score
         """
-        indicators = []
+        indicators: list[str] = []
         confidence = 0.0
 
         # Check for .csproj files (primary indicator)
@@ -100,7 +106,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
         Returns:
             List of detected configuration files
         """
-        config_files = []
+        config_files: list[ConfigFile] = []
 
         # Check for .csproj files
         csproj_files = list(project_path.glob("**/*.csproj"))
@@ -165,7 +171,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
             return "xml"
         return "unknown"
 
-    def detect_tools(self, project_path: Path, _config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, config_files: list[ConfigFile]) -> ToolStatusMap:
         """Detect which tools are configured in the project.
 
         Args:
@@ -175,14 +181,20 @@ class CSharpAnalyzer(LanguageAnalyzer):
         Returns:
             Dictionary mapping tool names to whether they are configured
         """
-        tools = {}
+        resolved_configs = config_files or self.detect_config_files(project_path)
+        config_names = {cfg.name for cfg in resolved_configs if cfg.exists}
+        csproj_files = [
+            cfg.path for cfg in resolved_configs if cfg.path is not None and cfg.exists and cfg.name.endswith(".csproj")
+        ]
+        if not csproj_files:
+            csproj_files = list(project_path.glob("**/*.csproj"))
 
-        # Check for .editorconfig
-        tools["editorconfig"] = (project_path / ".editorconfig").exists()
-
-        # Check for StyleCop (in .csproj files)
-        tools["stylecop"] = False
-        csproj_files = list(project_path.glob("**/*.csproj"))
+        tools: ToolStatusMap = {
+            "editorconfig": ".editorconfig" in config_names,
+            "stylecop": False,
+            "dotnet-format": False,
+            "dotnet-test": False,
+        }
         for csproj in csproj_files:
             try:
                 content = csproj.read_text()
@@ -190,21 +202,19 @@ class CSharpAnalyzer(LanguageAnalyzer):
                     tools["stylecop"] = True
                     break
             except OSError as exc:
-                debug("Failed to read %s: %s", csproj, exc)
+                debug(f"Failed to read {csproj}: {exc}")
 
-        # Check for dotnet-format (usually in workflows)
-        tools["dotnet-format"] = False
-
-        # Check for GitHub Actions workflows
         workflows_dir = project_path / ".github" / "workflows"
+        workflow_files: list[Path] = []
         if workflows_dir.exists():
             workflow_files = list(workflows_dir.glob("*.yml")) + list(workflows_dir.glob("*.yaml"))
-            for workflow in workflow_files:
-                content = workflow.read_text()
-                if "dotnet format" in content:
-                    tools["dotnet-format"] = True
-                if "dotnet test" in content:
-                    tools["dotnet-test"] = True
+
+        for workflow in workflow_files:
+            content = workflow.read_text()
+            if "dotnet format" in content:
+                tools["dotnet-format"] = True
+            if "dotnet test" in content:
+                tools["dotnet-test"] = True
 
         return tools
 
@@ -276,7 +286,7 @@ class CSharpAnalyzer(LanguageAnalyzer):
         """
         return ["dotnet-format"]
 
-    def parse_dependencies(self, project_path: Path, _config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies from .csproj files.
 
         Args:
@@ -286,10 +296,13 @@ class CSharpAnalyzer(LanguageAnalyzer):
         Returns:
             List of dependency names
         """
-        dependencies = []
-
-        # Parse .csproj files
-        csproj_files = list(project_path.glob("**/*.csproj"))
+        dependencies: list[str] = []
+        resolved_configs = config_files or self.detect_config_files(project_path)
+        csproj_files = [
+            cfg.path for cfg in resolved_configs if cfg.path is not None and cfg.exists and cfg.name.endswith(".csproj")
+        ]
+        if not csproj_files:
+            csproj_files = list(project_path.glob("**/*.csproj"))
         for csproj in csproj_files:
             try:
                 tree = ET.parse(csproj)  # noqa: S314  # Parsing local project files, not untrusted data
@@ -301,6 +314,6 @@ class CSharpAnalyzer(LanguageAnalyzer):
                     if include:
                         dependencies.append(include)
             except (ET.ParseError, OSError) as exc:
-                debug("Failed to parse %s: %s", csproj, exc)
+                debug(f"Failed to parse {csproj}: {exc}")
 
         return list(set(dependencies))  # Remove duplicates

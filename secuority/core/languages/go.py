@@ -4,7 +4,13 @@ from pathlib import Path
 
 from secuority.utils.logger import debug
 
-from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
+from .base import (
+    ConfigFile,
+    LanguageAnalyzer,
+    LanguageDetectionResult,
+    ToolRecommendation,
+    ToolStatusMap,
+)
 
 
 class GoAnalyzer(LanguageAnalyzer):
@@ -27,7 +33,7 @@ class GoAnalyzer(LanguageAnalyzer):
         Returns:
             LanguageDetectionResult with confidence score
         """
-        indicators = []
+        indicators: list[str] = []
         confidence = 0.0
 
         # Check for go.mod (primary indicator)
@@ -91,7 +97,7 @@ class GoAnalyzer(LanguageAnalyzer):
         Returns:
             List of detected configuration files
         """
-        config_files = []
+        config_files: list[ConfigFile] = []
         patterns = self.get_config_file_patterns()
 
         for pattern in patterns:
@@ -123,7 +129,7 @@ class GoAnalyzer(LanguageAnalyzer):
             return "config"
         return "unknown"
 
-    def detect_tools(self, project_path: Path, _config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, config_files: list[ConfigFile]) -> ToolStatusMap:
         """Detect which tools are configured in the project.
 
         Args:
@@ -132,39 +138,34 @@ class GoAnalyzer(LanguageAnalyzer):
         Returns:
             Dictionary mapping tool names to whether they are configured
         """
-        tools = {}
+        resolved_configs = config_files or self.detect_config_files(project_path)
+        config_names = {cfg.name for cfg in resolved_configs if cfg.exists}
 
-        # Check for golangci-lint configuration
-        tools["golangci-lint"] = (project_path / ".golangci.yml").exists() or (project_path / ".golangci.yaml").exists()
+        tools: ToolStatusMap = {
+            "golangci-lint": any(name in {".golangci.yml", ".golangci.yaml"} for name in config_names),
+            "gofmt": "go.mod" in config_names,
+            "govet": "go.mod" in config_names,
+            "govulncheck": False,
+            "gosec": False,
+            "gotest": "go.mod" in config_names,
+        }
 
-        # Check for gofmt (always available with Go installation)
-        tools["gofmt"] = (project_path / "go.mod").exists()
-
-        # Check for go vet (always available with Go installation)
-        tools["govet"] = (project_path / "go.mod").exists()
-
-        # Check for govulncheck (security scanner)
-        # This is typically used in CI, so check workflows
+        # Check GitHub workflows for CI tools
         workflows_dir = project_path / ".github" / "workflows"
-        tools["govulncheck"] = False
+        workflow_files: list[Path] = []
         if workflows_dir.exists():
             workflow_files = list(workflows_dir.glob("*.yml")) + list(workflows_dir.glob("*.yaml"))
-            for workflow in workflow_files:
-                content = workflow.read_text()
-                if "govulncheck" in content:
-                    tools["govulncheck"] = True
-                if "golangci-lint" in content:
-                    tools["golangci-lint"] = True
-                if "go test" in content:
-                    tools["gotest"] = True
 
-        # Check for gosec (security scanner)
-        tools["gosec"] = False
-        if workflows_dir.exists():
-            for workflow in workflow_files:
-                content = workflow.read_text()
-                if "gosec" in content:
-                    tools["gosec"] = True
+        for workflow in workflow_files:
+            content = workflow.read_text()
+            if "govulncheck" in content:
+                tools["govulncheck"] = True
+            if "golangci-lint" in content:
+                tools["golangci-lint"] = True
+            if "go test" in content:
+                tools["gotest"] = True
+            if "gosec" in content:
+                tools["gosec"] = True
 
         return tools
 
@@ -243,7 +244,7 @@ class GoAnalyzer(LanguageAnalyzer):
         """
         return ["gofmt"]
 
-    def parse_dependencies(self, project_path: Path, _config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies from go.mod.
 
         Args:
@@ -253,8 +254,10 @@ class GoAnalyzer(LanguageAnalyzer):
         Returns:
             List of dependency names
         """
-        dependencies = []
-        go_mod = project_path / "go.mod"
+        dependencies: list[str] = []
+        resolved_configs = config_files or self.detect_config_files(project_path)
+        go_mod_config = next((cfg for cfg in resolved_configs if cfg.name == "go.mod" and cfg.path), None)
+        go_mod = go_mod_config.path if go_mod_config and go_mod_config.path else project_path / "go.mod"
 
         if go_mod.exists():
             try:
@@ -280,6 +283,6 @@ class GoAnalyzer(LanguageAnalyzer):
                             if parts:
                                 dependencies.append(parts[0])
             except OSError as exc:
-                debug("Failed to parse go.mod at %s: %s", go_mod, exc)
+                debug(f"Failed to parse go.mod at {go_mod}: {exc}")
 
         return dependencies

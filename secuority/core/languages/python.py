@@ -3,10 +3,17 @@
 import re
 import tomllib
 from pathlib import Path
+from typing import Any, cast
 
 from secuority.utils.logger import debug
 
-from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
+from .base import (
+    ConfigFile,
+    LanguageAnalyzer,
+    LanguageDetectionResult,
+    ToolRecommendation,
+    ToolStatusMap,
+)
 
 
 class PythonAnalyzer(LanguageAnalyzer):
@@ -29,7 +36,7 @@ class PythonAnalyzer(LanguageAnalyzer):
         Returns:
             LanguageDetectionResult with confidence score
         """
-        indicators = []
+        indicators: list[str] = []
         confidence = 0.0
 
         # Check for pyproject.toml
@@ -105,7 +112,7 @@ class PythonAnalyzer(LanguageAnalyzer):
             List of ConfigFile objects for files that exist
         """
         patterns = self.get_config_file_patterns()
-        config_files = []
+        config_files: list[ConfigFile] = []
 
         for filename in patterns:
             file_path = project_path / filename
@@ -138,7 +145,7 @@ class PythonAnalyzer(LanguageAnalyzer):
                 return file_type
         return "unknown"
 
-    def detect_tools(self, _project_path: Path, config_files: list[ConfigFile]) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, config_files: list[ConfigFile]) -> ToolStatusMap:
         """Detect which tools are configured in the project.
 
         Args:
@@ -148,7 +155,7 @@ class PythonAnalyzer(LanguageAnalyzer):
         Returns:
             Dictionary mapping tool names to whether they're configured
         """
-        tools = {
+        tools: ToolStatusMap = {
             # Quality tools
             "ruff": False,
             "basedpyright": False,
@@ -170,27 +177,33 @@ class PythonAnalyzer(LanguageAnalyzer):
             "uv": False,
         }
 
+        resolved_configs = config_files or self.detect_config_files(project_path)
+
         # Check pyproject.toml
-        pyproject_file = next((f for f in config_files if f.name == "pyproject.toml" and f.exists), None)
+        pyproject_file = next((f for f in resolved_configs if f.name == "pyproject.toml" and f.exists), None)
         if pyproject_file and pyproject_file.path:
             tools.update(self._detect_tools_in_pyproject(pyproject_file.path))
 
         # Check standalone config files
-        tools.update(self._detect_tools_from_config_files(config_files))
+        tools.update(self._detect_tools_from_config_files(resolved_configs))
 
         return tools
 
     def _detect_tools_in_pyproject(self, pyproject_path: Path) -> dict[str, bool]:
         """Detect tools configured in pyproject.toml."""
-        tools = {}
+        tools: dict[str, bool] = {}
 
         try:
             with pyproject_path.open("rb") as f:
-                data = tomllib.load(f)
+                raw_data: Any = tomllib.load(f)
 
-            # Check [tool.*] sections
-            if "tool" in data:
-                tool_section = data["tool"]
+            if not isinstance(raw_data, dict):
+                return tools
+            data = cast(dict[str, Any], raw_data)
+
+            tool_section_raw = data.get("tool")
+            if isinstance(tool_section_raw, dict):
+                tool_section = cast(dict[str, Any], tool_section_raw)
                 tools["ruff"] = "ruff" in tool_section
                 tools["basedpyright"] = "basedpyright" in tool_section or "pyright" in tool_section
                 tools["mypy"] = "mypy" in tool_section
@@ -202,20 +215,23 @@ class PythonAnalyzer(LanguageAnalyzer):
                 tools["pdm"] = "pdm" in tool_section
                 tools["uv"] = "uv" in tool_section
 
-            # Check dependencies
-            if "project" in data:
-                dependencies = data["project"].get("dependencies", [])
-                dep_str = " ".join(dependencies)
-                tools["pytest"] = tools.get("pytest", False) or "pytest" in dep_str
+            project_section_raw = data.get("project")
+            if isinstance(project_section_raw, dict):
+                project_section = cast(dict[str, Any], project_section_raw)
+                dependencies_value = project_section.get("dependencies")
+                if isinstance(dependencies_value, list):
+                    dep_tokens = [dep for dep in dependencies_value if isinstance(dep, str) and dep]
+                    dep_str = " ".join(dep_tokens)
+                    tools["pytest"] = tools.get("pytest", False) or "pytest" in dep_str
 
         except (OSError, tomllib.TOMLDecodeError) as exc:
-            debug("Failed to parse pyproject.toml at %s: %s", pyproject_path, exc)
+            debug(f"Failed to parse pyproject.toml at {pyproject_path}: {exc}")
 
         return tools
 
     def _detect_tools_from_config_files(self, config_files: list[ConfigFile]) -> dict[str, bool]:
         """Detect tools from standalone configuration files."""
-        tools = {}
+        tools: dict[str, bool] = {}
 
         file_map = {
             "mypy.ini": "mypy",
@@ -301,7 +317,7 @@ class PythonAnalyzer(LanguageAnalyzer):
         """Get list of code formatting tools for Python."""
         return ["ruff format", "black"]
 
-    def parse_dependencies(self, _project_path: Path, config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies.
 
         Args:
@@ -311,15 +327,17 @@ class PythonAnalyzer(LanguageAnalyzer):
         Returns:
             List of dependency names
         """
-        dependencies = []
+        dependencies: list[str] = []
+
+        resolved_configs = config_files or self.detect_config_files(project_path)
 
         # Parse pyproject.toml
-        pyproject_file = next((f for f in config_files if f.name == "pyproject.toml" and f.exists), None)
+        pyproject_file = next((f for f in resolved_configs if f.name == "pyproject.toml" and f.exists), None)
         if pyproject_file and pyproject_file.path:
             dependencies.extend(self._parse_pyproject_dependencies(pyproject_file.path))
 
         # Parse requirements.txt
-        requirements_file = next((f for f in config_files if f.name == "requirements.txt" and f.exists), None)
+        requirements_file = next((f for f in resolved_configs if f.name == "requirements.txt" and f.exists), None)
         if requirements_file and requirements_file.path:
             dependencies.extend(self._parse_requirements_txt(requirements_file.path))
 
@@ -328,27 +346,35 @@ class PythonAnalyzer(LanguageAnalyzer):
 
     def _parse_pyproject_dependencies(self, pyproject_path: Path) -> list[str]:
         """Parse dependencies from pyproject.toml."""
-        dependencies = []
+        dependencies: list[str] = []
 
         try:
             with pyproject_path.open("rb") as f:
-                data = tomllib.load(f)
+                raw_data: Any = tomllib.load(f)
 
-            if "project" in data and "dependencies" in data["project"]:
-                for dep in data["project"]["dependencies"]:
-                    # Extract package name (before any version specifier)
-                    match = re.match(r"([a-zA-Z0-9_-]+)", dep)
-                    if match:
-                        dependencies.append(match.group(1))
+            if not isinstance(raw_data, dict):
+                return []
+
+            data = cast(dict[str, Any], raw_data)
+            project_section_raw = data.get("project")
+            if isinstance(project_section_raw, dict):
+                project_section = cast(dict[str, Any], project_section_raw)
+                dep_list_raw = project_section.get("dependencies")
+                if isinstance(dep_list_raw, list):
+                    for dep in dep_list_raw:
+                        if isinstance(dep, str):
+                            match = re.match(r"([a-zA-Z0-9_-]+)", dep)
+                            if match:
+                                dependencies.append(match.group(1))
 
         except (OSError, tomllib.TOMLDecodeError) as exc:
-            debug("Failed to parse dependencies from %s: %s", pyproject_path, exc)
+            debug(f"Failed to parse dependencies from {pyproject_path}: {exc}")
 
         return dependencies
 
     def _parse_requirements_txt(self, requirements_path: Path) -> list[str]:
         """Parse dependencies from requirements.txt."""
-        dependencies = []
+        dependencies: list[str] = []
 
         try:
             with requirements_path.open(encoding="utf-8") as f:
@@ -363,6 +389,6 @@ class PythonAnalyzer(LanguageAnalyzer):
                         dependencies.append(match.group(1))
 
         except OSError as exc:
-            debug("Failed to parse requirements.txt at %s: %s", requirements_path, exc)
+            debug(f"Failed to parse requirements.txt at {requirements_path}: {exc}")
 
         return dependencies

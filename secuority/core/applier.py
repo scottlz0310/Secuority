@@ -469,14 +469,17 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             project_info["license"] = license_info
 
     def _populate_author_info(self, project_section: ConfigMap, project_info: dict[str, str]) -> None:
-        authors = project_section.get("authors")
-        if not isinstance(authors, list):
+        authors_value = project_section.get("authors")
+        if not isinstance(authors_value, list):
             return
-        first_candidate = next((author for author in authors if isinstance(author, dict)), None)
-        if not isinstance(first_candidate, dict):
+        author_candidates = cast(list[object], authors_value)
+        author_entries: list[ConfigMap] = [
+            cast(ConfigMap, author) for author in author_candidates if isinstance(author, dict)
+        ]
+        if not author_entries:
             return
 
-        author_map = cast(ConfigMap, first_candidate)
+        author_map = author_entries[0]
         name_value = author_map.get("name")
         email_value = author_map.get("email")
         if isinstance(name_value, str) and name_value:

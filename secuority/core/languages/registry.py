@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any
 
-from .base import LanguageAnalyzer, LanguageDetectionResult
+from .base import LanguageAnalysisResult, LanguageAnalyzer, LanguageDetectionResult
 
 
 class LanguageRegistry:
@@ -80,7 +80,7 @@ class LanguageRegistry:
         Returns:
             List of LanguageDetectionResult objects, ordered by confidence
         """
-        results = []
+        results: list[LanguageDetectionResult] = []
 
         for language_name in self._detection_order:
             analyzer = self._analyzers[language_name]
@@ -90,7 +90,7 @@ class LanguageRegistry:
                 results.append(detection)
 
         # Sort by confidence (highest first)
-        results.sort(key=lambda x: x.confidence, reverse=True)
+        results.sort(key=lambda detection: detection.confidence, reverse=True)
         return results
 
     def detect_primary_language(self, project_path: Path) -> LanguageDetectionResult | None:
@@ -109,7 +109,7 @@ class LanguageRegistry:
         self,
         project_path: Path,
         languages: list[str] | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, LanguageAnalysisResult]:
         """Analyze a project with all relevant language analyzers.
 
         Args:
@@ -125,7 +125,7 @@ class LanguageRegistry:
             detected = self.detect_languages(project_path, min_confidence=0.3)
             languages = [d.language for d in detected]
 
-        results = {}
+        results: dict[str, LanguageAnalysisResult] = {}
         for language_name in languages:
             analyzer = self.get_analyzer(language_name)
             if analyzer:
@@ -152,7 +152,7 @@ class LanguageRegistry:
             detected = self.detect_languages(project_path, min_confidence=0.3)
             languages = [d.language for d in detected]
 
-        recommendations = {}
+        recommendations: dict[str, dict[str, Any]] = {}
         for language_name in languages:
             analyzer = self.get_analyzer(language_name)
             if analyzer:

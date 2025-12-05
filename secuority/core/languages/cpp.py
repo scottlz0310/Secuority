@@ -2,10 +2,17 @@
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 from secuority.utils.logger import debug
 
-from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
+from .base import (
+    ConfigFile,
+    LanguageAnalyzer,
+    LanguageDetectionResult,
+    ToolRecommendation,
+    ToolStatusMap,
+)
 
 
 class CppAnalyzer(LanguageAnalyzer):
@@ -28,7 +35,7 @@ class CppAnalyzer(LanguageAnalyzer):
         Returns:
             LanguageDetectionResult with confidence score
         """
-        indicators = []
+        indicators: list[str] = []
         confidence = 0.0
 
         # Check for CMakeLists.txt (primary indicator)
@@ -114,7 +121,7 @@ class CppAnalyzer(LanguageAnalyzer):
         Returns:
             List of detected configuration files
         """
-        config_files = []
+        config_files: list[ConfigFile] = []
         patterns = self.get_config_file_patterns()
 
         for pattern in patterns:
@@ -166,7 +173,7 @@ class CppAnalyzer(LanguageAnalyzer):
 
         return "unknown"
 
-    def detect_tools(self, project_path: Path, _config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, config_files: list[ConfigFile]) -> ToolStatusMap:
         """Detect which tools are configured in the project.
 
         Args:
@@ -176,38 +183,33 @@ class CppAnalyzer(LanguageAnalyzer):
         Returns:
             Dictionary mapping tool names to whether they are configured
         """
-        tools = {}
+        resolved_configs = config_files or self.detect_config_files(project_path)
+        existing_configs = {cfg.name: cfg for cfg in resolved_configs if cfg.exists and cfg.path is not None}
 
-        # Check for clang-format configuration
-        tools["clang-format"] = (project_path / ".clang-format").exists()
+        def has_config(*names: str) -> bool:
+            return any(name in existing_configs for name in names)
 
-        # Check for clang-tidy configuration
-        tools["clang-tidy"] = (project_path / ".clang-tidy").exists()
+        tools: ToolStatusMap = {
+            "clang-format": has_config(".clang-format"),
+            "clang-tidy": has_config(".clang-tidy"),
+            "cppcheck": has_config(".cppcheck"),
+            "cmake": has_config("CMakeLists.txt"),
+            "vcpkg": has_config("vcpkg.json"),
+            "conan": has_config("conanfile.txt", "conanfile.py"),
+        }
 
-        # Check for cppcheck
-        tools["cppcheck"] = (project_path / ".cppcheck").exists()
-
-        # Check for CMake
-        tools["cmake"] = (project_path / "CMakeLists.txt").exists()
-
-        # Check for vcpkg
-        tools["vcpkg"] = (project_path / "vcpkg.json").exists()
-
-        # Check for Conan
-        tools["conan"] = (project_path / "conanfile.txt").exists() or (project_path / "conanfile.py").exists()
-
-        # Check for GitHub Actions workflows
         workflows_dir = project_path / ".github" / "workflows"
+        workflow_files: list[Path] = []
         if workflows_dir.exists():
             workflow_files = list(workflows_dir.glob("*.yml")) + list(workflows_dir.glob("*.yaml"))
-            for workflow in workflow_files:
-                content = workflow.read_text()
-                if "clang-format" in content:
-                    tools["clang-format"] = True
-                if "clang-tidy" in content:
-                    tools["clang-tidy"] = True
-                if "cppcheck" in content:
-                    tools["cppcheck"] = True
+        for workflow in workflow_files:
+            content = workflow.read_text()
+            if "clang-format" in content:
+                tools["clang-format"] = True
+            if "clang-tidy" in content:
+                tools["clang-tidy"] = True
+            if "cppcheck" in content:
+                tools["cppcheck"] = True
 
         return tools
 
@@ -279,7 +281,7 @@ class CppAnalyzer(LanguageAnalyzer):
         """
         return ["clang-format"]
 
-    def parse_dependencies(self, project_path: Path, _config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies from vcpkg.json or conanfile.
 
         Args:
@@ -289,41 +291,61 @@ class CppAnalyzer(LanguageAnalyzer):
         Returns:
             List of dependency names
         """
-        dependencies = []
+        dependencies: list[str] = []
+        resolved_configs = config_files or self.detect_config_files(project_path)
 
-        # Parse vcpkg.json
-        vcpkg_json = project_path / "vcpkg.json"
+        def get_config_path(name: str) -> Path | None:
+            for cfg in resolved_configs:
+                if cfg.name == name and cfg.path is not None and cfg.exists:
+                    return cfg.path
+            return None
+
+        vcpkg_json = get_config_path("vcpkg.json") or (project_path / "vcpkg.json")
         if vcpkg_json.exists():
-            try:
-                with vcpkg_json.open() as f:
-                    vcpkg_data = json.load(f)
-                    deps = vcpkg_data.get("dependencies", [])
-                    for dep in deps:
-                        if isinstance(dep, str):
-                            dependencies.append(dep)
-                        elif isinstance(dep, dict):
-                            dependencies.append(dep.get("name", ""))
-            except Exception as exc:
-                debug("Failed to parse vcpkg.json at %s: %s", vcpkg_json, exc)
+            dependencies.extend(self._collect_vcpkg_dependencies(vcpkg_json))
 
-        # Parse conanfile.txt
-        conanfile_txt = project_path / "conanfile.txt"
+        conanfile_txt = get_config_path("conanfile.txt") or (project_path / "conanfile.txt")
         if conanfile_txt.exists():
-            try:
-                content = conanfile_txt.read_text()
-                in_requires = False
-                for raw_line in content.split("\n"):
-                    line = raw_line.strip()
-                    if line == "[requires]":
-                        in_requires = True
-                        continue
-                    if line.startswith("["):
-                        in_requires = False
-                    if in_requires and line:
-                        # Parse dependency name from "package/version" format
-                        dep_name = line.split("/")[0]
-                        dependencies.append(dep_name)
-            except Exception as exc:
-                debug("Failed to parse conanfile %s: %s", conanfile_txt, exc)
+            dependencies.extend(self._collect_conan_dependencies(conanfile_txt))
 
         return dependencies
+
+    def _collect_vcpkg_dependencies(self, manifest_path: Path) -> list[str]:
+        deps: list[str] = []
+        try:
+            with manifest_path.open(encoding="utf-8") as f:
+                vcpkg_raw: Any = json.load(f)
+                if isinstance(vcpkg_raw, dict):
+                    vcpkg_data = cast(dict[str, object], vcpkg_raw)
+                    deps_field = vcpkg_data.get("dependencies")
+                    if isinstance(deps_field, list):
+                        deps_list = cast(list[object], deps_field)
+                        for dep in deps_list:
+                            if isinstance(dep, str):
+                                deps.append(dep)
+                            elif isinstance(dep, dict):
+                                dep_map = cast(dict[str, object], dep)
+                                dep_name = dep_map.get("name")
+                                if isinstance(dep_name, str) and dep_name:
+                                    deps.append(dep_name)
+        except (OSError, json.JSONDecodeError) as exc:
+            debug(f"Failed to parse vcpkg.json at {manifest_path}: {exc}")
+        return deps
+
+    def _collect_conan_dependencies(self, conanfile_path: Path) -> list[str]:
+        deps: list[str] = []
+        try:
+            content = conanfile_path.read_text(encoding="utf-8")
+            in_requires = False
+            for raw_line in content.split("\n"):
+                line = raw_line.strip()
+                if line == "[requires]":
+                    in_requires = True
+                    continue
+                if line.startswith("["):
+                    in_requires = False
+                if in_requires and line:
+                    deps.append(line.split("/", 1)[0])
+        except OSError as exc:
+            debug(f"Failed to parse conanfile {conanfile_path}: {exc}")
+        return deps

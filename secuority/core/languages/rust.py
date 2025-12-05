@@ -1,6 +1,7 @@
 """Rust language analyzer implementation."""
 
 from pathlib import Path
+from typing import Any, cast
 
 from secuority.utils.logger import debug
 
@@ -12,7 +13,13 @@ except ModuleNotFoundError:
     except ModuleNotFoundError:
         tomllib = None  # type: ignore[assignment]
 
-from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
+from .base import (
+    ConfigFile,
+    LanguageAnalyzer,
+    LanguageDetectionResult,
+    ToolRecommendation,
+    ToolStatusMap,
+)
 
 
 class RustAnalyzer(LanguageAnalyzer):
@@ -35,18 +42,18 @@ class RustAnalyzer(LanguageAnalyzer):
         Returns:
             LanguageDetectionResult with confidence score
         """
-        indicators = []
+        indicators: list[str] = []
         confidence = 0.0
 
-        # Check for Cargo.toml (primary indicator)
-        if (project_path / "Cargo.toml").exists():
-            indicators.append("Cargo.toml")
-            confidence += 0.6
-
-        # Check for Cargo.lock
-        if (project_path / "Cargo.lock").exists():
-            indicators.append("Cargo.lock")
-            confidence += 0.2
+        indicator_checks = [
+            (project_path / "Cargo.toml", "Cargo.toml", 0.6),
+            (project_path / "Cargo.lock", "Cargo.lock", 0.2),
+            (project_path / "target", "target/", 0.1),
+        ]
+        for path, label, weight in indicator_checks:
+            if path.exists():
+                indicators.append(label)
+                confidence += weight
 
         # Check for .rs files
         rs_files = list(project_path.glob("**/*.rs"))
@@ -55,13 +62,8 @@ class RustAnalyzer(LanguageAnalyzer):
             indicators.append(f"{total_files} .rs files")
             confidence += 0.3
 
-        # Check for target directory
-        if (project_path / "target").exists():
-            indicators.append("target/")
-            confidence += 0.1
-
-        # Check for rust-toolchain file
-        if (project_path / "rust-toolchain").exists() or (project_path / "rust-toolchain.toml").exists():
+        toolchain_files = [project_path / "rust-toolchain", project_path / "rust-toolchain.toml"]
+        if any(path.exists() for path in toolchain_files):
             indicators.append("rust-toolchain")
             confidence += 0.1
 
@@ -101,7 +103,7 @@ class RustAnalyzer(LanguageAnalyzer):
         Returns:
             List of detected configuration files
         """
-        config_files = []
+        config_files: list[ConfigFile] = []
         patterns = self.get_config_file_patterns()
 
         for pattern in patterns:
@@ -129,7 +131,7 @@ class RustAnalyzer(LanguageAnalyzer):
             return "json"
         return "unknown"
 
-    def detect_tools(self, project_path: Path, _config_files: list[ConfigFile] | None = None) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, config_files: list[ConfigFile]) -> ToolStatusMap:
         """Detect which tools are configured in the project.
 
         Args:
@@ -138,54 +140,38 @@ class RustAnalyzer(LanguageAnalyzer):
         Returns:
             Dictionary mapping tool names to whether they are configured
         """
-        tools = {}
+        resolved_configs = config_files or self.detect_config_files(project_path)
+        config_names = {cfg.name for cfg in resolved_configs if cfg.exists}
 
-        # Check for rustfmt configuration
-        tools["rustfmt"] = (project_path / "rustfmt.toml").exists() or (project_path / ".rustfmt.toml").exists()
+        tools: ToolStatusMap = {
+            "rustfmt": "rustfmt.toml" in config_names or ".rustfmt.toml" in config_names,
+            "clippy": "clippy.toml" in config_names or ".clippy.toml" in config_names,
+            "cargo-audit": False,
+            "cargo-deny": "deny.toml" in config_names,
+            "cargo-tarpaulin": "tarpaulin.toml" in config_names,
+        }
 
-        # Check for clippy configuration
-        tools["clippy"] = (project_path / "clippy.toml").exists() or (project_path / ".clippy.toml").exists()
-
-        # Check for cargo-audit (check in Cargo.toml)
-        cargo_toml = project_path / "Cargo.toml"
-        if cargo_toml.exists():
-            if tomllib is None:
-                tools["cargo-audit"] = False
-            else:
-                try:
-                    with cargo_toml.open("rb") as f:
-                        cargo_data = tomllib.load(f)
-                        # Check if cargo-audit is in dev-dependencies
-                        dev_deps = cargo_data.get("dev-dependencies", {})
-                        tools["cargo-audit"] = "cargo-audit" in dev_deps
-                except Exception as exc:
-                    tools["cargo-audit"] = False
-                    debug("Failed to parse Cargo.toml for cargo-audit detection at %s: %s", cargo_toml, exc)
-        else:
-            tools["cargo-audit"] = False
-
-        # Check for cargo-deny configuration
-        tools["cargo-deny"] = (project_path / "deny.toml").exists()
-
-        # Check for cargo-tarpaulin (code coverage)
-        tools["cargo-tarpaulin"] = (project_path / "tarpaulin.toml").exists()
+        cargo_config = next((cfg for cfg in resolved_configs if cfg.name == "Cargo.toml" and cfg.path), None)
+        cargo_toml = cargo_config.path if cargo_config and cargo_config.path else project_path / "Cargo.toml"
+        cargo_data = self._load_cargo_toml(cargo_toml)
+        tools["cargo-audit"] = bool(cargo_data and self._has_cargo_audit_dependency(cargo_data))
 
         # Check for GitHub Actions workflows
         workflows_dir = project_path / ".github" / "workflows"
         if workflows_dir.exists():
             workflow_files = list(workflows_dir.glob("*.yml")) + list(workflows_dir.glob("*.yaml"))
+            workflow_markers = {
+                "cargo clippy": "clippy",
+                "cargo fmt": "rustfmt",
+                "cargo audit": "cargo-audit",
+                "cargo deny": "cargo-deny",
+                "cargo tarpaulin": "cargo-tarpaulin",
+            }
             for workflow in workflow_files:
                 content = workflow.read_text()
-                if "cargo clippy" in content:
-                    tools["clippy"] = True
-                if "cargo fmt" in content:
-                    tools["rustfmt"] = True
-                if "cargo audit" in content:
-                    tools["cargo-audit"] = True
-                if "cargo deny" in content:
-                    tools["cargo-deny"] = True
-                if "cargo tarpaulin" in content:
-                    tools["cargo-tarpaulin"] = True
+                for marker, tool_name in workflow_markers.items():
+                    if marker in content:
+                        tools[tool_name] = True
 
         return tools
 
@@ -257,7 +243,7 @@ class RustAnalyzer(LanguageAnalyzer):
         """
         return ["rustfmt"]
 
-    def parse_dependencies(self, project_path: Path, _config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies from Cargo.toml.
 
         Args:
@@ -267,22 +253,38 @@ class RustAnalyzer(LanguageAnalyzer):
         Returns:
             List of dependency names
         """
-        dependencies = []
-        cargo_toml = project_path / "Cargo.toml"
+        dependencies: list[str] = []
+        resolved_configs = config_files or self.detect_config_files(project_path)
+        cargo_config = next((cfg for cfg in resolved_configs if cfg.name == "Cargo.toml" and cfg.path), None)
+        cargo_toml = cargo_config.path if cargo_config and cargo_config.path else project_path / "Cargo.toml"
 
-        if cargo_toml.exists() and tomllib is not None:
-            try:
-                with cargo_toml.open("rb") as f:
-                    cargo_data = tomllib.load(f)
+        cargo_data = self._load_cargo_toml(cargo_toml)
+        if cargo_data:
+            deps = cargo_data.get("dependencies")
+            if isinstance(deps, dict):
+                dependencies.extend(str(name) for name in deps)
 
-                    # Parse dependencies
-                    deps = cargo_data.get("dependencies", {})
-                    dependencies.extend(deps.keys())
-
-                    # Parse dev-dependencies
-                    dev_deps = cargo_data.get("dev-dependencies", {})
-                    dependencies.extend(dev_deps.keys())
-            except Exception as exc:
-                debug("Failed to parse dependencies from %s: %s", cargo_toml, exc)
+            dev_deps = cargo_data.get("dev-dependencies")
+            if isinstance(dev_deps, dict):
+                dependencies.extend(str(name) for name in dev_deps)
 
         return dependencies
+
+    def _has_cargo_audit_dependency(self, cargo_data: dict[str, Any]) -> bool:
+        dev_deps = cargo_data.get("dev-dependencies")
+        if isinstance(dev_deps, dict):
+            return "cargo-audit" in dev_deps
+        return False
+
+    def _load_cargo_toml(self, path: Path) -> dict[str, Any] | None:
+        if tomllib is None or not path.exists():
+            return None
+        try:
+            with path.open("rb") as f:
+                raw_data: Any = tomllib.load(f)
+        except Exception as exc:  # pragma: no cover - defensive
+            debug(f"Failed to parse Cargo.toml at {path}: {exc}")
+            return None
+        if not isinstance(raw_data, dict):
+            return None
+        return cast(dict[str, Any], raw_data)

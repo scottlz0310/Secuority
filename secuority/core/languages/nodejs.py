@@ -2,10 +2,17 @@
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 from secuority.utils.logger import debug
 
-from .base import ConfigFile, LanguageAnalyzer, LanguageDetectionResult, ToolRecommendation
+from .base import (
+    ConfigFile,
+    LanguageAnalyzer,
+    LanguageDetectionResult,
+    ToolRecommendation,
+    ToolStatusMap,
+)
 
 
 class NodeJSAnalyzer(LanguageAnalyzer):
@@ -29,7 +36,7 @@ class NodeJSAnalyzer(LanguageAnalyzer):
         Returns:
             LanguageDetectionResult with confidence score
         """
-        indicators = []
+        indicators: list[str] = []
         confidence = 0.0
 
         # Check for package.json
@@ -106,7 +113,7 @@ class NodeJSAnalyzer(LanguageAnalyzer):
             List of ConfigFile objects for files that exist
         """
         patterns = self.get_config_file_patterns()
-        config_files = []
+        config_files: list[ConfigFile] = []
 
         for filename in patterns:
             file_path = project_path / filename
@@ -137,7 +144,7 @@ class NodeJSAnalyzer(LanguageAnalyzer):
             return "lock"
         return "unknown"
 
-    def detect_tools(self, _project_path: Path, config_files: list[ConfigFile]) -> dict[str, bool]:
+    def detect_tools(self, project_path: Path, config_files: list[ConfigFile]) -> ToolStatusMap:
         """Detect which tools are configured in the project.
 
         Args:
@@ -147,7 +154,7 @@ class NodeJSAnalyzer(LanguageAnalyzer):
         Returns:
             Dictionary mapping tool names to whether they're configured
         """
-        tools = {
+        tools: ToolStatusMap = {
             # Quality tools
             "biome": False,
             "eslint": False,
@@ -167,50 +174,61 @@ class NodeJSAnalyzer(LanguageAnalyzer):
             "pnpm": False,
         }
 
+        resolved_configs = config_files or self.detect_config_files(project_path)
+
         # Check package.json
-        package_json_file = next((f for f in config_files if f.name == "package.json" and f.exists), None)
+        package_json_file = next((f for f in resolved_configs if f.name == "package.json" and f.exists), None)
         if package_json_file and package_json_file.path:
             tools.update(self._detect_tools_in_package_json(package_json_file.path))
 
         # Check standalone config files
-        tools.update(self._detect_tools_from_config_files(config_files))
+        tools.update(self._detect_tools_from_config_files(resolved_configs))
 
         return tools
 
+    def _iter_dependency_keys(self, section: object) -> list[str]:
+        if not isinstance(section, dict):
+            return []
+        return [str(package_name) for package_name in section]
+
     def _detect_tools_in_package_json(self, package_json_path: Path) -> dict[str, bool]:
         """Detect tools configured in package.json."""
-        tools = {}
+        tools: dict[str, bool] = {}
 
         try:
             with package_json_path.open(encoding="utf-8") as f:
-                data = json.load(f)
+                raw_data: Any = json.load(f)
 
-            # Check dependencies and devDependencies
-            all_deps = {}
-            all_deps.update(data.get("dependencies", {}))
-            all_deps.update(data.get("devDependencies", {}))
+            if not isinstance(raw_data, dict):
+                return tools
+            data = cast(dict[str, Any], raw_data)
 
-            # Check for tools in dependencies
-            tools["biome"] = "@biomejs/biome" in all_deps
-            tools["eslint"] = "eslint" in all_deps
-            tools["typescript"] = "typescript" in all_deps
-            tools["prettier"] = "prettier" in all_deps
-            tools["jest"] = "jest" in all_deps
-            tools["vitest"] = "vitest" in all_deps
-            tools["playwright"] = "@playwright/test" in all_deps or "playwright" in all_deps
-            tools["snyk"] = "snyk" in all_deps
+            all_dep_keys: set[str] = set()
+            dependencies_section = data.get("dependencies")
+            all_dep_keys.update(self._iter_dependency_keys(dependencies_section))
+            dev_dependencies = data.get("devDependencies")
+            all_dep_keys.update(self._iter_dependency_keys(dev_dependencies))
+
+            tools["biome"] = "@biomejs/biome" in all_dep_keys
+            tools["eslint"] = "eslint" in all_dep_keys
+            tools["typescript"] = "typescript" in all_dep_keys
+            tools["prettier"] = "prettier" in all_dep_keys
+            tools["jest"] = "jest" in all_dep_keys
+            tools["vitest"] = "vitest" in all_dep_keys
+            tools["playwright"] = "@playwright/test" in all_dep_keys or "playwright" in all_dep_keys
+            tools["snyk"] = "snyk" in all_dep_keys
 
             # Check package manager from lockfile indicators
             # (will be overridden by _detect_tools_from_config_files)
 
         except (OSError, json.JSONDecodeError) as exc:
-            debug("Failed to read package.json at %s: %s", package_json_path, exc)
+            debug(f"Failed to read package.json at {package_json_path}: {exc}")
 
         return tools
 
     def _detect_tools_from_config_files(self, config_files: list[ConfigFile]) -> dict[str, bool]:
         """Detect tools from standalone configuration files."""
-        tools = {}
+        tools: dict[str, bool] = {}
 
         file_map = {
             "biome.json": "biome",
@@ -299,7 +317,7 @@ class NodeJSAnalyzer(LanguageAnalyzer):
         """Get list of code formatting tools for Node.js."""
         return ["biome", "prettier"]
 
-    def parse_dependencies(self, _project_path: Path, config_files: list[ConfigFile]) -> list[str]:
+    def parse_dependencies(self, project_path: Path, config_files: list[ConfigFile]) -> list[str]:
         """Parse project dependencies.
 
         Args:
@@ -309,10 +327,12 @@ class NodeJSAnalyzer(LanguageAnalyzer):
         Returns:
             List of dependency names
         """
-        dependencies = []
+        dependencies: list[str] = []
+
+        resolved_configs = config_files or self.detect_config_files(project_path)
 
         # Parse package.json
-        package_json_file = next((f for f in config_files if f.name == "package.json" and f.exists), None)
+        package_json_file = next((f for f in resolved_configs if f.name == "package.json" and f.exists), None)
         if package_json_file and package_json_file.path:
             dependencies.extend(self._parse_package_json_dependencies(package_json_file.path))
 
@@ -321,20 +341,24 @@ class NodeJSAnalyzer(LanguageAnalyzer):
 
     def _parse_package_json_dependencies(self, package_json_path: Path) -> list[str]:
         """Parse dependencies from package.json."""
-        dependencies = []
+        dependencies: list[str] = []
 
         try:
             with package_json_path.open(encoding="utf-8") as f:
-                data = json.load(f)
+                raw_data: Any = json.load(f)
 
-            # Get both dependencies and devDependencies
-            if "dependencies" in data:
-                dependencies.extend(data["dependencies"].keys())
+            if not isinstance(raw_data, dict):
+                return []
+            data = cast(dict[str, Any], raw_data)
 
-            if "devDependencies" in data:
-                dependencies.extend(data["devDependencies"].keys())
+            deps_section = data.get("dependencies")
+            deps_section = data.get("dependencies")
+            dependencies.extend(self._iter_dependency_keys(deps_section))
+
+            dev_deps_section = data.get("devDependencies")
+            dependencies.extend(self._iter_dependency_keys(dev_deps_section))
 
         except (OSError, json.JSONDecodeError) as exc:
-            debug("Failed to parse dependencies from %s: %s", package_json_path, exc)
+            debug(f"Failed to parse dependencies from {package_json_path}: {exc}")
 
         return dependencies
