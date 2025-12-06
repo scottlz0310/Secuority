@@ -94,7 +94,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
 
         # Check security and quality tools
         project_state.security_tools = self._check_security_tools(project_path, config_files)
-        project_state.quality_tools = self._check_quality_tools(project_path, config_files)
+        quality_tools, quality_tool_sources = self._check_quality_tools(project_path, config_files)
+        project_state.quality_tools = quality_tools
+        project_state.quality_tool_sources = quality_tool_sources
 
         # Detect CI workflows
         project_state.ci_workflows = self._detect_ci_workflows(project_path)
@@ -489,17 +491,33 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             if "gitleaks" in tools:
                 security_tools[SecurityTool.GITLEAKS] = True
 
-    def _check_quality_tools(self, _project_path: Path, config_files: ConfigFiles) -> dict[QualityTool, bool]:
-        """Check which quality tools are configured."""
+    def _check_quality_tools(
+        self,
+        _project_path: Path,
+        config_files: ConfigFiles,
+    ) -> tuple[dict[QualityTool, bool], dict[QualityTool, str]]:
+        """Check which quality tools are configured and how they are provided."""
         quality_tools = dict.fromkeys(QualityTool, False)
-        self._mark_quality_tools_from_files(quality_tools, config_files)
-        self._mark_quality_tools_from_pyproject(quality_tools, config_files.get("pyproject.toml"))
-        self._mark_quality_tools_from_precommit(quality_tools, config_files)
-        return quality_tools
+        quality_tool_sources: dict[QualityTool, str] = {}
+
+        self._mark_quality_tools_from_files(quality_tools, quality_tool_sources, config_files)
+        self._mark_quality_tools_from_pyproject(
+            quality_tools,
+            quality_tool_sources,
+            config_files.get("pyproject.toml"),
+        )
+        self._mark_quality_tools_from_precommit(quality_tools, quality_tool_sources, config_files)
+        self._mark_virtual_tools_from_ruff(
+            quality_tools,
+            quality_tool_sources,
+            config_files.get("pyproject.toml"),
+        )
+        return quality_tools, quality_tool_sources
 
     @staticmethod
     def _mark_quality_tools_from_files(
         quality_tools: dict[QualityTool, bool],
+        quality_tool_sources: dict[QualityTool, str],
         config_files: ConfigFiles,
     ) -> None:
         tool_file_mapping = {
@@ -510,10 +528,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         for filename, tool in tool_file_mapping.items():
             if filename in config_files:
                 quality_tools[tool] = True
+                quality_tool_sources[tool] = f"config:{filename}"
 
     def _mark_quality_tools_from_pyproject(
         self,
         quality_tools: dict[QualityTool, bool],
+        quality_tool_sources: dict[QualityTool, str],
         pyproject_path: Path | None,
     ) -> None:
         if pyproject_path is None:
@@ -542,30 +562,12 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         for tool_name, tool_enum in tool_mapping.items():
             if tool_name in tool_config:
                 quality_tools[tool_enum] = True
-
-        if "ruff" not in tool_config:
-            return
-
-        ruff_section = tool_config.get("ruff")
-        if not isinstance(ruff_section, dict):
-            return
-        ruff_config: dict[str, object] = cast(dict[str, object], ruff_section)
-
-        lint_config = ruff_config.get("lint")
-        lint_select_source: object | None = None
-        if isinstance(lint_config, dict):
-            lint_section: dict[str, object] = cast(dict[str, object], lint_config)
-            lint_select_source = lint_section.get("select")
-
-        lint_select = self._ensure_str_list(lint_select_source)
-        select_rules = self._ensure_str_list(ruff_config.get("select"))
-        all_rules = select_rules + lint_select
-        if any(rule.startswith("I") for rule in all_rules):
-            quality_tools[QualityTool.ISORT] = True
+                quality_tool_sources[tool_enum] = "pyproject"
 
     def _mark_quality_tools_from_precommit(
         self,
         quality_tools: dict[QualityTool, bool],
+        quality_tool_sources: dict[QualityTool, str],
         config_files: ConfigFiles,
     ) -> None:
         precommit_files = [".pre-commit-config.yaml", ".pre-commit-config.yml"]
@@ -585,6 +587,45 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             for tool_name, tool_enum in tool_mapping.items():
                 if tool_name in tools:
                     quality_tools[tool_enum] = True
+                    quality_tool_sources[tool_enum] = "pre-commit"
+
+    def _mark_virtual_tools_from_ruff(
+        self,
+        quality_tools: dict[QualityTool, bool],
+        quality_tool_sources: dict[QualityTool, str],
+        pyproject_path: Path | None,
+    ) -> None:
+        """Track tools that are emulated by Ruff so we can message correctly."""
+        if pyproject_path is None or quality_tools.get(QualityTool.RUFF) is False:
+            return
+
+        try:
+            with pyproject_path.open("rb") as f:
+                data = tomllib.load(f)
+        except (tomllib.TOMLDecodeError, OSError):
+            return
+
+        tool_config_section = data.get("tool")
+        if not isinstance(tool_config_section, dict):
+            return
+        tool_config: dict[str, object] = cast(dict[str, object], tool_config_section)
+
+        ruff_section = tool_config.get("ruff")
+        if not isinstance(ruff_section, dict):
+            return
+        ruff_config: dict[str, object] = cast(dict[str, object], ruff_section)
+
+        lint_config = ruff_config.get("lint")
+        lint_select_source: object | None = None
+        if isinstance(lint_config, dict):
+            lint_section: dict[str, object] = cast(dict[str, object], lint_config)
+            lint_select_source = lint_section.get("select")
+
+        lint_select = self._ensure_str_list(lint_select_source)
+        select_rules = self._ensure_str_list(ruff_config.get("select"))
+        all_rules = select_rules + lint_select
+        if any(rule.startswith("I") for rule in all_rules) and not quality_tools[QualityTool.ISORT]:
+            quality_tool_sources[QualityTool.ISORT] = "virtual:ruff-lint"
 
     def _check_gitleaks_in_precommit(self, precommit_path: Path) -> bool:
         """Check if gitleaks is configured in pre-commit config."""
@@ -903,6 +944,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             # Get push protection status
             push_protection = github_client.check_push_protection(owner, repo)
 
+            # Get Renovate configuration
+            renovate_config = github_client.get_renovate_config(owner, repo)
+
             # Get Dependabot configuration
             dependabot_config = github_client.get_dependabot_config(owner, repo)
 
@@ -917,6 +961,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 "security_settings": security_settings,
                 "push_protection": push_protection,
                 "dependabot": dependabot_config,
+                "renovate": renovate_config,
                 "workflows": workflows,
                 "analysis_successful": True,
             }

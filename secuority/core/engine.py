@@ -95,6 +95,7 @@ class CoreEngine:
             return {
                 "available": True,
                 "push_protection": self.github_client.check_push_protection(owner, repo_name),
+                "renovate": self.github_client.get_renovate_config(owner, repo_name),
                 "dependabot": self.github_client.get_dependabot_config(owner, repo_name),
                 "workflows": self.github_client.list_workflows(owner, repo_name),
                 "security_settings": self.github_client.check_security_settings(owner, repo_name),

@@ -271,7 +271,7 @@ class TestProjectAnalyzer:
         pyproject_path.write_text("[tool.ruff]\nline-length = 120\n")
 
         config_files = {"pyproject.toml": pyproject_path}
-        quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
+        quality_tools, _ = analyzer._check_quality_tools(tmp_path, config_files)
 
         assert quality_tools[QualityTool.RUFF]
 
@@ -285,7 +285,7 @@ class TestProjectAnalyzer:
         mypy_path.write_text("[mypy]\nstrict = true\n")
 
         config_files = {"mypy.ini": mypy_path}
-        quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
+        quality_tools, _ = analyzer._check_quality_tools(tmp_path, config_files)
 
         assert quality_tools[QualityTool.MYPY]
 
@@ -437,10 +437,11 @@ class TestProjectAnalyzer:
         pyproject_path.write_text('[tool.ruff]\nselect = ["E", "F", "I"]\nline-length = 120\n')
 
         config_files = {"pyproject.toml": pyproject_path}
-        quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
+        quality_tools, quality_tool_sources = analyzer._check_quality_tools(tmp_path, config_files)
 
         assert quality_tools[QualityTool.RUFF]
-        assert quality_tools[QualityTool.ISORT]  # Ruff with I rules replaces isort
+        assert not quality_tools[QualityTool.ISORT]
+        assert quality_tool_sources[QualityTool.ISORT] == "virtual:ruff-lint"
 
     def test_detect_ci_workflows_with_yaml_parse_error(
         self,
@@ -628,7 +629,7 @@ class TestProjectAnalyzer:
         )
 
         config_files = {".pre-commit-config.yaml": precommit_path}
-        quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
+        quality_tools, _ = analyzer._check_quality_tools(tmp_path, config_files)
 
         assert quality_tools[QualityTool.RUFF]
         assert quality_tools[QualityTool.MYPY]
@@ -679,10 +680,11 @@ class TestProjectAnalyzer:
         pyproject_path.write_text('[tool.ruff]\nline-length = 120\n\n[tool.ruff.lint]\nselect = ["E", "F", "I"]\n')
 
         config_files = {"pyproject.toml": pyproject_path}
-        quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
+        quality_tools, quality_tool_sources = analyzer._check_quality_tools(tmp_path, config_files)
 
         assert quality_tools[QualityTool.RUFF]
-        assert quality_tools[QualityTool.ISORT]  # Ruff with I rules in lint.select
+        assert not quality_tools[QualityTool.ISORT]
+        assert quality_tool_sources[QualityTool.ISORT] == "virtual:ruff-lint"
 
     def test_workflow_has_security_checks_detection(
         self,
@@ -1020,12 +1022,13 @@ class TestProjectAnalyzer:
         )
 
         config_files = {"pyproject.toml": pyproject_path}
-        quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
+        quality_tools, quality_tool_sources = analyzer._check_quality_tools(tmp_path, config_files)
 
         # Verify modern tools are detected
         assert quality_tools[QualityTool.RUFF]
         assert quality_tools[QualityTool.MYPY]
-        assert quality_tools[QualityTool.ISORT]  # Ruff with I rules
+        assert not quality_tools[QualityTool.ISORT]
+        assert quality_tool_sources[QualityTool.ISORT] == "virtual:ruff-lint"
 
         # Verify legacy tools are not detected
         assert not quality_tools[QualityTool.BLACK]
@@ -1130,7 +1133,7 @@ class TestProjectAnalyzer:
             ".pre-commit-config.yaml": precommit_path,
         }
 
-        quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
+        quality_tools, _ = analyzer._check_quality_tools(tmp_path, config_files)
         security_tools = analyzer._check_security_tools(tmp_path, config_files)
         workflow_result = analyzer.check_github_workflows(tmp_path)
 
@@ -1281,7 +1284,7 @@ class TestProjectAnalyzer:
         )
 
         config_files = {"pyproject.toml": pyproject_path}
-        quality_tools = analyzer._check_quality_tools(tmp_path, config_files)
+        quality_tools, _ = analyzer._check_quality_tools(tmp_path, config_files)
 
         # Verify legacy tools are detected
         assert quality_tools[QualityTool.BLACK]

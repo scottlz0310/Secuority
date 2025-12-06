@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- CLI GitHub IntegrationセクションにRenovate検知と推奨メッセージを追加し、Dependabotとの重複も解消。
+
+### Fixed
+
+- RuffのIルールが有効なだけの場合でもisortが「構成済み」と誤表示されないようにし、`secuority check`のQuality Tools表では「Ruffでカバー済み」と表示されるよう改善。
+
 ## [0.5.0] - 2025-11-03
 
 ### Added

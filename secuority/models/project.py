@@ -31,6 +31,7 @@ class ProjectState:
     current_tools: dict[str, ToolConfig] = field(default_factory=dict)
     security_tools: dict[SecurityTool, bool] = field(default_factory=dict)
     quality_tools: dict[QualityTool, bool] = field(default_factory=dict)
+    quality_tool_sources: dict[QualityTool, str] = field(default_factory=dict)
     ci_workflows: list[Workflow] = field(default_factory=list)
     dependency_analysis: DependencyAnalysis | None = None
     python_version: str | None = None
@@ -232,6 +233,7 @@ class ProjectState:
             },
             "security_tools": {tool.value: enabled for tool, enabled in self.security_tools.items()},
             "quality_tools": {tool.value: enabled for tool, enabled in self.quality_tools.items()},
+            "quality_tool_sources": {tool.value: source for tool, source in self.quality_tool_sources.items()},
             "ci_workflows": [
                 {
                     "name": w.name,

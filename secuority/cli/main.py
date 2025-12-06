@@ -1448,8 +1448,23 @@ def _render_quality_tools(project_state: Any) -> None:
     quality_table.add_column("Status", justify="center")
     quality_table.add_column("Notes", style="dim")
 
+    quality_tool_sources = getattr(project_state, "quality_tool_sources", {})
+
     for quality_tool, configured in project_state.quality_tools.items():
         tool_name = quality_tool.value.lower()
+        source = quality_tool_sources.get(quality_tool)
+
+        if isinstance(source, str) and source.startswith("virtual:"):
+            provider = source.split(":", 1)[1]
+            if provider == "ruff-lint":
+                status = "[green]✓ Covered by Ruff[/green]"
+                note = "Import sorting handled via Ruff I-rules"
+            else:
+                status = "[green]✓ Covered by modern tool[/green]"
+                note = f"Virtualized by {provider}"
+            quality_table.add_row(quality_tool.value, status, note)
+            continue
+
         if tool_name in MODERN_QUALITY_TOOLS:
             status = "[green]✓ Configured[/green]" if configured else "[red]✗ Not configured[/red]"
             note = "Modern tool" if configured else "Recommended"
@@ -1522,6 +1537,12 @@ def _render_github_section(github_analysis: GitHubAnalysisResult | None) -> None
             "[green]✓ Enabled[/green]" if push_protection else "[red]✗ Disabled[/red]",
         )
 
+        renovate_cfg = github_analysis.get("renovate")
+        ren_enabled = bool(renovate_cfg and renovate_cfg.get("enabled"))
+        github_table.add_row(
+            "Renovate", "[green]✓ Enabled[/green]" if ren_enabled else "[yellow]⚠ Not detected[/yellow]"
+        )
+
         dependabot_cfg = github_analysis.get("dependabot")
         db_enabled = bool(dependabot_cfg and dependabot_cfg.get("enabled"))
         github_table.add_row("Dependabot", "[green]✓ Enabled[/green]" if db_enabled else "[red]✗ Disabled[/red]")
@@ -1584,9 +1605,17 @@ def _append_github_recommendations(
     if not github_analysis.get("push_protection", False):
         recommendations.append("Enable GitHub Push Protection for secret scanning")
 
+    renovate_cfg = github_analysis.get("renovate") or {}
+    renovate_enabled = bool(renovate_cfg.get("enabled"))
     dependabot_cfg = github_analysis.get("dependabot")
-    if not dependabot_cfg or not dependabot_cfg.get("enabled", False):
-        recommendations.append("Enable Dependabot for automated dependency updates")
+    dependabot_enabled = bool(dependabot_cfg and dependabot_cfg.get("enabled", False))
+
+    if not renovate_enabled:
+        recommendations.append("Enable Renovate for automated multi-language dependency updates")
+        if not dependabot_enabled:
+            recommendations.append("Enable Dependabot until Renovate is configured")
+    elif dependabot_enabled:
+        recommendations.append("Consider migrating Dependabot workflows to Renovate to avoid duplicate updates")
 
 
 def _append_config_file_recommendations(recommendations: list[str], project_state: Any) -> None:

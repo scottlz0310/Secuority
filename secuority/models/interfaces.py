@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     from ..core.languages import LanguageAnalysisResult
+    from ..types import RenovateConfig
     from .config import ApplyResult
     from .config import ConfigChange as ConfigChangeType
 
@@ -92,6 +93,7 @@ class GitHubAnalysisResult(TypedDict, total=False):
     analysis_successful: bool
     push_protection: bool
     dependabot: DependabotConfig
+    renovate: "RenovateConfig"
     workflows: list[GitHubWorkflowSummary]
     security_settings: GitHubSecuritySettings
     error: str
@@ -332,6 +334,10 @@ class GitHubClientInterface(ABC):
         """List GitHub Actions workflows in the repository."""
 
     @abstractmethod
+    def get_renovate_config(self, owner: str, repo: str) -> "RenovateConfig":
+        """Get Renovate configuration for the repository."""
+
+    @abstractmethod
     def check_security_settings(self, owner: str, repo: str) -> GitHubSecuritySettings:
         """Check repository security settings."""
 
@@ -351,6 +357,7 @@ class ProjectState:
     current_tools: dict[str, ToolConfig] = field(default_factory=dict)
     security_tools: dict[SecurityTool, bool] = field(default_factory=dict)
     quality_tools: dict[QualityTool, bool] = field(default_factory=dict)
+    quality_tool_sources: dict[QualityTool, str] = field(default_factory=dict)
     ci_workflows: list[Workflow] = field(default_factory=list)
     dependency_analysis: DependencyAnalysis | None = None
     python_version: str | None = None
