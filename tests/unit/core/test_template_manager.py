@@ -108,16 +108,18 @@ class TestTemplateManager:
         assert ".pre-commit-config.yaml.template" in templates
         assert "workflows/test.yml" in templates
 
-    def test_load_templates_directory_not_found(
+    def test_load_templates_auto_initializes_when_missing(
         self,
         manager: TemplateManager,
         tmp_path: Path,
     ) -> None:
-        """Test loading templates when directory doesn't exist."""
-        manager._template_dir = tmp_path / "nonexistent"
+        """Templates should be auto-initialized when missing."""
+        manager._template_dir = tmp_path / "templates_root"
 
-        with pytest.raises(TemplateError, match="Templates directory not found"):
-            manager.load_templates()
+        templates = manager.load_templates()
+
+        assert templates  # default templates copied from package
+        assert (manager._template_dir / "templates").exists()
 
     def test_get_template_existing(
         self,

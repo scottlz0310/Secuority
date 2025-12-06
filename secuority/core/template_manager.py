@@ -90,6 +90,13 @@ class TemplateManager(TemplateManagerInterface):
         templates_path = template_dir / "templates"
 
         if not templates_path.exists():
+            try:
+                self.initialize_templates()
+            except TemplateError as exc:
+                msg = f"Templates directory not found: {templates_path}"
+                raise TemplateError(msg) from exc
+
+        if not templates_path.exists():
             msg = f"Templates directory not found: {templates_path}"
             raise TemplateError(msg)
 
