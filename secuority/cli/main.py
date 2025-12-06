@@ -76,7 +76,6 @@ def check(
 
         core_engine = _get_core_engine()
         project_state = core_engine.analyze_project(project_path)
-        config_files_info = _build_config_file_info(project_state)
         language_results, detected_languages = _resolve_cli_languages(
             project_state=project_state,
             project_path=project_path,
@@ -84,6 +83,8 @@ def check(
             detected_languages=detected_languages,
             logger=logger,
         )
+        python_project = _is_python_project(project_state, language_results)
+        config_files_info = _build_config_file_info(project_state, python_project)
 
         if not structured_output:
             _render_analysis_header(project_path, detected_languages)
@@ -96,8 +97,9 @@ def check(
         if not structured_output:
             _render_dependency_manager(project_state)
             _render_current_tools(project_state)
-            _render_security_tools(project_state)
-            _render_quality_tools(project_state)
+            if python_project:
+                _render_security_tools(project_state)
+                _render_quality_tools(project_state)
             _render_workflows(project_state)
 
         github_analysis = _perform_github_analysis(core_engine, project_path, logger)
@@ -105,7 +107,7 @@ def check(
         if not structured_output:
             _render_github_section(github_analysis)
 
-        recommendations = _build_recommendations(project_state, github_analysis)
+        recommendations = _build_recommendations(project_state, github_analysis, python_project)
         _log_recommendations(logger, recommendations)
 
         python_files_count = _log_project_statistics(logger, project_path)
@@ -1207,16 +1209,67 @@ def _determine_target_languages(project_path: Path, explicit_languages: list[str
     return languages or ["python"]
 
 
-def _build_config_file_info(project_state: Any) -> list[tuple[str, bool, str, bool]]:
+def _is_python_project(
+    project_state: ProjectState,
+    language_results: dict[str, LanguageAnalysisResult],
+) -> bool:
+    """Return True if Python is part of the analyzed languages."""
+
+    def _language_detected(lang: str) -> bool:
+        result = language_results.get(lang)
+        if not result:
+            return False
+        return bool(result.get("detected", False) or result.get("confidence", 0.0) >= 0.5)
+
+    if _language_detected("python"):
+        return True
+
+    # Fall back to the full analysis map if CLI filtering removed Python
+    analysis = getattr(project_state, "language_analysis", {}) or {}
+    fallback = analysis.get("python")
+    if fallback:
+        return bool(fallback.get("detected", False) or fallback.get("confidence", 0.0) >= 0.5)
+
+    # Finally, rely on Python-specific files or tool configs as heuristics
+    python_files_present = any(
+        [
+            project_state.has_pyproject_toml,
+            project_state.has_requirements_txt,
+            project_state.has_setup_py,
+            bool(project_state.current_tools),
+        ],
+    )
+    if python_files_present:
+        return True
+
+    # When nothing was detected at all, keep previous behavior and assume Python
+    return not language_results
+
+
+def _build_config_file_info(
+    project_state: Any,
+    include_python_files: bool,
+) -> list[tuple[str, bool, str, bool]]:
     """Collect information about important configuration files."""
-    return [
-        ("pyproject.toml", project_state.has_pyproject_toml, "Modern Python configuration", True),
-        ("requirements.txt", project_state.has_requirements_txt, "Legacy format (consider migration)", False),
-        ("setup.py", project_state.has_setup_py, "Legacy format (consider migration)", False),
-        (".gitignore", project_state.has_gitignore, "Git ignore patterns", True),
-        (".pre-commit-config.yaml", project_state.has_pre_commit_config, "Pre-commit hooks", True),
-        ("SECURITY.md", project_state.has_security_md, "Security policy", True),
-    ]
+
+    files: list[tuple[str, bool, str, bool]] = []
+    if include_python_files:
+        files.extend(
+            [
+                ("pyproject.toml", project_state.has_pyproject_toml, "Modern Python configuration", True),
+                ("requirements.txt", project_state.has_requirements_txt, "Legacy format (consider migration)", False),
+                ("setup.py", project_state.has_setup_py, "Legacy format (consider migration)", False),
+            ],
+        )
+
+    files.extend(
+        [
+            (".gitignore", project_state.has_gitignore, "Git ignore patterns", True),
+            (".pre-commit-config.yaml", project_state.has_pre_commit_config, "Pre-commit hooks", True),
+            ("SECURITY.md", project_state.has_security_md, "Security policy", True),
+        ],
+    )
+    return files
 
 
 def _render_analysis_header(project_path: Path, detected_languages: list[str]) -> None:
@@ -1584,13 +1637,15 @@ def _render_github_section(github_analysis: GitHubAnalysisResult | None) -> None
 def _build_recommendations(
     project_state: Any,
     github_analysis: GitHubAnalysisResult | None,
+    python_project: bool,
 ) -> list[str]:
     """Build a list of recommendations based on analysis results."""
     recommendations: list[str] = []
     _append_github_recommendations(recommendations, github_analysis)
-    _append_config_file_recommendations(recommendations, project_state)
-    _append_security_recommendations(recommendations, project_state)
-    _append_quality_recommendations(recommendations, project_state)
+    _append_config_file_recommendations(recommendations, project_state, python_project)
+    if python_project:
+        _append_security_recommendations(recommendations, project_state)
+        _append_quality_recommendations(recommendations, project_state)
     _append_workflow_recommendations(recommendations, project_state)
     return recommendations
 
@@ -1618,8 +1673,12 @@ def _append_github_recommendations(
         recommendations.append("Consider migrating Dependabot workflows to Renovate to avoid duplicate updates")
 
 
-def _append_config_file_recommendations(recommendations: list[str], project_state: Any) -> None:
-    if not project_state.has_pyproject_toml:
+def _append_config_file_recommendations(
+    recommendations: list[str],
+    project_state: Any,
+    python_project: bool,
+) -> None:
+    if python_project and not project_state.has_pyproject_toml:
         recommendations.append("Create pyproject.toml for modern Python configuration")
     if not project_state.has_gitignore:
         recommendations.append("Add .gitignore file with Python patterns")
@@ -1629,7 +1688,7 @@ def _append_config_file_recommendations(recommendations: list[str], project_stat
         recommendations.append("Add SECURITY.md to define security policy and enable GitHub Security tab")
 
     dep_analysis = project_state.dependency_analysis
-    if dep_analysis and dep_analysis.migration_needed:
+    if python_project and dep_analysis and dep_analysis.migration_needed:
         recommendations.append("Migrate from requirements.txt to pyproject.toml dependencies")
 
 
