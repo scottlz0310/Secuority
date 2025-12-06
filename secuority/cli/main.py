@@ -1435,8 +1435,8 @@ def _render_security_tools(project_state: Any) -> None:
     console.print()
 
 
-MODERN_QUALITY_TOOLS = {"ruff", "mypy"}
-LEGACY_QUALITY_TOOLS = {"black", "isort", "flake8", "pylint"}
+MODERN_QUALITY_TOOLS = {"ruff", "basedpyright", "pyright"}
+LEGACY_QUALITY_TOOLS = {"black", "isort", "flake8", "pylint", "mypy"}
 
 
 def _render_quality_tools(project_state: Any) -> None:
@@ -1454,12 +1454,13 @@ def _render_quality_tools(project_state: Any) -> None:
             status = "[green]✓ Configured[/green]" if configured else "[red]✗ Not configured[/red]"
             note = "Modern tool" if configured else "Recommended"
         elif tool_name in LEGACY_QUALITY_TOOLS:
+            is_mypy = tool_name == "mypy"
             if configured:
                 status = "[yellow]⚠ Configured[/yellow]"
-                note = "Consider migrating to ruff"
+                note = "Consider migrating to basedpyright" if is_mypy else "Consider migrating to ruff"
             else:
                 status = "[green]✓ Not used[/green]"
-                note = "Legacy tool (ruff replaces this)"
+                note = "Legacy tool (basedpyright replaces this)" if is_mypy else "Legacy tool (ruff replaces this)"
         else:
             status = "[green]✓ Configured[/green]" if configured else "[red]✗ Not configured[/red]"
             note = ""
