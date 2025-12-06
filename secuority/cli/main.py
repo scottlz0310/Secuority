@@ -371,29 +371,80 @@ def _generate_template_file_changes(
     templates: dict[str, str],
     logger: Any,
 ) -> list[ConfigChange]:
-    template_map = {
-        "pyproject.toml.template": ("pyproject.toml", project_state.has_pyproject_toml),
-        ".gitignore.template": (".gitignore", project_state.has_gitignore),
-        ".pre-commit-config.yaml.template": (
-            ".pre-commit-config.yaml",
-            project_state.has_pre_commit_config,
-        ),
-        "SECURITY.md.template": ("SECURITY.md", getattr(project_state, "has_security_md", False)),
+    """Generate template file changes for all detected languages.
+
+    Supports templates from multiple languages with language-prefixed keys
+    (e.g., 'python:pyproject.toml.template') or unprefixed keys.
+    """
+    # Define template mappings for each language
+    # Format: template_name -> (target_file, project_state_attribute)
+    language_template_maps: dict[str, dict[str, tuple[str, str]]] = {
+        "python": {
+            "pyproject.toml.template": ("pyproject.toml", "has_pyproject_toml"),
+            ".pre-commit-config.yaml.template": (".pre-commit-config.yaml", "has_pre_commit_config"),
+        },
+        "nodejs": {
+            "biome.json.template": ("biome.json", "has_biome_config"),
+            "tsconfig.json.template": ("tsconfig.json", "has_tsconfig"),
+        },
+        "rust": {
+            "Cargo.toml.template": ("Cargo.toml", "has_cargo_toml"),
+            "rustfmt.toml": ("rustfmt.toml", "has_rustfmt"),
+            "deny.toml": ("deny.toml", "has_cargo_deny"),
+        },
+        "go": {
+            ".golangci.yml": (".golangci.yml", "has_golangci"),
+        },
+        "cpp": {
+            ".clang-format": (".clang-format", "has_clang_format"),
+            ".clang-tidy": (".clang-tidy", "has_clang_tidy"),
+            "CMakeLists.txt.template": ("CMakeLists.txt", "has_cmake"),
+        },
+        "csharp": {
+            ".editorconfig": (".editorconfig", "has_editorconfig"),
+            "Directory.Build.props": ("Directory.Build.props", "has_directory_build_props"),
+        },
+        "common": {
+            ".gitignore.template": (".gitignore", "has_gitignore"),
+            "SECURITY.md.template": ("SECURITY.md", "has_security_md"),
+            "CONTRIBUTING.md": ("CONTRIBUTING.md", "has_contributing"),
+            "renovate.json": ("renovate.json", "has_renovate"),
+        },
     }
 
     template_changes: list[ConfigChange] = []
-    for template_name, (target, already_exists) in template_map.items():
-        if already_exists or template_name not in templates:
-            continue
-        try:
-            change = core_engine.applier.merge_file_configurations(
-                project_path / target,
-                templates[template_name],
-            )
-            template_changes.append(change)
-            logger.debug("Added template change", template=template_name, target=target)
-        except Exception as exc:
-            logger.warning("Failed to generate template change", template=template_name, error=str(exc))
+
+    for language, template_map in language_template_maps.items():
+        for template_name, (target, state_attr) in template_map.items():
+            # Check if file already exists
+            already_exists = getattr(project_state, state_attr, False) or (project_path / target).exists()
+            if already_exists:
+                continue
+
+            # Try to find template (with or without language prefix)
+            template_content = None
+            for key_variant in [f"{language}:{template_name}", template_name]:
+                if key_variant in templates:
+                    template_content = templates[key_variant]
+                    break
+
+            if template_content is None:
+                continue
+
+            try:
+                change = core_engine.applier.merge_file_configurations(
+                    project_path / target,
+                    template_content,
+                )
+                template_changes.append(change)
+                logger.debug("Added template change", template=template_name, target=target, language=language)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to generate template change",
+                    template=template_name,
+                    language=language,
+                    error=str(exc),
+                )
 
     return template_changes
 
@@ -742,6 +793,12 @@ app.add_typer(template_app)
 def template_list(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
     structured_output: bool = typer.Option(False, "--structured", help="Output structured JSON logs"),
+    language: str | None = typer.Option(
+        None,
+        "--language",
+        "-l",
+        help="Show templates for specific language (e.g., python, nodejs, rust)",
+    ),
 ) -> None:
     """List available templates."""
     configure_logging(verbose=verbose, structured_output=structured_output)
@@ -749,75 +806,181 @@ def template_list(
 
     try:
         logger.info("Listing available templates")
-
-        # Get template manager and load templates
         core_engine = _get_core_engine()
 
-        try:
-            templates = core_engine.template_manager.load_templates()
-            template_dir = core_engine.template_manager.get_template_directory()
-        except TemplateError as e:
-            if not structured_output:
-                console.print(f"[red]Error:[/red] {e}")
-                console.print("[dim]Run 'secuority init' to initialize templates.[/dim]")
-            logger.error("Failed to load templates", error=str(e))
-            raise typer.Exit(1) from None
-
-        if not structured_output:
-            console.print("\n[bold blue]Available Templates[/bold blue]\n")
-            console.print(f"[dim]Template directory: {template_dir}[/dim]\n")
-
-        # Template descriptions
-        template_descriptions = {
-            "pyproject.toml.template": "Modern Python project configuration",
-            ".gitignore.template": "Python-specific ignore patterns",
-            ".pre-commit-config.yaml.template": "Pre-commit hooks configuration",
-            "workflows/security-check.yml": "GitHub Actions security workflow",
-            "workflows/quality-check.yml": "GitHub Actions quality workflow",
-        }
-
-        if not structured_output:
-            template_table = Table(title="Configuration Templates", show_header=True, header_style="bold magenta")
-            template_table.add_column("Template", style="cyan", no_wrap=True)
-            template_table.add_column("Description", style="dim")
-            template_table.add_column("Status", justify="center")
-
-            # Show all expected templates
-            for template_name, description in template_descriptions.items():
-                exists = template_name in templates
-                status_color = "[green]✓ Available[/green]" if exists else "[red]✗ Missing[/red]"
-                template_table.add_row(template_name, description, status_color)
-
-                logger.debug(
-                    "Template details",
-                    template_name=template_name,
-                    template_description=description,
-                    template_available=exists,
-                )
-
-            console.print(template_table)
-
-            if verbose and templates:
-                console.print("\n[bold]Template Details:[/bold]")
-                for template_name, content in templates.items():
-                    console.print(f"  • {template_name}: {len(content)} characters")
-
-            console.print(f"\n[dim]Found {len(templates)} templates[/dim]")
-            if len(templates) < len(template_descriptions):
-                console.print("[dim]Run 'secuority init' to initialize missing templates.[/dim]")
-            console.print()
-
-        logger.info(
-            "Template listing completed",
-            available_templates=len(templates),
-            expected_templates=len(template_descriptions),
+        _display_templates_for_languages(
+            core_engine=core_engine,
+            language=language,
+            verbose=verbose,
+            structured_output=structured_output,
+            logger=logger,
         )
 
+    except TemplateError as e:
+        _handle_template_list_error(e, structured_output, logger)
     except Exception as e:
         logger.exception("Failed to list templates", error=str(e))
         if not structured_output:
             console.print(f"[red]Error:[/red] Failed to list templates: {e}")
         raise typer.Exit(1) from None
+
+
+def _display_templates_for_languages(
+    *,
+    core_engine: CoreEngine,
+    language: str | None,
+    verbose: bool,
+    structured_output: bool,
+    logger: Any,
+) -> None:
+    """Display templates for specified or all languages."""
+    template_dir = core_engine.template_manager.get_template_directory()
+    available_languages = core_engine.template_manager.get_available_languages()
+
+    if not structured_output:
+        console.print("\n[bold blue]Available Templates[/bold blue]\n")
+        console.print(f"[dim]Template directory: {template_dir}[/dim]")
+        console.print(f"[dim]Available languages: {', '.join(available_languages) or 'none'}[/dim]\n")
+
+    languages_to_show = [language] if language else available_languages
+
+    if language and language not in available_languages:
+        _warn_language_not_found(language, available_languages, structured_output, logger)
+        raise typer.Exit(1)
+
+    for lang in languages_to_show:
+        _try_render_language_templates(core_engine, lang, verbose, structured_output, logger)
+
+    _try_render_common_templates(core_engine, verbose, structured_output, logger)
+
+    if not structured_output:
+        console.print("\n[dim]Use --language <name> to filter by language[/dim]")
+        console.print()
+
+    logger.info("Template listing completed", languages_shown=len(languages_to_show))
+
+
+def _warn_language_not_found(
+    language: str,
+    available_languages: list[str],
+    structured_output: bool,
+    logger: Any,
+) -> None:
+    """Warn about language not found."""
+    if not structured_output:
+        console.print(f"[yellow]Warning:[/yellow] Language '{language}' not found.")
+        console.print(f"[dim]Available languages: {', '.join(available_languages)}[/dim]")
+    logger.warning("Language not found", language=language, available=available_languages)
+
+
+def _try_render_language_templates(
+    core_engine: CoreEngine,
+    lang: str,
+    verbose: bool,
+    structured_output: bool,
+    logger: Any,
+) -> None:
+    """Try to render templates for a language, handling errors gracefully."""
+    try:
+        templates = core_engine.template_manager.load_templates(language=lang)
+        _render_language_templates(lang, templates, verbose, structured_output, logger)
+    except TemplateError as e:
+        logger.warning("Could not load templates for language", language=lang, error=str(e))
+        if not structured_output:
+            console.print(f"[yellow]Warning:[/yellow] Could not load {lang} templates: {e}")
+
+
+def _try_render_common_templates(
+    core_engine: CoreEngine,
+    verbose: bool,
+    structured_output: bool,
+    logger: Any,
+) -> None:
+    """Try to render common templates."""
+    try:
+        common_templates = core_engine.template_manager.load_templates(language="common")
+        if common_templates:
+            _render_language_templates("common (shared)", common_templates, verbose, structured_output, logger)
+    except TemplateError:
+        pass  # Common templates may not exist separately
+
+
+def _handle_template_list_error(e: TemplateError, structured_output: bool, logger: Any) -> None:
+    """Handle TemplateError in template list command."""
+    if not structured_output:
+        console.print(f"[red]Error:[/red] {e}")
+        console.print("[dim]Run 'secuority init' to initialize templates.[/dim]")
+    logger.error("Failed to load templates", error=str(e))
+    raise typer.Exit(1) from None
+
+
+def _render_language_templates(
+    language: str,
+    templates: dict[str, str],
+    verbose: bool,
+    structured_output: bool,
+    logger: Any,
+) -> None:
+    """Render templates table for a specific language."""
+    if structured_output:
+        logger.info("Language templates", language=language, count=len(templates))
+        return
+
+    # Template descriptions by category
+    template_descriptions: dict[str, str] = {
+        # Python
+        "pyproject.toml.template": "Python project configuration",
+        ".pre-commit-config.yaml.template": "Pre-commit hooks",
+        # Node.js
+        "biome.json.template": "Biome linter/formatter config",
+        "tsconfig.json.template": "TypeScript configuration",
+        # Rust
+        "Cargo.toml.template": "Rust project configuration",
+        "rustfmt.toml": "Rust formatter configuration",
+        "deny.toml": "Cargo deny configuration",
+        # Go
+        ".golangci.yml": "GolangCI-Lint configuration",
+        # C++
+        ".clang-format": "Clang formatter configuration",
+        ".clang-tidy": "Clang-Tidy linter configuration",
+        "CMakeLists.txt.template": "CMake build configuration",
+        # C#
+        ".editorconfig": "Editor configuration",
+        "Directory.Build.props": "MSBuild properties",
+        # Common
+        ".gitignore.template": "Git ignore patterns",
+        "SECURITY.md.template": "Security policy",
+        "CONTRIBUTING.md": "Contributing guidelines",
+        "renovate.json": "Renovate dependency updates",
+    }
+
+    table = Table(title=f"[bold]{language.capitalize()} Templates[/bold]", show_header=True, header_style="bold cyan")
+    table.add_column("Template", style="cyan", no_wrap=True)
+    table.add_column("Description", style="dim")
+    table.add_column("Size", justify="right")
+
+    for template_name, content in sorted(templates.items()):
+        description = template_descriptions.get(template_name, _infer_template_description(template_name))
+        size = f"{len(content):,} chars"
+        table.add_row(template_name, description, size)
+
+    console.print(table)
+
+    if verbose:
+        console.print(f"[dim]  Total: {len(templates)} templates[/dim]")
+    console.print()
+
+
+def _infer_template_description(template_name: str) -> str:
+    """Infer description from template name."""
+    if "workflow" in template_name or template_name.endswith(".yml"):
+        return "GitHub Actions workflow"
+    if template_name.startswith(".github/"):
+        return "GitHub configuration"
+    if template_name.endswith(".template"):
+        base_name = template_name.replace(".template", "")
+        return f"{base_name} configuration"
+    return "Configuration file"
 
 
 @template_app.command("update")
@@ -998,10 +1161,13 @@ def _render_init_success(
         console.print("\n[bold]Template Directory Structure:[/bold]")
         console.print(f"  {template_dir}/")
         console.print("  ├── templates/")
-        console.print("  │   ├── pyproject.toml.template")
-        console.print("  │   ├── .gitignore.template")
-        console.print("  │   ├── .pre-commit-config.yaml.template")
-        console.print("  │   └── workflows/")
+        console.print("  │   ├── common/          [dim]# Shared templates (.gitignore, SECURITY.md, etc.)[/dim]")
+        console.print("  │   ├── python/          [dim]# Python templates (pyproject.toml, pre-commit, etc.)[/dim]")
+        console.print("  │   ├── nodejs/          [dim]# Node.js templates (biome.json, tsconfig, etc.)[/dim]")
+        console.print("  │   ├── rust/            [dim]# Rust templates (Cargo.toml, rustfmt, etc.)[/dim]")
+        console.print("  │   ├── go/              [dim]# Go templates (golangci-lint, etc.)[/dim]")
+        console.print("  │   ├── cpp/             [dim]# C++ templates (clang-format, CMake, etc.)[/dim]")
+        console.print("  │   └── csharp/          [dim]# C# templates (.editorconfig, etc.)[/dim]")
         console.print("  ├── config.yaml")
         console.print("  └── version.json")
 
@@ -1018,13 +1184,26 @@ def _resolve_project_path(project_path: Path | None) -> Path:
 
 
 def _determine_target_languages(project_path: Path, explicit_languages: list[str] | None) -> list[str]:
-    """Determine which languages should be analyzed."""
+    """Determine which languages should be analyzed.
+
+    Uses a confidence threshold of 0.5 to avoid false positives.
+    Returns only languages with strong indicators in the project.
+    """
     if explicit_languages:
         return explicit_languages
 
     registry = get_global_registry()
-    detected = registry.detect_languages(project_path)
-    languages = [d.language for d in detected if d.confidence > 0.3]
+    detected = registry.detect_languages(project_path, min_confidence=0.5)
+
+    # Filter to languages with reasonable confidence (>= 50%)
+    languages = [d.language for d in detected if d.confidence >= 0.5]
+
+    # If no language meets the threshold, fall back to the primary detected language
+    if not languages and detected:
+        primary = detected[0]  # Already sorted by confidence
+        if primary.confidence >= 0.3:
+            languages = [primary.language]
+
     return languages or ["python"]
 
 
@@ -1116,7 +1295,11 @@ def _resolve_cli_languages(
     detected_languages: list[str],
     logger: Any,
 ) -> tuple[dict[str, LanguageAnalysisResult], list[str]]:
-    """Determine which languages to report in the CLI along with their results."""
+    """Determine which languages to report in the CLI along with their results.
+
+    Filters results to only include languages with confidence >= 50% unless
+    explicitly requested via CLI arguments.
+    """
     language_results = _get_language_results(
         project_state=project_state,
         project_path=project_path,
@@ -1127,16 +1310,37 @@ def _resolve_cli_languages(
     if not language_results:
         return language_results, detected_languages
 
+    # If specific languages were requested, return all of them
     if requested_languages:
         return language_results, requested_languages
 
-    return language_results, list(language_results.keys())
+    # Filter to languages with meaningful confidence (>= 50%)
+    filtered_results = {lang: result for lang, result in language_results.items() if result["confidence"] >= 0.5}
+
+    # If nothing passes, fall back to the highest confidence language
+    if not filtered_results and language_results:
+        best_lang = max(language_results.items(), key=lambda x: x[1]["confidence"])
+        filtered_results = {best_lang[0]: best_lang[1]}
+
+    return filtered_results, list(filtered_results.keys())
 
 
 def _render_language_summary(language_results: dict[str, LanguageAnalysisResult]) -> None:
-    """Render a table summarizing language analysis results."""
+    """Render a table summarizing language analysis results.
+
+    Only displays languages with confidence >= 50% to avoid noise from false positives.
+    """
     if not language_results:
         return
+
+    # Filter to languages with meaningful confidence (>= 50%)
+    # This prevents showing languages that are barely detected
+    filtered_results = {lang: result for lang, result in language_results.items() if result["confidence"] >= 0.5}
+
+    # Fall back to showing the highest confidence language if nothing passes threshold
+    if not filtered_results and language_results:
+        best_lang = max(language_results.items(), key=lambda x: x[1]["confidence"])
+        filtered_results = {best_lang[0]: best_lang[1]}
 
     table = Table(title="Language Detection", show_header=True, header_style="bold cyan")
     table.add_column("Language", style="cyan")
@@ -1146,7 +1350,7 @@ def _render_language_summary(language_results: dict[str, LanguageAnalysisResult]
     table.add_column("Configured Tools", justify="right")
     table.add_column("Missing Recommended", style="yellow")
 
-    for language, result in language_results.items():
+    for language, result in filtered_results.items():
         total_configs = len(result["config_files"])
         existing_configs = sum(1 for cfg in result["config_files"] if cfg.exists)
         total_tools = len(result["tools"])
