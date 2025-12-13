@@ -12,10 +12,10 @@ license = "MIT"
 keywords = [ "security", "quality", "python", "automation", "configuration", "linting", "pre-commit", "ci-cd",]
 classifiers = [ "Development Status :: 3 - Alpha", "Intended Audience :: Developers", "Operating System :: OS Independent", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Topic :: Software Development :: Quality Assurance", "Topic :: Security", "Topic :: Software Development :: Libraries :: Python Modules", "Environment :: Console", "Typing :: Typed",]
 dependencies = [
-    "typer>=0.9.4",
+    "typer>=0.20.0",
     "rich>=13.0.1",
     "pyyaml>=6.0.3",
-    "requests>=2.28.2",
+    "requests>=2.32.5",
 ]
 [[project.authors]]
 name = "Secuority Team"
@@ -27,19 +27,19 @@ email = "team@secuority.dev"
 
 [dependency-groups]
 dev = [
-    "pytest>=7.0.1",
+    "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "pytest-xdist>=3.8.0",
-    "ruff>=0.9.10",
+    "ruff>=0.14.9",
     "basedpyright>=1.0.0",
-    "pre-commit>=3.0.4",
+    "pre-commit>=4.5.0",
     "safety>=3.7.0",
     "types-PyYAML>=6.0.12.20250915",
     "tomli-w>=1.2.0",
 ]
-test = [ "pytest>=7.0.1", "pytest-cov>=7.0.0", "pytest-mock>=3.15.1", "pytest-xdist>=3.8.0",]
+test = [ "pytest>=9.0.2", "pytest-cov>=7.0.0", "pytest-mock>=3.15.1", "pytest-xdist>=3.8.0",]
 docs = [ "sphinx>=5.0.2", "sphinx-rtd-theme>=3.0.2", "myst-parser>=4.0.1",]
-security = [ "bandit>=1.7.10", "safety>=2.3.5", "semgrep>=1.145.0",]
+security = [ "bandit>=1.9.2", "safety>=3.7.0", "semgrep>=1.145.2",]
 
 [project.urls]
 Homepage = "https://github.com/secuority/secuority-cli"
