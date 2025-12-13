@@ -1,50 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
-  ],
-  "schedule": [
-    "before 6am on monday"
-  ],
-  "timezone": "Asia/Tokyo",
-  "labels": ["dependencies"],
-  "assignees": ["@scottlz0310"],
-  "reviewers": ["@scottlz0310"],
-  "packageRules": [
-    {
-      "description": "Pre-commit hooks - weekly updates",
-      "matchManagers": ["pre-commit"],
-      "schedule": ["before 6am on monday"],
-      "automerge": false,
-      "groupName": "pre-commit hooks"
-    },
-    {
-      "description": "Python dependencies - group by type",
-      "matchManagers": ["pep621"],
-      "matchDepTypes": ["dependencies"],
-      "groupName": "Python production dependencies"
-    },
-    {
-      "description": "Python dev dependencies",
-      "matchManagers": ["pep621"],
-      "matchDepTypes": ["dev-dependencies"],
-      "groupName": "Python dev dependencies"
-    },
-    {
-      "description": "GitHub Actions - minor and patch auto-merge",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "groupName": "GitHub Actions"
-    }
-  ],
-  "vulnerabilityAlerts": {
-    "labels": ["security"],
-    "assignees": ["@scottlz0310"],
-    "reviewers": ["@scottlz0310"]
-  },
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": ["before 6am on monday"]
-  }
+    "github>scottlz0310/renovate-config//presets/default",
+    "github>scottlz0310/renovate-config//presets/languages/python",
+    "github>scottlz0310/renovate-config//presets/tools/precommit",
+    "github>scottlz0310/renovate-config//presets/options/automerge",
+    "github>scottlz0310/renovate-config//presets/options/security"
+  ]
 }
