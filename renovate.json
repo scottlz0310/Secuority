@@ -13,6 +13,13 @@
       "matchPackageNames": ["rich"],
       "matchManagers": ["pep621", "uv"],
       "enabled": false
+    },
+    {
+      "description": "Disable sphinx major upgrades until myst-parser supports sphinx>=9",
+      "matchPackageNames": ["sphinx"],
+      "matchManagers": ["pep621", "uv"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
     }
   ]
 }
