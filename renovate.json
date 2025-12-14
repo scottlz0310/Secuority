@@ -6,5 +6,13 @@
     "github>scottlz0310/renovate-config//presets/tools/precommit",
     "github>scottlz0310/renovate-config//presets/options/automerge",
     "github>scottlz0310/renovate-config//presets/options/security"
+  ],
+  "packageRules": [
+    {
+      "description": "Disable rich upgrades until semgrep relaxes rich~=13.5.2 constraint",
+      "matchPackageNames": ["rich"],
+      "matchManagers": ["pep621", "uv"],
+      "enabled": false
+    }
   ]
 }
