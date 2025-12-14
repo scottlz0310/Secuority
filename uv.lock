@@ -1650,7 +1650,7 @@ dev = [
 ]
 docs = [
     { name = "myst-parser", specifier = ">=4.0.1" },
-    { name = "sphinx", specifier = ">=5.0.2" },
+    { name = "sphinx", specifier = ">=5.0.2,<9" },
     { name = "sphinx-rtd-theme", specifier = ">=3.0.2" },
 ]
 security = [
