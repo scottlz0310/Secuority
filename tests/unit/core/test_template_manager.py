@@ -236,6 +236,73 @@ class TestTemplateManager:
 
         assert templates["legacy.template"] == "legacy"
 
+    def test_template_inventory_by_language(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+    ) -> None:
+        """Fix expected template inventory per language to detect drift."""
+        manager._template_dir = tmp_path
+        manager.initialize_templates()
+
+        common = {
+            ".gitignore.template",
+            "SECURITY.md.template",
+            "CONTRIBUTING.md",
+            ".github/CODEOWNERS",
+            ".github/ISSUE_TEMPLATE/bug_report.yml",
+            ".github/ISSUE_TEMPLATE/feature_request.yml",
+            ".github/ISSUE_TEMPLATE/security.yml",
+            ".github/pull_request_template.md",
+        }
+
+        inventories = {
+            "common": common,
+            "python": common
+            | {
+                "pyproject.toml.template",
+                ".pre-commit-config.yaml.template",
+                "workflows/ci-cd.yml",
+                "workflows/quality-check.yml",
+                "workflows/security-check.yml",
+            },
+            "nodejs": common
+            | {
+                "biome.json.template",
+                "tsconfig.json.template",
+                "workflows/nodejs-ci.yml",
+                "workflows/nodejs-quality.yml",
+                "workflows/nodejs-security.yml",
+            },
+            "rust": common
+            | {
+                "Cargo.toml.template",
+                "workflows/rust-ci.yml",
+                "workflows/rust-security.yml",
+            },
+            "go": common
+            | {
+                ".golangci.yml",
+                "workflows/go-ci.yml",
+                "workflows/go-security.yml",
+            },
+            "cpp": common
+            | {
+                "CMakeLists.txt.template",
+                "workflows/cpp-ci.yml",
+                "workflows/cpp-security.yml",
+            },
+            "csharp": common
+            | {
+                "workflows/csharp-ci.yml",
+                "workflows/csharp-security.yml",
+            },
+        }
+
+        for language, expected in inventories.items():
+            templates = manager.load_templates(language=language)
+            assert sorted(templates.keys()) == sorted(expected)
+
     def test_load_templates_variant_merging(
         self,
         manager: TemplateManager,
