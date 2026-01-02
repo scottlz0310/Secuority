@@ -13,14 +13,62 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect Node.js version
+        id: node
+        run: |
+          if [ -f .nvmrc ]; then
+            version="$(cat .nvmrc | tr -d '[:space:]')"
+            if [ -n "$version" ]; then
+              echo "version=$version" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          if [ -f package.json ]; then
+            python - <<'PY' >> "$GITHUB_OUTPUT"
+            import json
+            from pathlib import Path
+
+            version = ""
+            data = json.loads(Path("package.json").read_text(encoding="utf-8"))
+            engines = data.get("engines", {})
+            if isinstance(engines, dict):
+                node = engines.get("node")
+                if isinstance(node, str):
+                    version = node.strip()
+            if version:
+                print(f"version={version}")
+            PY
+          fi
+          if ! grep -q '^version=' "$GITHUB_OUTPUT"; then
+            echo "version=lts/*" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect package manager
+        id: pm
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            echo "manager=pnpm" >> "$GITHUB_OUTPUT"
+            echo "install=pnpm install --frozen-lockfile" >> "$GITHUB_OUTPUT"
+          elif [ -f yarn.lock ]; then
+            echo "manager=yarn" >> "$GITHUB_OUTPUT"
+            echo "install=yarn install --frozen-lockfile" >> "$GITHUB_OUTPUT"
+          else
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+            echo "install=npm ci" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20.x"
-          cache: "npm"
+          node-version: ${{ steps.node.outputs.version }}
+          cache: ${{ steps.pm.outputs.manager }}
+
+      - name: Enable Corepack
+        if: steps.pm.outputs.manager != 'npm'
+        run: corepack enable
 
       - name: Install dependencies
-        run: npm ci
+        run: ${{ steps.pm.outputs.install }}
 
       - name: Run Biome check
         run: npx @biomejs/biome check --write .
