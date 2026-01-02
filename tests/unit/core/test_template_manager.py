@@ -353,6 +353,60 @@ class TestTemplateManager:
 
         assert templates["pyproject.toml.template"] == "base"
 
+    def test_select_variant_nodejs_app(self, manager: TemplateManager, tmp_path: Path) -> None:
+        project_path = tmp_path / "node_app"
+        project_path.mkdir()
+        (project_path / "package.json").write_text(
+            '{"name": "demo", "bin": {"demo": "bin.js"}}',
+            encoding="utf-8",
+        )
+
+        variant = manager.select_variant("nodejs", project_path)
+
+        assert variant == "app"
+
+    def test_select_variant_nodejs_lib(self, manager: TemplateManager, tmp_path: Path) -> None:
+        project_path = tmp_path / "node_lib"
+        project_path.mkdir()
+        (project_path / "package.json").write_text(
+            '{"name": "demo", "exports": "./dist/index.js"}',
+            encoding="utf-8",
+        )
+
+        variant = manager.select_variant("nodejs", project_path)
+
+        assert variant == "lib"
+
+    def test_select_variant_cpp_header_only(self, manager: TemplateManager, tmp_path: Path) -> None:
+        project_path = tmp_path / "cpp_header"
+        include_dir = project_path / "include"
+        include_dir.mkdir(parents=True)
+        (include_dir / "demo.hpp").write_text("// header", encoding="utf-8")
+
+        variant = manager.select_variant("cpp", project_path)
+
+        assert variant == "header-only"
+
+    def test_select_variant_cpp_app(self, manager: TemplateManager, tmp_path: Path) -> None:
+        project_path = tmp_path / "cpp_app"
+        src_dir = project_path / "src"
+        src_dir.mkdir(parents=True)
+        (src_dir / "main.cpp").write_text("int main() { return 0; }", encoding="utf-8")
+
+        variant = manager.select_variant("cpp", project_path)
+
+        assert variant == "app"
+
+    def test_select_variant_cpp_lib(self, manager: TemplateManager, tmp_path: Path) -> None:
+        project_path = tmp_path / "cpp_lib"
+        src_dir = project_path / "src"
+        src_dir.mkdir(parents=True)
+        (src_dir / "library.cpp").write_text("void foo() {}", encoding="utf-8")
+
+        variant = manager.select_variant("cpp", project_path)
+
+        assert variant == "lib"
+
     def test_load_templates_header_only_variant_overrides_lib(
         self,
         manager: TemplateManager,

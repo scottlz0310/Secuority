@@ -234,6 +234,10 @@ class TemplateManagerInterface(ABC):
         """Load configuration templates for a specific language and variant."""
 
     @abstractmethod
+    def select_variant(self, language: str, project_path: Path, project_state: "ProjectState | None" = None) -> str:
+        """Select template variant for a language based on project usage."""
+
+    @abstractmethod
     def get_template_directory(self) -> Path:
         """Get the directory where templates are stored."""
 

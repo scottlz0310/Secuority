@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import urllib.request
 import zipfile
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,7 @@ except ImportError:
     yaml = None  # type: ignore[assignment]
 
 from ..models.exceptions import TemplateError
-from ..models.interfaces import TemplateManagerInterface
+from ..models.interfaces import ProjectState, TemplateManagerInterface
 from ..utils.logger import warning
 
 
@@ -121,6 +122,15 @@ class TemplateManager(TemplateManagerInterface):
         self._templates_cache = templates
         return templates
 
+    def select_variant(self, language: str, project_path: Path, project_state: ProjectState | None = None) -> str:
+        """Select template variant for a language based on project usage."""
+        normalized = language.strip().lower()
+        if normalized == "nodejs":
+            return self._select_nodejs_variant(project_path, project_state)
+        if normalized == "cpp":
+            return self._select_cpp_variant(project_path, project_state)
+        return "base"
+
     def _resolve_variant_stack(self, variant: str | None) -> list[str]:
         """Resolve variant names in increasing specificity order."""
         normalized = (variant or "base").strip().lower()
@@ -139,6 +149,84 @@ class TemplateManager(TemplateManagerInterface):
         }
 
         return variant_map.get(normalized, ["base"])
+
+    def _select_nodejs_variant(self, project_path: Path, _project_state: ProjectState | None) -> str:
+        package_path = project_path / "package.json"
+        package_json = self._read_json_file(package_path)
+        if not package_json:
+            return "base"
+
+        scripts = package_json.get("scripts")
+        has_app_scripts = isinstance(scripts, dict) and any(
+            key in scripts for key in ("start", "dev", "serve", "preview")
+        )
+        if package_json.get("bin") or has_app_scripts:
+            return "app"
+
+        if package_json.get("private") is True and isinstance(scripts, dict) and scripts:
+            return "app"
+
+        has_library_exports = package_json.get("exports") or package_json.get("types") or package_json.get("typings")
+        if has_library_exports or (package_json.get("main") and package_json.get("private") is not True):
+            return "lib"
+
+        return "base"
+
+    def _select_cpp_variant(self, project_path: Path, _project_state: ProjectState | None) -> str:
+        if self._has_cpp_main(project_path):
+            return "app"
+        if self._has_cpp_sources(project_path):
+            return "lib"
+        if self._has_cpp_headers(project_path / "include"):
+            return "header-only"
+        return "base"
+
+    def _read_json_file(self, path: Path) -> dict[str, Any] | None:
+        if not path.exists():
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    def _has_cpp_main(self, project_path: Path) -> bool:
+        main_names = {"main.cpp", "main.cc", "main.cxx", "main.c++"}
+        return any(file_path.name in main_names for file_path in self._iter_cpp_files(project_path))
+
+    def _has_cpp_sources(self, project_path: Path) -> bool:
+        source_suffixes = {".c", ".cc", ".cpp", ".cxx", ".c++", ".cp"}
+        return any(path.suffix in source_suffixes for path in self._iter_cpp_files(project_path))
+
+    def _has_cpp_headers(self, include_dir: Path) -> bool:
+        if not include_dir.exists() or not include_dir.is_dir():
+            return False
+        header_suffixes = {".h", ".hh", ".hpp", ".hxx"}
+        return any(path.suffix in header_suffixes for path in include_dir.rglob("*") if path.is_file())
+
+    def _iter_cpp_files(self, project_path: Path) -> Iterable[Path]:
+        ignored_parts = {
+            ".git",
+            ".venv",
+            ".mypy_cache",
+            ".ruff_cache",
+            "build",
+            "dist",
+            "node_modules",
+        }
+        roots = [project_path / "src", project_path]
+        seen: set[Path] = set()
+        for root in roots:
+            if not root.exists():
+                continue
+            for path in root.rglob("*"):
+                if not path.is_file():
+                    continue
+                if path in seen:
+                    continue
+                if any(part in ignored_parts for part in path.parts):
+                    continue
+                seen.add(path)
+                yield path
 
     def _load_variant_templates(self, directory: Path, variant: str) -> dict[str, str]:
         """Load templates for a directory with optional variant overrides."""

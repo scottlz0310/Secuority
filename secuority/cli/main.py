@@ -191,6 +191,8 @@ def apply(
         templates = _load_all_templates(
             core_engine=core_engine,
             detected_languages=detected_languages,
+            project_path=project_path,
+            project_state=project_state,
             structured_output=structured_output,
             logger=logger,
         )
@@ -287,6 +289,8 @@ def _render_apply_intro(project_path: Path, detected_languages: list[str], dry_r
 def _load_all_templates(
     core_engine: CoreEngine,
     detected_languages: list[str],
+    project_path: Path,
+    project_state: Any,
     structured_output: bool,
     logger: Any,
 ) -> dict[str, str]:
@@ -295,12 +299,17 @@ def _load_all_templates(
     try:
         for lang in detected_languages:
             try:
-                lang_templates = core_engine.template_manager.load_templates(language=lang)
+                variant = core_engine.template_manager.select_variant(
+                    language=lang,
+                    project_path=project_path,
+                    project_state=project_state,
+                )
+                lang_templates = core_engine.template_manager.load_templates(language=lang, variant=variant)
                 if len(detected_languages) > 1:
                     templates.update({f"{lang}:{k}": v for k, v in lang_templates.items()})
                 else:
                     templates.update(lang_templates)
-                logger.debug("Loaded language templates", language=lang, count=len(lang_templates))
+                logger.debug("Loaded language templates", language=lang, variant=variant, count=len(lang_templates))
             except TemplateError as exc:
                 logger.warning("Could not load templates for language", language=lang, error=str(exc))
     except Exception as exc:
