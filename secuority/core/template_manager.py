@@ -181,6 +181,18 @@ class TemplateManager(TemplateManagerInterface):
             return "header-only"
         return "base"
 
+    def select_cpp_clang_tidy_profile(self, project_path: Path) -> str | None:
+        profile_path = project_path / ".clang-tidy.profile"
+        if not profile_path.exists():
+            return None
+        try:
+            profile = profile_path.read_text(encoding="utf-8").strip().lower()
+        except OSError:
+            return None
+        if profile in {"google", "llvm"}:
+            return profile
+        return None
+
     def _read_json_file(self, path: Path) -> dict[str, Any] | None:
         if not path.exists():
             return None
@@ -273,6 +285,8 @@ class TemplateManager(TemplateManagerInterface):
                     ".baseline",
                     ".props",
                 } or file_path.name in {
+                    ".clang-format",
+                    ".clang-tidy",
                     ".gitignore",
                     ".editorconfig",
                     "CONTRIBUTING.md",

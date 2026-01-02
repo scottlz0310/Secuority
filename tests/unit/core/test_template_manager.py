@@ -289,7 +289,11 @@ class TestTemplateManager:
             },
             "cpp": common
             | {
+                ".clang-format",
+                ".clang-tidy",
                 "CMakeLists.txt.template",
+                "clang-tidy/google/.clang-tidy",
+                "clang-tidy/llvm/.clang-tidy",
                 "workflows/cpp-ci.yml",
                 "workflows/cpp-security.yml",
             },
@@ -406,6 +410,15 @@ class TestTemplateManager:
         variant = manager.select_variant("cpp", project_path)
 
         assert variant == "lib"
+
+    def test_select_cpp_clang_tidy_profile(self, manager: TemplateManager, tmp_path: Path) -> None:
+        project_path = tmp_path / "cpp_profile"
+        project_path.mkdir()
+        (project_path / ".clang-tidy.profile").write_text("google", encoding="utf-8")
+
+        profile = manager.select_cpp_clang_tidy_profile(project_path)
+
+        assert profile == "google"
 
     def test_load_templates_header_only_variant_overrides_lib(
         self,

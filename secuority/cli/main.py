@@ -387,6 +387,7 @@ def _generate_template_file_changes(
     Supports templates from multiple languages with language-prefixed keys
     (e.g., 'python:pyproject.toml.template') or unprefixed keys.
     """
+    cpp_profile = core_engine.template_manager.select_cpp_clang_tidy_profile(project_path)
     # Define template mappings for each language
     # Format: template_name -> (target_file, project_state_attribute)
     language_template_maps: dict[str, dict[str, tuple[str, str]]] = {
@@ -434,7 +435,11 @@ def _generate_template_file_changes(
 
             # Try to find template (with or without language prefix)
             template_content = None
-            for key_variant in [f"{language}:{template_name}", template_name]:
+            key_variants = [f"{language}:{template_name}", template_name]
+            if language == "cpp" and template_name == ".clang-tidy" and cpp_profile:
+                profile_key = f"clang-tidy/{cpp_profile}/.clang-tidy"
+                key_variants = [f"{language}:{profile_key}", profile_key, *key_variants]
+            for key_variant in key_variants:
                 if key_variant in templates:
                     template_content = templates[key_variant]
                     break

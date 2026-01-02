@@ -238,6 +238,10 @@ class TemplateManagerInterface(ABC):
         """Select template variant for a language based on project usage."""
 
     @abstractmethod
+    def select_cpp_clang_tidy_profile(self, project_path: Path) -> str | None:
+        """Select C++ clang-tidy profile based on project settings."""
+
+    @abstractmethod
     def get_template_directory(self) -> Path:
         """Get the directory where templates are stored."""
 

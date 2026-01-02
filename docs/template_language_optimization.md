@@ -75,6 +75,10 @@ Renovate テンプレートは外部リポジトリ（`../renovate-config/`）�
 - CI では Clang/GCC/MSVC を分離し、警告扱いの違いをドキュメント化する。
 - `header-only` は `lib` をベースに差分上書きする。
 
+補足:
+- C++ の clang-tidy プロファイルは `.clang-tidy.profile`（`google`/`llvm`）で切替える。
+- 未指定/不明の場合は `cpp/base/.clang-tidy` を採用する（プロジェクト独自）。
+
 ### C#
 課題:
 - `Directory.Build.props` が `LangVersion=latest` 固定で、ターゲット SDK と不整合になる可能性がある。
