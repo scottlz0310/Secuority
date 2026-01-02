@@ -74,11 +74,12 @@ class TemplateManager(TemplateManagerInterface):
             return Path(xdg_config) / "secuority"
         return Path.home() / ".config" / "secuority"
 
-    def load_templates(self, language: str = "python") -> dict[str, str]:
+    def load_templates(self, language: str = "python", variant: str = "base") -> dict[str, str]:
         """Load configuration templates from the template directory.
 
         Args:
             language: Programming language for which to load templates (default: "python")
+            variant: Template variant to load (default: "base")
 
         Returns:
             Dictionary mapping template names to their content
@@ -102,15 +103,15 @@ class TemplateManager(TemplateManagerInterface):
 
         templates: dict[str, str] = {}
 
-        # Load common templates first
+        # Load common templates first (variant-aware)
         common_path = templates_path / "common"
         if common_path.exists():
-            templates.update(self._load_templates_from_dir(common_path, prefix=""))
+            templates.update(self._load_variant_templates(common_path, variant))
 
         # Load language-specific templates (may override common templates)
         language_path = templates_path / language
-        if language_path.exists():
-            templates.update(self._load_templates_from_dir(language_path, prefix=""))
+        if language != "common" and language_path.exists():
+            templates.update(self._load_variant_templates(language_path, variant))
         elif not common_path.exists():
             # If neither common/ nor language directory exists, fall back to old flat structure
             # for backward compatibility with existing installations
@@ -118,6 +119,42 @@ class TemplateManager(TemplateManagerInterface):
 
         # Cache the loaded templates
         self._templates_cache = templates
+        return templates
+
+    def _resolve_variant_stack(self, variant: str | None) -> list[str]:
+        """Resolve variant names in increasing specificity order."""
+        normalized = (variant or "base").strip().lower()
+        if not normalized:
+            return ["base"]
+
+        if normalized in {"app-strict", "lib-strict"}:
+            base_variant = normalized.split("-", 1)[0]
+            return ["base", base_variant, "strict", normalized]
+
+        if normalized == "app":
+            return ["base", "app"]
+        if normalized == "lib":
+            return ["base", "lib"]
+        if normalized == "strict":
+            return ["base", "strict"]
+
+        return ["base"]
+
+    def _load_variant_templates(self, directory: Path, variant: str) -> dict[str, str]:
+        """Load templates for a directory with optional variant overrides."""
+        variants = self._resolve_variant_stack(variant)
+        templates: dict[str, str] = {}
+        loaded_variant = False
+
+        for variant_name in variants:
+            variant_path = directory / variant_name
+            if variant_path.exists():
+                loaded_variant = True
+                templates.update(self._load_templates_from_dir(variant_path, prefix=""))
+
+        if not loaded_variant:
+            templates.update(self._load_templates_from_dir(directory, prefix=""))
+
         return templates
 
     def _load_templates_from_dir(self, directory: Path, prefix: str = "") -> dict[str, str]:

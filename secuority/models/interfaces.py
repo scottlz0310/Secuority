@@ -230,8 +230,8 @@ class TemplateManagerInterface(ABC):
     """Interface for template management functionality."""
 
     @abstractmethod
-    def load_templates(self, language: str = "python") -> dict[str, str]:
-        """Load configuration templates for a specific language."""
+    def load_templates(self, language: str = "python", variant: str = "base") -> dict[str, str]:
+        """Load configuration templates for a specific language and variant."""
 
     @abstractmethod
     def get_template_directory(self) -> Path:

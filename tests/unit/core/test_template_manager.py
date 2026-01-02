@@ -236,6 +236,52 @@ class TestTemplateManager:
 
         assert templates["legacy.template"] == "legacy"
 
+    def test_load_templates_variant_merging(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+    ) -> None:
+        """Variants should merge in order with later variants overriding earlier ones."""
+        manager._template_dir = tmp_path
+        templates_dir = tmp_path / "templates"
+        (templates_dir / "common" / "base").mkdir(parents=True)
+        (templates_dir / "common" / "strict").mkdir(parents=True)
+        (templates_dir / "python" / "base").mkdir(parents=True)
+        (templates_dir / "python" / "app").mkdir(parents=True)
+        (templates_dir / "python" / "strict").mkdir(parents=True)
+        (templates_dir / "python" / "app-strict").mkdir(parents=True)
+
+        (templates_dir / "common" / "base" / "SECURITY.md.template").write_text("common-base", encoding="utf-8")
+        (templates_dir / "common" / "strict" / "SECURITY.md.template").write_text("common-strict", encoding="utf-8")
+
+        (templates_dir / "python" / "base" / "pyproject.toml.template").write_text("base", encoding="utf-8")
+        (templates_dir / "python" / "app" / "pyproject.toml.template").write_text("app", encoding="utf-8")
+        (templates_dir / "python" / "strict" / "pyproject.toml.template").write_text("strict", encoding="utf-8")
+        (templates_dir / "python" / "app-strict" / "pyproject.toml.template").write_text(
+            "app-strict",
+            encoding="utf-8",
+        )
+
+        templates = manager.load_templates(language="python", variant="app-strict")
+
+        assert templates["SECURITY.md.template"] == "common-strict"
+        assert templates["pyproject.toml.template"] == "app-strict"
+
+    def test_load_templates_unknown_variant_falls_back_to_base(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+    ) -> None:
+        """Unknown variants should fall back to base when available."""
+        manager._template_dir = tmp_path
+        templates_dir = tmp_path / "templates"
+        (templates_dir / "python" / "base").mkdir(parents=True)
+        (templates_dir / "python" / "base" / "pyproject.toml.template").write_text("base", encoding="utf-8")
+
+        templates = manager.load_templates(language="python", variant="unknown")
+
+        assert templates["pyproject.toml.template"] == "base"
+
     def test_template_exists_supports_language_subdirectories(
         self,
         manager: TemplateManager,

@@ -91,6 +91,47 @@ Renovate テンプレートは外部リポジトリ（`../renovate-config/`）�
 - CI は「LTS + 最新」の最小構成を標準にし、無駄なマトリクスを削減する。
 - 依存関係更新の自動化は外部リポジトリ（`renovate-config`）へ委譲する。
 
+## テンプレート・バリアント命名統一（設計）
+目的: 同じ言語でも「用途」と「厳格度」を切り替えられるようにし、命名規則を固定する。
+
+### バリアントID
+- `base`: 最小構成。デフォルトで採用される基準。
+- `strict`: 静的解析・セキュリティを強化した構成。
+- `app`: 実行アプリ向け（CLI/Web/Service）。ビルド・実行を前提にした設定。
+- `lib`: ライブラリ/SDK向け。公開APIと互換性を重視。
+
+### 合成ルール
+- `app-strict`, `lib-strict` を許可し、「用途 + 厳格度」を一意に表す。
+- 片方のみ指定された場合は以下にフォールバック:
+  - `app` → `base`
+  - `lib` → `base`
+  - `strict` → `base`
+
+### ディレクトリ構造
+```
+secuority/templates/
+  common/
+    base/
+    strict/
+  <language>/
+    base/
+    strict/
+    app/
+    lib/
+    app-strict/
+    lib-strict/
+```
+
+### 既存テンプレートの位置づけ
+- 現行のテンプレートは **すべて `base` 相当** とみなし、順次 `base/` 配下へ移行する。
+- `strict` は `base` を上書きする差分のみを持つ方針とする。
+
+### 選択優先順位（仕様）
+1. `app-strict` / `lib-strict`（合成）
+2. `app` / `lib`
+3. `strict`
+4. `base`
+
 ## 次のアクション
 1. 言語ごとのテンプレート・バリアント設計（`base`/`strict`/`app`/`lib` の命名統一）。
 2. TemplateManager に「用途別テンプレート選択」ロジックを追加。
