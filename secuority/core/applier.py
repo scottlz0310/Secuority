@@ -21,7 +21,6 @@ from ..utils.diff import DiffGenerator
 from ..utils.file_ops import FileOperations
 from ..utils.user_interface import UserApprovalInterface
 from .precommit_integrator import PreCommitIntegrator
-from .renovate_integrator import RenovateIntegrator
 from .security_tools import SecurityToolsIntegrator
 from .workflow_integrator import WorkflowIntegrator
 
@@ -220,7 +219,6 @@ class ConfigurationApplier(ConfigurationApplierInterface):
         self.ui = UserApprovalInterface()
         self.security_integrator = SecurityToolsIntegrator()
         self.precommit_integrator = PreCommitIntegrator()
-        self.renovate_integrator = RenovateIntegrator()
         self.workflow_integrator = WorkflowIntegrator()
         self.console = Console()
 
@@ -982,7 +980,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         Args:
             project_path: Path to the project directory
-            workflows: List of workflows to generate (default: ['security', 'quality', 'cicd', 'dependency'])
+            workflows: List of workflows to generate (default: ['security', 'quality', 'cicd'])
             python_versions: List of Python versions to test
             dry_run: Whether to perform a dry run
 
@@ -990,7 +988,7 @@ class ConfigurationApplier(ConfigurationApplierInterface):
             ApplyResult with workflow generation results
         """
         if workflows is None:
-            workflows = ["security", "quality", "cicd", "dependency"]
+            workflows = ["security", "quality", "cicd"]
 
         # Generate CI/CD workflow configuration changes
         changes = self.workflow_integrator.generate_workflows(project_path, workflows, python_versions)
@@ -1008,14 +1006,14 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         Args:
             project_path: Path to the project directory
-            workflows: List of workflows to generate (default: ['security', 'quality', 'cicd', 'dependency'])
+            workflows: List of workflows to generate (default: ['security', 'quality', 'cicd'])
             python_versions: List of Python versions to test
 
         Returns:
             List of ConfigChange objects for workflow integration
         """
         if workflows is None:
-            workflows = ["security", "quality", "cicd", "dependency"]
+            workflows = ["security", "quality", "cicd"]
 
         return self.workflow_integrator.generate_workflows(project_path, workflows, python_versions)
 
@@ -1057,73 +1055,9 @@ class ConfigurationApplier(ConfigurationApplierInterface):
 
         # Get workflow integration changes
         if workflows is None:
-            workflows = ["security", "quality", "cicd", "dependency"]
+            workflows = ["security", "quality", "cicd"]
         workflow_changes = self.get_workflow_integration_changes(project_path, workflows, python_versions)
         all_changes.extend(workflow_changes)
 
         # Apply all changes
         return self.apply_changes(all_changes, dry_run=dry_run)
-
-    def apply_renovate_integration(
-        self,
-        project_path: Path,
-        timezone: str = "UTC",
-        assignees: str = "@maintainers",
-        reviewers: str = "@maintainers",
-        automerge_actions: bool = True,
-        dry_run: bool = False,
-    ) -> ApplyResult:
-        """Apply Renovate configuration for automated dependency updates.
-
-        Args:
-            project_path: Path to the project directory
-            timezone: Timezone for schedule (default: UTC)
-            assignees: Assignees for PRs (default: @maintainers)
-            reviewers: Reviewers for PRs (default: @maintainers)
-            automerge_actions: Whether to auto-merge GitHub Actions updates
-                (default: True)
-            dry_run: Whether to perform a dry run
-
-        Returns:
-            ApplyResult with Renovate integration results
-        """
-        change = self.renovate_integrator.integrate_renovate_config(
-            project_path,
-            timezone=timezone,
-            assignees=assignees,
-            reviewers=reviewers,
-            automerge_actions=automerge_actions,
-        )
-
-        return self.apply_changes([change], dry_run=dry_run)
-
-    def get_renovate_integration_changes(
-        self,
-        project_path: Path,
-        timezone: str = "UTC",
-        assignees: str = "@maintainers",
-        reviewers: str = "@maintainers",
-        automerge_actions: bool = True,
-    ) -> list[ConfigChange]:
-        """Get Renovate configuration changes without applying them.
-
-        Args:
-            project_path: Path to the project directory
-            timezone: Timezone for schedule (default: UTC)
-            assignees: Assignees for PRs (default: @maintainers)
-            reviewers: Reviewers for PRs (default: @maintainers)
-            automerge_actions: Whether to auto-merge GitHub Actions updates
-                (default: True)
-
-        Returns:
-            List of ConfigChange objects for Renovate integration
-        """
-        change = self.renovate_integrator.integrate_renovate_config(
-            project_path,
-            timezone=timezone,
-            assignees=assignees,
-            reviewers=reviewers,
-            automerge_actions=automerge_actions,
-        )
-
-        return [change]

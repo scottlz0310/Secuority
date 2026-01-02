@@ -944,9 +944,6 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
             # Get push protection status
             push_protection = github_client.check_push_protection(owner, repo)
 
-            # Get Renovate configuration
-            renovate_config = github_client.get_renovate_config(owner, repo)
-
             # Get Dependabot configuration
             dependabot_config = github_client.get_dependabot_config(owner, repo)
 
@@ -961,7 +958,6 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
                 "security_settings": security_settings,
                 "push_protection": push_protection,
                 "dependabot": dependabot_config,
-                "renovate": renovate_config,
                 "workflows": workflows,
                 "analysis_successful": True,
             }

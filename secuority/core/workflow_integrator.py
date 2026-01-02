@@ -246,7 +246,6 @@ class WorkflowIntegrator:
             project_path: Path to the project directory
             workflows: List of workflows to generate
                 (default: ['security', 'quality', 'cicd'])
-                Note: 'dependency' is deprecated, use Renovate instead
             python_versions: List of Python versions to test
 
         Returns:
@@ -278,9 +277,6 @@ class WorkflowIntegrator:
             elif workflow_type == "cicd":
                 change = self.generate_cicd_workflow(project_path, python_versions)
                 changes.append(change)
-            # Note: 'dependency' workflow type is deprecated
-            # Dependency management is now handled by Renovate (renovate.json)
-            # instead of GitHub Actions workflows
 
         return changes
 
@@ -349,7 +345,7 @@ class WorkflowIntegrator:
             recommendations.append("Add quality workflow with linting, type checking, and testing")
 
         if not status["security"] and not status["quality"]:
-            recommendations.append("Consider enabling GitHub's built-in security features like Renovate and CodeQL")
+            recommendations.append("Consider enabling GitHub's built-in security features like Dependabot and CodeQL")
 
         return recommendations
 
@@ -405,9 +401,8 @@ class WorkflowIntegrator:
 
         recommendations: list[str] = []
         if deprecated_files:
-            recommendations.append("Migrate from Dependabot to Renovate for better dependency management")
-            recommendations.append("Remove deprecated Dependabot configuration files")
-            recommendations.append("Add renovate.json configuration file")
+            recommendations.append("Remove deprecated Dependabot configuration files and workflows")
+            recommendations.append("Review dependency update automation (Dependabot or external tooling)")
 
         return {
             "has_deprecated_files": bool(deprecated_files),

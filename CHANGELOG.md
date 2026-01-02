@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- CLI GitHub IntegrationセクションにRenovate検知と推奨メッセージを追加し、Dependabotとの重複も解消。
 - テンプレートディレクトリが未初期化でも `secuority apply` や `check` が自動的に内蔵テンプレートを展開するようにし、各言語でテンプレート適用が機能するよう改善。
 
 ### Fixed
 
 - RuffのIルールが有効なだけの場合でもisortが「構成済み」と誤表示されないようにし、`secuority check`のQuality Tools表では「Ruffでカバー済み」と表示されるよう改善。
+
+### Removed
+
+- Renovateの統合機能とテンプレートを削除し、依存関係更新は外部のrenovate-configへ移管。
 
 ## [0.5.0] - 2025-11-03
 

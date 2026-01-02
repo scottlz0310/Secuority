@@ -74,7 +74,6 @@ uv run python -m secuority.cli.main init
 │   ├── pyproject.toml.template
 │   ├── .gitignore.template
 │   ├── .pre-commit-config.yaml.template
-│   ├── renovate.json                    # Renovate dependency management
 │   └── workflows/
 │       ├── security-check.yml
 │       ├── quality-check.yml
@@ -259,12 +258,11 @@ Secuorityには以下のテンプレートが含まれています：
 1. **pyproject.toml.template**: モダンなPython設定
 2. **.gitignore.template**: Python用の標準的な除外パターン
 3. **.pre-commit-config.yaml.template**: pre-commitフック設定
-4. **renovate.json**: Renovate自動依存関係更新設定
-5. **workflows/security-check.yml**: GitHub Actionsセキュリティワークフロー
-6. **workflows/quality-check.yml**: GitHub Actions品質チェックワークフロー
-7. **workflows/ci-cd.yml**: 基本的なCI/CDワークフロー
+4. **workflows/security-check.yml**: GitHub Actionsセキュリティワークフロー
+5. **workflows/quality-check.yml**: GitHub Actions品質チェックワークフロー
+6. **workflows/ci-cd.yml**: 基本的なCI/CDワークフロー
 
-**注意**: `dependency-update.yml`ワークフローは削除されました。依存関係の更新はRenovateによって自動的に処理されます。
+**注意**: 依存関係更新はDependabotや外部ツール（例: renovate-config）で管理してください。
 
 ### テンプレートのカスタマイズ
 

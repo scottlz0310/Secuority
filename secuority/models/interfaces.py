@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     from ..core.languages import LanguageAnalysisResult
-    from ..types import RenovateConfig
     from .config import ApplyResult
     from .config import ConfigChange as ConfigChangeType
 
@@ -93,7 +92,6 @@ class GitHubAnalysisResult(TypedDict, total=False):
     analysis_successful: bool
     push_protection: bool
     dependabot: DependabotConfig
-    renovate: "RenovateConfig"
     workflows: list[GitHubWorkflowSummary]
     security_settings: GitHubSecuritySettings
     error: str
@@ -332,10 +330,6 @@ class GitHubClientInterface(ABC):
     @abstractmethod
     def list_workflows(self, owner: str, repo: str) -> list[GitHubWorkflowSummary]:
         """List GitHub Actions workflows in the repository."""
-
-    @abstractmethod
-    def get_renovate_config(self, owner: str, repo: str) -> "RenovateConfig":
-        """Get Renovate configuration for the repository."""
 
     @abstractmethod
     def check_security_settings(self, owner: str, repo: str) -> GitHubSecuritySettings:

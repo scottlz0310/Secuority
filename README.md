@@ -61,7 +61,7 @@ uv run secuority check
 
 ### Phase 3: CI/CD
 * **GitHub Actions**: 品質・セキュリティワークフローの存在確認
-* **Renovate**: 自動依存関係更新の設定と統合
+* **Dependabot**: 自動依存関係更新の検出と推奨
 
 ## ⚙️ 実装計画
 
@@ -159,7 +159,7 @@ Secuorityは以下の言語を自動検出します：
 - [ ] **v0.1**: pyproject.toml解析・基本lint設定・extras検出
 - [ ] **v0.2**: .gitignore管理・requirements.txt検出
 - [ ] **v0.3**: セキュリティツール統合
-- [ ] **v0.4**: GitHub Actions/Renovate検証
+- [ ] **v0.4**: GitHub Actions/Dependabot検証
 - [ ] **v1.0**: 安定版リリース
 
 ## 🔮 将来の拡張

@@ -94,7 +94,6 @@ secuority/templates/
 └── python/              # Python固有テンプレート
     ├── pyproject.toml.template
     ├── .pre-commit-config.yaml.template
-    ├── renovate.json
     └── workflows/       # Python CI/CD workflows
 ```
 

@@ -410,7 +410,6 @@ def _generate_template_file_changes(
             ".gitignore.template": (".gitignore", "has_gitignore"),
             "SECURITY.md.template": ("SECURITY.md", "has_security_md"),
             "CONTRIBUTING.md": ("CONTRIBUTING.md", "has_contributing"),
-            "renovate.json": ("renovate.json", "has_renovate"),
         },
     }
 
@@ -953,7 +952,6 @@ def _render_language_templates(
         ".gitignore.template": "Git ignore patterns",
         "SECURITY.md.template": "Security policy",
         "CONTRIBUTING.md": "Contributing guidelines",
-        "renovate.json": "Renovate dependency updates",
     }
 
     table = Table(title=f"[bold]{language.capitalize()} Templates[/bold]", show_header=True, header_style="bold cyan")
@@ -1590,12 +1588,6 @@ def _render_github_section(github_analysis: GitHubAnalysisResult | None) -> None
             "[green]✓ Enabled[/green]" if push_protection else "[red]✗ Disabled[/red]",
         )
 
-        renovate_cfg = github_analysis.get("renovate")
-        ren_enabled = bool(renovate_cfg and renovate_cfg.get("enabled"))
-        github_table.add_row(
-            "Renovate", "[green]✓ Enabled[/green]" if ren_enabled else "[yellow]⚠ Not detected[/yellow]"
-        )
-
         dependabot_cfg = github_analysis.get("dependabot")
         db_enabled = bool(dependabot_cfg and dependabot_cfg.get("enabled"))
         github_table.add_row("Dependabot", "[green]✓ Enabled[/green]" if db_enabled else "[red]✗ Disabled[/red]")
@@ -1660,17 +1652,11 @@ def _append_github_recommendations(
     if not github_analysis.get("push_protection", False):
         recommendations.append("Enable GitHub Push Protection for secret scanning")
 
-    renovate_cfg = github_analysis.get("renovate") or {}
-    renovate_enabled = bool(renovate_cfg.get("enabled"))
     dependabot_cfg = github_analysis.get("dependabot")
     dependabot_enabled = bool(dependabot_cfg and dependabot_cfg.get("enabled", False))
 
-    if not renovate_enabled:
-        recommendations.append("Enable Renovate for automated multi-language dependency updates")
-        if not dependabot_enabled:
-            recommendations.append("Enable Dependabot until Renovate is configured")
-    elif dependabot_enabled:
-        recommendations.append("Consider migrating Dependabot workflows to Renovate to avoid duplicate updates")
+    if not dependabot_enabled:
+        recommendations.append("Enable Dependabot for automated dependency updates")
 
 
 def _append_config_file_recommendations(

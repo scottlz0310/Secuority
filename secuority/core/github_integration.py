@@ -10,7 +10,6 @@ from ..types import (
     ComprehensiveAnalysisResult,
     DependencyManagementReport,
     GitHubApiStatus,
-    RenovateConfig,
     SecurityAnalysisReport,
     WorkflowAnalysisReport,
 )
@@ -77,7 +76,7 @@ class GitHubIntegration:
         workflow_result = self._analyze_workflows(owner, repo)
         analysis_result["workflow_analysis"] = workflow_result
 
-        # Perform dependency management analysis (Renovate/Dependabot)
+        # Perform dependency management analysis (Dependabot)
         dependency_result = self._analyze_dependency_management(owner, repo)
         analysis_result["dependency_analysis"] = dependency_result
 
@@ -197,19 +196,7 @@ class GitHubIntegration:
         )
 
     def _analyze_dependency_management(self, owner: str, repo: str) -> DependencyManagementReport:
-        """Analyze dependency management (Renovate/Dependabot) with error handling."""
-        renovate_config_result = safe_github_call(
-            self.client.get_renovate_config,
-            owner,
-            repo,
-            fallback_value=self._default_renovate_config(),
-            operation_name="Renovate configuration check",
-            show_warnings=self.show_warnings,
-        )
-        renovate_config = (
-            renovate_config_result if isinstance(renovate_config_result, dict) else self._default_renovate_config()
-        )
-
+        """Analyze dependency management (Dependabot) with error handling."""
         dependabot_config_result = safe_github_call(
             self.client.get_dependabot_config,
             owner,
@@ -224,10 +211,9 @@ class GitHubIntegration:
             else self._default_dependabot_config()
         )
 
-        recommendations = self._build_dependency_recommendations(renovate_config, dependabot_config)
+        recommendations = self._build_dependency_recommendations(dependabot_config)
 
         return DependencyManagementReport(
-            renovate=renovate_config,
             dependabot=dependabot_config,
             recommendations=recommendations,
         )
@@ -347,17 +333,8 @@ class GitHubIntegration:
 
     def _empty_dependency_report(self) -> DependencyManagementReport:
         return DependencyManagementReport(
-            renovate=self._default_renovate_config(),
             dependabot=self._default_dependabot_config(),
             recommendations=[],
-        )
-
-    def _default_renovate_config(self) -> RenovateConfig:
-        return RenovateConfig(
-            enabled=False,
-            config_file=None,
-            config_file_exists=False,
-            config_content="",
         )
 
     def _default_dependabot_config(self) -> DependabotConfig:
@@ -369,20 +346,13 @@ class GitHubIntegration:
 
     def _build_dependency_recommendations(
         self,
-        renovate_config: RenovateConfig,
         dependabot_config: DependabotConfig,
     ) -> list[str]:
         recommendations: list[str] = []
-        renovate_enabled = bool(renovate_config.get("enabled", False))
         dependabot_enabled = bool(dependabot_config.get("enabled", False))
 
-        if not renovate_enabled and not dependabot_enabled:
-            recommendations.append(
-                "Enable Renovate for automated dependency updates (modern alternative to Dependabot)",
-            )
-            recommendations.append("Add renovate.json configuration file")
-        elif dependabot_enabled and not renovate_enabled:
-            recommendations.append("Consider migrating to Renovate for better dependency management")
+        if not dependabot_enabled:
+            recommendations.append("Enable Dependabot for automated dependency updates")
 
         return recommendations
 
@@ -415,9 +385,8 @@ class GitHubIntegration:
         self.console.print(f"   Quality Workflows: {'✅' if workflows['has_quality_workflows'] else '❌'}")
 
         dependency = analysis_result["dependency_analysis"]
-        renovate_status = "✅" if dependency["renovate"].get("enabled", False) else "❌"
         dependabot_status = "✅" if dependency["dependabot"]["enabled"] else "❌"
-        self.console.print(f"\n🔁 Dependency Automation: Renovate {renovate_status}, Dependabot {dependabot_status}")
+        self.console.print(f"\n🔁 Dependency Automation: Dependabot {dependabot_status}")
 
         # Recommendations
         all_recommendations: list[str] = []

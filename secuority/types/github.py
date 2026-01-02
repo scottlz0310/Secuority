@@ -37,15 +37,6 @@ class PushProtectionResponse(TypedDict, total=False):
     enabled: bool
 
 
-class RenovateConfig(TypedDict, total=False):
-    """Normalized Renovate configuration summary."""
-
-    enabled: bool
-    config_file: str | None
-    config_file_exists: bool
-    config_content: str
-
-
 class GitHubApiStatus(TypedDict, total=True):
     """Connection/authentication status for GitHub API."""
 
@@ -58,9 +49,8 @@ class GitHubApiStatus(TypedDict, total=True):
 
 
 class DependencyManagementReport(TypedDict, total=True):
-    """Combined Renovate/Dependabot state."""
+    """Combined dependency automation state."""
 
-    renovate: RenovateConfig
     dependabot: DependabotConfig
     recommendations: list[str]
 

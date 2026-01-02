@@ -19,7 +19,6 @@ from ..types import (
     GitHubApiStatus,
     JSONDict,
     PushProtectionResponse,
-    RenovateConfig,
     RepositorySecurityResponse,
     SecurityAnalysisSection,
     SecurityFeatureStatus,
@@ -33,15 +32,6 @@ def _extract_security_section(repo_data: RepositorySecurityResponse) -> Security
     if section_value is None:
         return {}
     return section_value
-
-
-def _default_renovate_config() -> RenovateConfig:
-    return RenovateConfig(
-        enabled=False,
-        config_file=None,
-        config_file_exists=False,
-        config_content="",
-    )
 
 
 def _feature_enabled(feature: SecurityFeatureStatus | object | None) -> bool:
@@ -133,62 +123,8 @@ class GitHubClient(GitHubClientInterface):
         except GitHubAPIError:
             raise
 
-    def get_renovate_config(self, owner: str, repo: str) -> RenovateConfig:
-        """Get Renovate configuration for the repository.
-
-        Args:
-            owner: Repository owner
-            repo: Repository name
-
-        Returns:
-            Dictionary containing Renovate configuration
-
-        Raises:
-            GitHubAPIError: If API request fails
-        """
-        # Try to get Renovate configuration file (renovate.json)
-        config_endpoint = f"/repos/{owner}/{repo}/contents/renovate.json"
-        try:
-            config_data = cast(JSONDict, self._make_request(config_endpoint))
-            return RenovateConfig(
-                enabled=True,
-                config_file="renovate.json",
-                config_file_exists=True,
-                config_content=str(config_data.get("content", "")),
-            )
-        except GitHubAPIError:
-            pass
-
-        # Try renovate.json5 as alternative
-        config5_endpoint = f"/repos/{owner}/{repo}/contents/renovate.json5"
-        try:
-            config_data = cast(JSONDict, self._make_request(config5_endpoint))
-            return RenovateConfig(
-                enabled=True,
-                config_file="renovate.json5",
-                config_file_exists=True,
-                config_content=str(config_data.get("content", "")),
-            )
-        except GitHubAPIError:
-            pass
-
-        # Try .github/renovate.json
-        github_config_endpoint = f"/repos/{owner}/{repo}/contents/.github/renovate.json"
-        try:
-            config_data = cast(JSONDict, self._make_request(github_config_endpoint))
-            return RenovateConfig(
-                enabled=True,
-                config_file=".github/renovate.json",
-                config_file_exists=True,
-                config_content=str(config_data.get("content", "")),
-            )
-        except GitHubAPIError:
-            return _default_renovate_config()
-
     def get_dependabot_config(self, owner: str, repo: str) -> DependabotConfig:
         """Get Dependabot configuration for the repository.
-
-        DEPRECATED: Use get_renovate_config instead for modern dependency management.
 
         Args:
             owner: Repository owner

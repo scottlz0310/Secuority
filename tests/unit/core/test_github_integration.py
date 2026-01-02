@@ -120,38 +120,8 @@ class TestGitHubIntegration:
 
         assert len(result["workflows"]) == 0
 
-    def test_analyze_dependency_management_with_renovate(self, integration: GitHubIntegration) -> None:
-        """Test analyzing dependency management with Renovate."""
-        integration.client.get_renovate_config = MagicMock(
-            return_value={
-                "enabled": True,
-                "config_file_exists": True,
-                "config_content": '{"extends": ["config:base"]}',
-            },
-        )
-        integration.client.get_dependabot_config = MagicMock(
-            return_value={
-                "enabled": False,
-                "config_file_exists": False,
-                "config_content": "",
-            },
-        )
-
-        result = integration._analyze_dependency_management("owner", "repo")
-
-        assert result["renovate"].get("enabled") is True
-        assert result["dependabot"]["enabled"] is False
-        assert result["recommendations"] == []
-
     def test_analyze_dependency_management_with_dependabot(self, integration: GitHubIntegration) -> None:
-        """Test analyzing dependency management with Dependabot (should recommend migration)."""
-        integration.client.get_renovate_config = MagicMock(
-            return_value={
-                "enabled": False,
-                "config_file_exists": False,
-                "config_content": "",
-            },
-        )
+        """Test analyzing dependency management with Dependabot enabled."""
         integration.client.get_dependabot_config = MagicMock(
             return_value={
                 "enabled": True,
@@ -163,7 +133,22 @@ class TestGitHubIntegration:
         result = integration._analyze_dependency_management("owner", "repo")
 
         assert result["dependabot"]["enabled"] is True
-        assert result["recommendations"]
+        assert result["recommendations"] == []
+
+    def test_analyze_dependency_management_without_dependabot(self, integration: GitHubIntegration) -> None:
+        """Test analyzing dependency management without Dependabot."""
+        integration.client.get_dependabot_config = MagicMock(
+            return_value={
+                "enabled": False,
+                "config_file_exists": False,
+                "config_content": "",
+            },
+        )
+
+        result = integration._analyze_dependency_management("owner", "repo")
+
+        assert result["dependabot"]["enabled"] is False
+        assert any("Dependabot" in rec for rec in result["recommendations"])
 
     def test_is_security_workflow(self, integration: GitHubIntegration) -> None:
         """Test identifying security workflows."""
@@ -240,13 +225,6 @@ class TestGitHubIntegration:
         )
         integration.client.check_push_protection = MagicMock(return_value=True)
         integration.client.list_workflows = MagicMock(return_value=[])
-        integration.client.get_renovate_config = MagicMock(
-            return_value={
-                "enabled": True,
-                "config_file_exists": True,
-                "config_content": "{}",
-            },
-        )
         integration.client.get_dependabot_config = MagicMock(
             return_value={"enabled": True, "config_file_exists": True},
         )
@@ -272,13 +250,6 @@ class TestGitHubIntegration:
         integration.client.check_security_settings = MagicMock(return_value={})
         integration.client.check_push_protection = MagicMock(return_value=False)
         integration.client.list_workflows = MagicMock(return_value=[])
-        integration.client.get_renovate_config = MagicMock(
-            return_value={
-                "enabled": False,
-                "config_file_exists": False,
-                "config_content": "",
-            },
-        )
         integration.client.get_dependabot_config = MagicMock(
             return_value={"enabled": False, "config_file_exists": False},
         )
@@ -322,7 +293,6 @@ class TestGitHubIntegration:
                 "recommendations": [],
             },
             "dependency_analysis": {
-                "renovate": {"enabled": True, "config_file_exists": True, "config_content": "{}"},
                 "dependabot": {"enabled": False, "config_file_exists": False, "config_content": ""},
                 "recommendations": [],
             },
@@ -373,7 +343,6 @@ class TestGitHubIntegration:
                 "recommendations": [],
             },
             "dependency_analysis": {
-                "renovate": {"enabled": False, "config_file_exists": False, "config_content": ""},
                 "dependabot": {"enabled": False, "config_file_exists": False, "config_content": ""},
                 "recommendations": [],
             },
@@ -400,7 +369,6 @@ class TestGitHubIntegration:
         integration.client.check_security_settings = MagicMock(side_effect=GitHubAPIError("API error"))
         integration.client.check_push_protection = MagicMock(side_effect=GitHubAPIError("API error"))
         integration.client.list_workflows = MagicMock(side_effect=GitHubAPIError("API error"))
-        integration.client.get_renovate_config = MagicMock(side_effect=GitHubAPIError("API error"))
         integration.client.get_dependabot_config = MagicMock(side_effect=GitHubAPIError("API error"))
 
         result = integration.analyze_repository_comprehensive("owner", "repo")

@@ -13,7 +13,7 @@ secuority を言語横断の品質・セキュリティ基盤へ進化させ、P
 ・pre-commit.ci は Python 中心で Node/C++/C# の対応が不十分
 ・モノレポで旧実装と新実装が混在し、ルール適用が難しい
 ・ツール選定が古く、モダン化が必要 (ESLint → Biome、MyPy → basedpyright 等)
-・Renovate.jsonの設定も言語横断で最適化が必要
+・依存関係更新の設定は外部リポジトリ（renovate-config）に移管済み
 
 ## 対応方針
 
