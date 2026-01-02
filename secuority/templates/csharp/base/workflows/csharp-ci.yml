@@ -16,15 +16,21 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        dotnet-version: ["8.0.x", "9.0.x"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET (global.json)
         uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') != '' }}
         with:
-          dotnet-version: ${{ matrix.dotnet-version }}
+          global-json-file: global.json
+
+      - name: Setup .NET (LTS)
+        uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') == '' }}
+        with:
+          dotnet-version: "8.0.x"
 
       - name: Restore dependencies
         run: dotnet restore
@@ -37,7 +43,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        if: matrix.os == 'ubuntu-latest' && matrix.dotnet-version == '9.0.x'
+        if: matrix.os == 'ubuntu-latest'
         with:
           files: "**/coverage.cobertura.xml"
           fail_ci_if_error: false
@@ -45,17 +51,28 @@ jobs:
   format:
     name: Code Format Check
     runs-on: ubuntu-latest
+    if: ${{ hashFiles('.config/dotnet-tools.json') != '' }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET (global.json)
         uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') != '' }}
         with:
-          dotnet-version: "9.0.x"
+          global-json-file: global.json
+
+      - name: Setup .NET (LTS)
+        uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') == '' }}
+        with:
+          dotnet-version: "8.0.x"
 
       - name: Restore dependencies
         run: dotnet restore
+
+      - name: Restore tools
+        run: dotnet tool restore
 
       - name: Check format
         run: dotnet format --verify-no-changes --verbosity diagnostic
@@ -67,10 +84,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET (global.json)
         uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') != '' }}
         with:
-          dotnet-version: "9.0.x"
+          global-json-file: global.json
+
+      - name: Setup .NET (LTS)
+        uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') == '' }}
+        with:
+          dotnet-version: "8.0.x"
 
       - name: Restore dependencies
         run: dotnet restore

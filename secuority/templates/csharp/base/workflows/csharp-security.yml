@@ -19,10 +19,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET (global.json)
         uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') != '' }}
         with:
-          dotnet-version: "9.0.x"
+          global-json-file: global.json
+
+      - name: Setup .NET (LTS)
+        uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') == '' }}
+        with:
+          dotnet-version: "8.0.x"
 
       - name: Restore dependencies
         run: dotnet restore
@@ -61,10 +68,17 @@ jobs:
         with:
           languages: csharp
 
-      - name: Setup .NET
+      - name: Setup .NET (global.json)
         uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') != '' }}
         with:
-          dotnet-version: "9.0.x"
+          global-json-file: global.json
+
+      - name: Setup .NET (LTS)
+        uses: actions/setup-dotnet@v4
+        if: ${{ hashFiles('global.json') == '' }}
+        with:
+          dotnet-version: "8.0.x"
 
       - name: Build
         run: dotnet build --configuration Release

@@ -183,8 +183,10 @@ class TemplateManager(TemplateManagerInterface):
                     ".json",
                     ".md",
                     ".baseline",
+                    ".props",
                 } or file_path.name in {
                     ".gitignore",
+                    ".editorconfig",
                     "CONTRIBUTING.md",
                     "CODEOWNERS",
                 }:

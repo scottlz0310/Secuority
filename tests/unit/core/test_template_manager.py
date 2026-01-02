@@ -295,8 +295,11 @@ class TestTemplateManager:
             },
             "csharp": common
             | {
+                ".editorconfig",
+                "Directory.Build.props",
                 "workflows/csharp-ci.yml",
                 "workflows/csharp-security.yml",
+                "Directory.Packages.props.template",
             },
         }
 

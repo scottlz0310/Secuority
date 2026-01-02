@@ -405,6 +405,7 @@ def _generate_template_file_changes(
         "csharp": {
             ".editorconfig": (".editorconfig", "has_editorconfig"),
             "Directory.Build.props": ("Directory.Build.props", "has_directory_build_props"),
+            "Directory.Packages.props.template": ("Directory.Packages.props", "has_directory_packages_props"),
         },
         "common": {
             ".gitignore.template": (".gitignore", "has_gitignore"),
