@@ -356,11 +356,12 @@ class TestTemplateManager:
     ) -> None:
         """Verify template existence checks include nested language directories."""
         manager._template_dir = tmp_path
-        template_path = tmp_path / "templates" / "python"
+        template_path = tmp_path / "templates" / "python" / "base"
         template_path.mkdir(parents=True)
         (template_path / "pyproject.toml.template").write_text("[project]\n", encoding="utf-8")
 
         assert manager.template_exists("python/pyproject.toml.template")
+        assert manager.template_exists("python/base/pyproject.toml.template")
         assert not manager.template_exists("nodejs/package.json.template")
 
     def test_template_exists_true(

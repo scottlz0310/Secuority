@@ -71,13 +71,19 @@ uv run python -m secuority.cli.main init
 ~/.config/secuority/          # Linux/macOS
 %APPDATA%\secuority\          # Windows
 ├── templates/
-│   ├── pyproject.toml.template
-│   ├── .gitignore.template
-│   ├── .pre-commit-config.yaml.template
-│   └── workflows/
-│       ├── security-check.yml
-│       ├── quality-check.yml
-│       └── ci-cd.yml
+│   ├── common/
+│   │   └── base/
+│   │       ├── .gitignore.template
+│   │       ├── SECURITY.md.template
+│   │       └── CONTRIBUTING.md
+│   └── python/
+│       └── base/
+│           ├── pyproject.toml.template
+│           ├── .pre-commit-config.yaml.template
+│           └── workflows/
+│               ├── security-check.yml
+│               ├── quality-check.yml
+│               └── ci-cd.yml
 ├── config.yaml
 └── version.json
 ```
@@ -255,12 +261,14 @@ tool_preferences:
 
 Secuorityには以下のテンプレートが含まれています：
 
-1. **pyproject.toml.template**: モダンなPython設定
-2. **.gitignore.template**: Python用の標準的な除外パターン
-3. **.pre-commit-config.yaml.template**: pre-commitフック設定
-4. **workflows/security-check.yml**: GitHub Actionsセキュリティワークフロー
-5. **workflows/quality-check.yml**: GitHub Actions品質チェックワークフロー
-6. **workflows/ci-cd.yml**: 基本的なCI/CDワークフロー
+1. **common/base/.gitignore.template**: 標準的な除外パターン
+2. **common/base/SECURITY.md.template**: セキュリティポリシー
+3. **common/base/CONTRIBUTING.md**: コントリビューションガイド
+4. **python/base/pyproject.toml.template**: モダンなPython設定
+5. **python/base/.pre-commit-config.yaml.template**: pre-commitフック設定
+6. **python/base/workflows/security-check.yml**: GitHub Actionsセキュリティワークフロー
+7. **python/base/workflows/quality-check.yml**: GitHub Actions品質チェックワークフロー
+8. **python/base/workflows/ci-cd.yml**: 基本的なCI/CDワークフロー
 
 **注意**: 依存関係更新はDependabotや外部ツール（例: renovate-config）で管理してください。
 

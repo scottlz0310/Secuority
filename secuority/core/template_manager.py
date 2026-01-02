@@ -671,8 +671,31 @@ class TemplateManager(TemplateManagerInterface):
         template_dir = self.get_template_directory()
         templates_path = template_dir / "templates"
         template_path = templates_path / template_name
+        if template_path.exists():
+            return True
 
-        return template_path.exists()
+        variant_names = {"base", "strict", "app", "lib", "app-strict", "lib-strict"}
+        template_parts = Path(template_name).parts
+
+        if len(template_parts) >= 2:
+            if template_parts[1] not in variant_names:
+                variant_path = templates_path / template_parts[0] / "base" / Path(*template_parts[1:])
+                return variant_path.exists()
+            return False
+
+        if len(template_parts) == 1:
+            filename = template_parts[0]
+            for language_dir in templates_path.iterdir():
+                if not language_dir.is_dir() or language_dir.name in {"__pycache__", ".git"}:
+                    continue
+                variant_path = language_dir / "base" / filename
+                if variant_path.exists():
+                    return True
+                direct_path = language_dir / filename
+                if direct_path.exists():
+                    return True
+
+        return False
 
     def get_config(self) -> dict[str, Any]:
         """Get configuration from config.yaml.

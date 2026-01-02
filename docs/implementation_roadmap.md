@@ -87,14 +87,16 @@ secuority/core/languages/
 ```
 secuority/templates/
 ├── common/              # 言語共通テンプレート
-│   ├── .gitignore.template
-│   ├── SECURITY.md.template
-│   ├── CONTRIBUTING.md
-│   └── .github/         # Issue/PR templates
+│   └── base/
+│       ├── .gitignore.template
+│       ├── SECURITY.md.template
+│       ├── CONTRIBUTING.md
+│       └── .github/         # Issue/PR templates
 └── python/              # Python固有テンプレート
-    ├── pyproject.toml.template
-    ├── .pre-commit-config.yaml.template
-    └── workflows/       # Python CI/CD workflows
+    └── base/
+        ├── pyproject.toml.template
+        ├── .pre-commit-config.yaml.template
+        └── workflows/       # Python CI/CD workflows
 ```
 
 **変更点**:

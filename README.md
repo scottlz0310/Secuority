@@ -69,9 +69,10 @@ uv run secuority check
 ```
 ~/.secuority/
 ├── templates/
-│   ├── pyproject.toml.template
-│   ├── .gitignore.template
-│   └── .pre-commit-config.yaml.template
+│   ├── common/
+│   │   └── base/
+│   └── python/
+│       └── base/
 └── config.yaml  # ユーザー設定
 ```
 
