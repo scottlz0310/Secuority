@@ -176,7 +176,14 @@ class TemplateManager(TemplateManagerInterface):
         for file_path in directory.iterdir():
             if file_path.is_file():
                 # Include .template files, .yml/.yaml files, and specific config files
-                if file_path.suffix in {".template", ".yml", ".yaml", ".json", ".md"} or file_path.name in {
+                if file_path.suffix in {
+                    ".template",
+                    ".yml",
+                    ".yaml",
+                    ".json",
+                    ".md",
+                    ".baseline",
+                } or file_path.name in {
                     ".gitignore",
                     "CONTRIBUTING.md",
                     "CODEOWNERS",

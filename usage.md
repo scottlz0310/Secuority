@@ -266,9 +266,10 @@ Secuorityには以下のテンプレートが含まれています：
 3. **common/base/CONTRIBUTING.md**: コントリビューションガイド
 4. **python/base/pyproject.toml.template**: モダンなPython設定
 5. **python/base/.pre-commit-config.yaml.template**: pre-commitフック設定
-6. **python/base/workflows/security-check.yml**: GitHub Actionsセキュリティワークフロー
-7. **python/base/workflows/quality-check.yml**: GitHub Actions品質チェックワークフロー
-8. **python/base/workflows/ci-cd.yml**: 基本的なCI/CDワークフロー
+6. **python/base/.secrets.baseline**: detect-secrets用の初期ベースライン
+7. **python/base/workflows/security-check.yml**: GitHub Actionsセキュリティワークフロー
+8. **python/base/workflows/quality-check.yml**: GitHub Actions品質チェックワークフロー
+9. **python/base/workflows/ci-cd.yml**: 基本的なCI/CDワークフロー
 
 **注意**: 依存関係更新はDependabotや外部ツール（例: renovate-config）で管理してください。
 

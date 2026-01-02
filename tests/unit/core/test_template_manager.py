@@ -29,13 +29,13 @@ class TestTemplateManager:
         templates_dir.mkdir(parents=True)
 
         # Create common templates
-        common_dir = templates_dir / "common"
-        common_dir.mkdir()
+        common_dir = templates_dir / "common" / "base"
+        common_dir.mkdir(parents=True)
         (common_dir / ".gitignore.template").write_text("*.pyc\n__pycache__/\n")
 
         # Create Python-specific templates
-        python_dir = templates_dir / "python"
-        python_dir.mkdir()
+        python_dir = templates_dir / "python" / "base"
+        python_dir.mkdir(parents=True)
         (python_dir / "pyproject.toml.template").write_text("[project]\nname = 'test'\n")
         (python_dir / ".pre-commit-config.yaml.template").write_text("repos:\n  - repo: test\n")
 
@@ -260,6 +260,7 @@ class TestTemplateManager:
             "common": common,
             "python": common
             | {
+                ".secrets.baseline",
                 "pyproject.toml.template",
                 ".pre-commit-config.yaml.template",
                 "workflows/ci-cd.yml",
@@ -372,12 +373,8 @@ class TestTemplateManager:
         """Test checking if template exists returns True."""
         manager._template_dir = temp_template_dir
 
-        # Note: template_exists checks the flat path, not the hierarchical structure
-        # It checks if templates/python/pyproject.toml.template exists
-        # But for template_exists() method, it expects just the filename at templates level
-        # Since we moved to hierarchical structure, we need to check within subdirectories
-        # For backward compatibility, check if the file exists in any subdirectory
-        exists = (temp_template_dir / "templates" / "python" / "pyproject.toml.template").exists()
+        # Ensure the base variant exists in the new layout.
+        exists = (temp_template_dir / "templates" / "python" / "base" / "pyproject.toml.template").exists()
 
         assert exists
 
@@ -463,8 +460,8 @@ class TestTemplateManager:
         assert backup_path.exists()
         assert "templates_backup_" in backup_path.name
         # Check that the hierarchical structure was backed up
-        assert (backup_path / "python" / "pyproject.toml.template").exists()
-        assert (backup_path / "common" / ".gitignore.template").exists()
+        assert (backup_path / "python" / "base" / "pyproject.toml.template").exists()
+        assert (backup_path / "common" / "base" / ".gitignore.template").exists()
 
     def test_restore_from_backup_success(
         self,
@@ -481,10 +478,10 @@ class TestTemplateManager:
         shutil.copytree(templates_path, backup_path)
 
         # Store original content (now in python subdirectory)
-        original_content = (templates_path / "python" / "pyproject.toml.template").read_text()
+        original_content = (templates_path / "python" / "base" / "pyproject.toml.template").read_text()
 
         # Modify current templates
-        (templates_path / "python" / "pyproject.toml.template").write_text("modified content")
+        (templates_path / "python" / "base" / "pyproject.toml.template").write_text("modified content")
 
         # Restore from backup
         result = manager.restore_from_backup(backup_path)
@@ -492,7 +489,7 @@ class TestTemplateManager:
         assert result is True
 
         # Verify original content was restored
-        content = (templates_path / "python" / "pyproject.toml.template").read_text()
+        content = (templates_path / "python" / "base" / "pyproject.toml.template").read_text()
         assert content == original_content
         assert "modified content" not in content
 

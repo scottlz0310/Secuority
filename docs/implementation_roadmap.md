@@ -294,15 +294,15 @@ secuority apply --language nodejs
 **ステータス**: ✅ 完了 (2025-12-03)
 
 **実装内容**:
-- pyproject.toml.template: hatchling、basedpyright、uvセクション追加
+- pyproject.toml.template: hatchling、basedpyright、dependency-groups 追加
 - .pre-commit-config.yaml.template: basedpyright、osv-scanner統合
 - workflows/security-check.yml: osv-scanner統合とPRコメント追加
 
 **更新ファイル**:
 ```
-secuority/templates/python/pyproject.toml.template
-secuority/templates/python/.pre-commit-config.yaml.template
-secuority/templates/python/workflows/security-check.yml
+secuority/templates/python/base/pyproject.toml.template
+secuority/templates/python/base/.pre-commit-config.yaml.template
+secuority/templates/python/base/workflows/security-check.yml
 ```
 
 **主要な変更**:
@@ -477,10 +477,10 @@ register_language(CSharpAnalyzer(), priority=30)
 
 #### 6-1. Python モダンツール更新
 
-**更新ファイル**: `secuority/templates/python/`
+**更新ファイル**: `secuority/templates/python/base/`
 
 **追加/更新内容**:
-- `pyproject.toml.template`: basedpyright, uv セクション追加
+- `pyproject.toml.template`: basedpyright, dependency-groups 追加
 - `.pre-commit-config.yaml.template`: osv-scanner 統合
 - `workflows/security-check.yml`: osv-scanner, Semgrep 統合
 
@@ -490,8 +490,8 @@ register_language(CSharpAnalyzer(), priority=30)
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.0",
     "ruff>=0.9.0",
     "basedpyright>=1.0.0",
