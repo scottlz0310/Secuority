@@ -433,6 +433,56 @@ class TestTemplateManager:
         assert templates["SECURITY.md.template"] == "common"
         assert templates["CMakeLists.txt.template"] == "header-only"
 
+    def test_variant_templates_match_expected_content(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+    ) -> None:
+        """Pin expected template differences for variant overrides."""
+        manager._template_dir = tmp_path
+        manager.initialize_templates()
+
+        templates_path = tmp_path / "templates"
+
+        nodejs_app = (templates_path / "nodejs" / "app" / "tsconfig.json.template").read_text(encoding="utf-8")
+        nodejs_lib = (templates_path / "nodejs" / "lib" / "tsconfig.json.template").read_text(encoding="utf-8")
+        nodejs_base = (templates_path / "nodejs" / "base" / "tsconfig.json.template").read_text(encoding="utf-8")
+
+        go_strict = (templates_path / "go" / "strict" / ".golangci.yml").read_text(encoding="utf-8")
+        go_base = (templates_path / "go" / "base" / ".golangci.yml").read_text(encoding="utf-8")
+
+        cpp_app = (templates_path / "cpp" / "app" / "CMakeLists.txt.template").read_text(encoding="utf-8")
+        cpp_lib = (templates_path / "cpp" / "lib" / "CMakeLists.txt.template").read_text(encoding="utf-8")
+        cpp_header = (templates_path / "cpp" / "header-only" / "CMakeLists.txt.template").read_text(encoding="utf-8")
+        cpp_base = (templates_path / "cpp" / "base" / "CMakeLists.txt.template").read_text(encoding="utf-8")
+
+        node_app_templates = manager.load_templates(language="nodejs", variant="app")
+        assert node_app_templates["tsconfig.json.template"] == nodejs_app
+        assert node_app_templates["tsconfig.json.template"] != nodejs_base
+
+        node_lib_templates = manager.load_templates(language="nodejs", variant="lib")
+        assert node_lib_templates["tsconfig.json.template"] == nodejs_lib
+        assert node_lib_templates["tsconfig.json.template"] != nodejs_base
+
+        go_templates = manager.load_templates(language="go", variant="strict")
+        assert go_templates[".golangci.yml"] == go_strict
+        assert go_templates[".golangci.yml"] != go_base
+
+        cpp_app_templates = manager.load_templates(language="cpp", variant="app")
+        assert cpp_app_templates["CMakeLists.txt.template"] == cpp_app
+        if cpp_app != cpp_base:
+            assert cpp_app_templates["CMakeLists.txt.template"] != cpp_base
+
+        cpp_lib_templates = manager.load_templates(language="cpp", variant="lib")
+        assert cpp_lib_templates["CMakeLists.txt.template"] == cpp_lib
+        if cpp_lib != cpp_base:
+            assert cpp_lib_templates["CMakeLists.txt.template"] != cpp_base
+
+        cpp_header_templates = manager.load_templates(language="cpp", variant="header-only")
+        assert cpp_header_templates["CMakeLists.txt.template"] == cpp_header
+        if cpp_header != cpp_base:
+            assert cpp_header_templates["CMakeLists.txt.template"] != cpp_base
+
     def test_template_exists_supports_language_subdirectories(
         self,
         manager: TemplateManager,
