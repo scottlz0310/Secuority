@@ -27,19 +27,19 @@ jobs:
           fi
           if [ -f package.json ]; then
             python - <<'PY' >> "$GITHUB_OUTPUT"
-            import json
-            from pathlib import Path
+          import json
+          from pathlib import Path
 
-            version = ""
-            data = json.loads(Path("package.json").read_text(encoding="utf-8"))
-            engines = data.get("engines", {})
-            if isinstance(engines, dict):
-                node = engines.get("node")
-                if isinstance(node, str):
-                    version = node.strip()
-            if version:
-                print(f"version={version}")
-            PY
+          version = ""
+          data = json.loads(Path("package.json").read_text(encoding="utf-8"))
+          engines = data.get("engines", {})
+          if isinstance(engines, dict):
+              node = engines.get("node")
+              if isinstance(node, str):
+                  version = node.strip()
+          if version:
+              print(f"version={version}")
+          PY
           fi
           if ! grep -q '^version=' "$GITHUB_OUTPUT"; then
             echo "version=lts/*" >> "$GITHUB_OUTPUT"

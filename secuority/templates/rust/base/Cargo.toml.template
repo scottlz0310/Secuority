@@ -4,7 +4,8 @@
 [package]
 name = "{{ project_name }}"
 version = "{{ project_version | default('0.1.0') }}"
-edition = "2021"
+edition = "2024"
+rust-version = "{{ rust_version | default('1.85') }}"
 authors = ["{{ author_name | default('') }} <{{ author_email | default('') }}>"]
 description = "{{ project_description | default('') }}"
 readme = "README.md"

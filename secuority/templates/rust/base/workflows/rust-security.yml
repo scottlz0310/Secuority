@@ -23,11 +23,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect Rust toolchain
+        id: toolchain
+        run: |
+          if [ -f rust-toolchain.toml ]; then
+            python - <<'PY' >> "$GITHUB_OUTPUT"
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("rust-toolchain.toml").read_text(encoding="utf-8"))
+          channel = data.get("toolchain", {}).get("channel", "")
+          if channel:
+              print(f"toolchain={channel}")
+          PY
+          elif [ -f rust-toolchain ]; then
+            channel="$(cat rust-toolchain | tr -d '[:space:]')"
+            if [ -n "$channel" ]; then
+              echo "toolchain=$channel" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          if ! grep -q '^toolchain=' "$GITHUB_OUTPUT"; then
+            echo "toolchain=stable" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ steps.toolchain.outputs.toolchain }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
 
       - name: Run cargo audit
         run: cargo audit --json > audit-report.json || true
@@ -48,11 +78,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect Rust toolchain
+        id: toolchain
+        run: |
+          if [ -f rust-toolchain.toml ]; then
+            python - <<'PY' >> "$GITHUB_OUTPUT"
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("rust-toolchain.toml").read_text(encoding="utf-8"))
+          channel = data.get("toolchain", {}).get("channel", "")
+          if channel:
+              print(f"toolchain={channel}")
+          PY
+          elif [ -f rust-toolchain ]; then
+            channel="$(cat rust-toolchain | tr -d '[:space:]')"
+            if [ -n "$channel" ]; then
+              echo "toolchain=$channel" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          if ! grep -q '^toolchain=' "$GITHUB_OUTPUT"; then
+            echo "toolchain=stable" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ steps.toolchain.outputs.toolchain }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
       - name: Install cargo-deny
-        run: cargo install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
 
       - name: Run cargo deny
         run: cargo deny check --config deny.toml

@@ -19,26 +19,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect Rust toolchain
+        id: toolchain
+        run: |
+          if [ -f rust-toolchain.toml ]; then
+            python - <<'PY' >> "$GITHUB_OUTPUT"
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("rust-toolchain.toml").read_text(encoding="utf-8"))
+          channel = data.get("toolchain", {}).get("channel", "")
+          if channel:
+              print(f"toolchain={channel}")
+          PY
+          elif [ -f rust-toolchain ]; then
+            channel="$(cat rust-toolchain | tr -d '[:space:]')"
+            if [ -n "$channel" ]; then
+              echo "toolchain=$channel" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          if ! grep -q '^toolchain=' "$GITHUB_OUTPUT"; then
+            echo "toolchain=stable" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          toolchain: ${{ steps.toolchain.outputs.toolchain }}
 
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache target directory
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
       - name: Run cargo check
         run: cargo check --all-targets --all-features
@@ -53,28 +63,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect Rust toolchain
+        id: toolchain
+        run: |
+          if [ -f rust-toolchain.toml ]; then
+            python - <<'PY' >> "$GITHUB_OUTPUT"
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("rust-toolchain.toml").read_text(encoding="utf-8"))
+          channel = data.get("toolchain", {}).get("channel", "")
+          if channel:
+              print(f"toolchain={channel}")
+          PY
+          elif [ -f rust-toolchain ]; then
+            channel="$(cat rust-toolchain | tr -d '[:space:]')"
+            if [ -n "$channel" ]; then
+              echo "toolchain=$channel" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          if ! grep -q '^toolchain=' "$GITHUB_OUTPUT"; then
+            echo "toolchain=${{ matrix.rust }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: ${{ steps.toolchain.outputs.toolchain }}
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache target directory
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-target-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
       - name: Run tests
         run: cargo test --all-features --verbose
@@ -85,28 +103,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect Rust toolchain
+        id: toolchain
+        run: |
+          if [ -f rust-toolchain.toml ]; then
+            python - <<'PY' >> "$GITHUB_OUTPUT"
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("rust-toolchain.toml").read_text(encoding="utf-8"))
+          channel = data.get("toolchain", {}).get("channel", "")
+          if channel:
+              print(f"toolchain={channel}")
+          PY
+          elif [ -f rust-toolchain ]; then
+            channel="$(cat rust-toolchain | tr -d '[:space:]')"
+            if [ -n "$channel" ]; then
+              echo "toolchain=$channel" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          if ! grep -q '^toolchain=' "$GITHUB_OUTPUT"; then
+            echo "toolchain=stable" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: ${{ steps.toolchain.outputs.toolchain }}
           components: clippy
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache target directory
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-target-clippy-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -117,9 +144,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect Rust toolchain
+        id: toolchain
+        run: |
+          if [ -f rust-toolchain.toml ]; then
+            python - <<'PY' >> "$GITHUB_OUTPUT"
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("rust-toolchain.toml").read_text(encoding="utf-8"))
+          channel = data.get("toolchain", {}).get("channel", "")
+          if channel:
+              print(f"toolchain={channel}")
+          PY
+          elif [ -f rust-toolchain ]; then
+            channel="$(cat rust-toolchain | tr -d '[:space:]')"
+            if [ -n "$channel" ]; then
+              echo "toolchain=$channel" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          if ! grep -q '^toolchain=' "$GITHUB_OUTPUT"; then
+            echo "toolchain=stable" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: ${{ steps.toolchain.outputs.toolchain }}
           components: rustfmt
 
       - name: Run rustfmt
@@ -131,11 +182,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect Rust toolchain
+        id: toolchain
+        run: |
+          if [ -f rust-toolchain.toml ]; then
+            python - <<'PY' >> "$GITHUB_OUTPUT"
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("rust-toolchain.toml").read_text(encoding="utf-8"))
+          channel = data.get("toolchain", {}).get("channel", "")
+          if channel:
+              print(f"toolchain={channel}")
+          PY
+          elif [ -f rust-toolchain ]; then
+            channel="$(cat rust-toolchain | tr -d '[:space:]')"
+            if [ -n "$channel" ]; then
+              echo "toolchain=$channel" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          if ! grep -q '^toolchain=' "$GITHUB_OUTPUT"; then
+            echo "toolchain=stable" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ steps.toolchain.outputs.toolchain }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
       - name: Install tarpaulin
-        run: cargo install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
 
       - name: Generate coverage
         run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
