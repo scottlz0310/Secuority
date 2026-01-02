@@ -16,15 +16,18 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
-# Add source files
-add_executable(${PROJECT_NAME}
-    src/main.cpp
-)
+# Header-only library target
+add_library(${PROJECT_NAME} INTERFACE)
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+target_include_directories(${PROJECT_NAME}
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
 )
+
+# Ensure consumers request the minimum standard
+target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_20)
 
 # Testing
 enable_testing()

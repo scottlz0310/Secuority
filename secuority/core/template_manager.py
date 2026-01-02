@@ -131,14 +131,14 @@ class TemplateManager(TemplateManagerInterface):
             base_variant = normalized.split("-", 1)[0]
             return ["base", base_variant, "strict", normalized]
 
-        if normalized == "app":
-            return ["base", "app"]
-        if normalized == "lib":
-            return ["base", "lib"]
-        if normalized == "strict":
-            return ["base", "strict"]
+        variant_map = {
+            "app": ["base", "app"],
+            "lib": ["base", "lib"],
+            "header-only": ["base", "lib", "header-only"],
+            "strict": ["base", "strict"],
+        }
 
-        return ["base"]
+        return variant_map.get(normalized, ["base"])
 
     def _load_variant_templates(self, directory: Path, variant: str) -> dict[str, str]:
         """Load templates for a directory with optional variant overrides."""
@@ -681,7 +681,7 @@ class TemplateManager(TemplateManagerInterface):
         if template_path.exists():
             return True
 
-        variant_names = {"base", "strict", "app", "lib", "app-strict", "lib-strict"}
+        variant_names = {"base", "strict", "app", "lib", "header-only", "app-strict", "lib-strict"}
         template_parts = Path(template_name).parts
 
         if len(template_parts) >= 2:

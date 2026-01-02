@@ -11,12 +11,27 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Build (${{ matrix.compiler }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        build_type: [Debug, Release]
+        include:
+          # Warnings differ across GCC/Clang/MSVC; keep them isolated.
+          - os: ubuntu-latest
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+          - os: ubuntu-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+          - os: windows-latest
+            compiler: msvc
+          - os: macos-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
 
     steps:
       - uses: actions/checkout@v4
@@ -25,16 +40,24 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build
+          sudo apt-get install -y cmake ninja-build clang
 
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Configure CMake (Unix)
+        if: runner.os != 'Windows'
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -B build -A x64
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }}
+        run: cmake --build build --config Release
 
       - name: Test
-        run: ctest --test-dir build --build-config ${{ matrix.build_type }}
+        run: ctest --test-dir build --build-config Release
 
   lint:
     name: Clang-Tidy
@@ -53,7 +76,8 @@ jobs:
 
       - name: Run clang-tidy
         run: |
-          find src include -name '*.cpp' -o -name '*.hpp' | xargs clang-tidy -p build
+          find src include -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 2>/dev/null \
+            | xargs -0 -r clang-tidy -p build
 
   format:
     name: Clang-Format
@@ -67,4 +91,5 @@ jobs:
 
       - name: Check formatting
         run: |
-          find src include -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror
+          find src include -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 2>/dev/null \
+            | xargs -0 -r clang-format --dry-run --Werror

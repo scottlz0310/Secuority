@@ -73,6 +73,7 @@ Renovate テンプレートは外部リポジトリ（`../renovate-config/`）�
 - `exe` / `lib` / `header-only` のテンプレート分岐を設ける。
 - `.clang-tidy` は複数プロファイル（Google/LLVM/プロジェクト独自）で選択可能にする。
 - CI では Clang/GCC/MSVC を分離し、警告扱いの違いをドキュメント化する。
+- `header-only` は `lib` をベースに差分上書きする。
 
 ### C#
 課題:
@@ -99,6 +100,7 @@ Renovate テンプレートは外部リポジトリ（`../renovate-config/`）�
 - `strict`: 静的解析・セキュリティを強化した構成。
 - `app`: 実行アプリ向け（CLI/Web/Service）。ビルド・実行を前提にした設定。
 - `lib`: ライブラリ/SDK向け。公開APIと互換性を重視。
+- `header-only`: C++向けのヘッダーオンリーライブラリ。
 
 ### 合成ルール
 - `app-strict`, `lib-strict` を許可し、「用途 + 厳格度」を一意に表す。
@@ -118,6 +120,7 @@ secuority/templates/
     strict/
     app/
     lib/
+    header-only/
     app-strict/
     lib-strict/
 ```
@@ -128,7 +131,7 @@ secuority/templates/
 
 ### 選択優先順位（仕様）
 1. `app-strict` / `lib-strict`（合成）
-2. `app` / `lib`
+2. `app` / `lib` / `header-only`
 3. `strict`
 4. `base`
 

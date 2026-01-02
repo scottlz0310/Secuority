@@ -16,14 +16,16 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
-# Add source files
-add_executable(${PROJECT_NAME}
-    src/main.cpp
+# Build a library target (respects BUILD_SHARED_LIBS)
+add_library(${PROJECT_NAME}
+    src/{{ project_name }}.cpp
 )
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
 )
 
 # Testing

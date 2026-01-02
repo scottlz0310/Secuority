@@ -350,6 +350,32 @@ class TestTemplateManager:
 
         assert templates["pyproject.toml.template"] == "base"
 
+    def test_load_templates_header_only_variant_overrides_lib(
+        self,
+        manager: TemplateManager,
+        tmp_path: Path,
+    ) -> None:
+        """Header-only variants should override lib templates when present."""
+        manager._template_dir = tmp_path
+        templates_dir = tmp_path / "templates"
+        (templates_dir / "common" / "base").mkdir(parents=True)
+        (templates_dir / "cpp" / "base").mkdir(parents=True)
+        (templates_dir / "cpp" / "lib").mkdir(parents=True)
+        (templates_dir / "cpp" / "header-only").mkdir(parents=True)
+
+        (templates_dir / "common" / "base" / "SECURITY.md.template").write_text("common", encoding="utf-8")
+        (templates_dir / "cpp" / "base" / "CMakeLists.txt.template").write_text("base", encoding="utf-8")
+        (templates_dir / "cpp" / "lib" / "CMakeLists.txt.template").write_text("lib", encoding="utf-8")
+        (templates_dir / "cpp" / "header-only" / "CMakeLists.txt.template").write_text(
+            "header-only",
+            encoding="utf-8",
+        )
+
+        templates = manager.load_templates(language="cpp", variant="header-only")
+
+        assert templates["SECURITY.md.template"] == "common"
+        assert templates["CMakeLists.txt.template"] == "header-only"
+
     def test_template_exists_supports_language_subdirectories(
         self,
         manager: TemplateManager,
