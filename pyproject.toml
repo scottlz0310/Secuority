@@ -12,7 +12,7 @@ license = "MIT"
 keywords = [ "security", "quality", "python", "automation", "configuration", "linting", "pre-commit", "ci-cd",]
 classifiers = [ "Development Status :: 3 - Alpha", "Intended Audience :: Developers", "Operating System :: OS Independent", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Topic :: Software Development :: Quality Assurance", "Topic :: Security", "Topic :: Software Development :: Libraries :: Python Modules", "Environment :: Console", "Typing :: Typed",]
 dependencies = [
-    "typer>=0.21.0",
+    "typer>=0.21.1",
     "rich>=13.0.1,<14",  # <14 due to semgrep requiring rich~=13.5.2
     "pyyaml>=6.0.3",
     "requests>=2.32.5",
