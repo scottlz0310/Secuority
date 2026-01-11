@@ -10,15 +10,38 @@
   "packageRules": [
     {
       "description": "Disable rich upgrades until semgrep relaxes rich~=13.5.2 constraint",
-      "matchPackageNames": ["rich"],
-      "matchManagers": ["pep621", "uv"],
+      "matchPackageNames": [
+        "rich"
+      ],
+      "matchManagers": [
+        "pep621",
+        "uv"
+      ],
       "enabled": false
     },
     {
       "description": "Disable sphinx major upgrades until myst-parser supports sphinx>=9",
-      "matchPackageNames": ["sphinx"],
-      "matchManagers": ["pep621", "uv"],
-      "matchUpdateTypes": ["major"],
+      "matchPackageNames": [
+        "sphinx"
+      ],
+      "matchManagers": [
+        "pep621",
+        "uv"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Disable semgrep upgrades while LGPL-2.1 is blocked by dependency-review",
+      "matchPackageNames": [
+        "semgrep"
+      ],
+      "matchManagers": [
+        "pep621",
+        "uv"
+      ],
       "enabled": false
     }
   ]
