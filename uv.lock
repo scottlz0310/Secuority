@@ -1673,7 +1673,7 @@ docs = [
 security = [
     { name = "bandit", specifier = ">=1.9.2" },
     { name = "safety", specifier = ">=3.7.0" },
-    { name = "semgrep", specifier = ">=1.146.0" },
+    { name = "semgrep", specifier = ">=1.146.0,<1.147.0" },
 ]
 test = [
     { name = "pytest", specifier = ">=9.0.2" },
