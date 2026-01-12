@@ -341,4 +341,5 @@ Repository = "https://github.com/user/url-project"
 
         # Verify defaults are used
         # Use regex with word boundaries to avoid substring matching vulnerabilities
-        assert re.search(r'\bsecurity@example\.com\b', change.new_content) or re.search(r'\bexample\.com\b', change.new_content)
+        # For email, check domain part separately as @ breaks word boundaries
+        assert re.search(r'security@example\.com', change.new_content) or re.search(r'\bexample\.com\b', change.new_content)
