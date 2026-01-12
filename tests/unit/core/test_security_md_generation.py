@@ -106,7 +106,7 @@ Repository = "https://github.com/testuser/test-project"
 
         # Verify default values were used (your.email@example.com is the default)
         # Use regex with word boundaries to avoid substring matching vulnerabilities
-        assert re.search(r'\bexample\.com\b', change.new_content)
+        assert re.search(r"\bexample\.com\b", change.new_content)
         # Project name should be derived from directory name
         assert tmp_path.name in change.new_content or "my-project" in change.new_content
 
@@ -185,7 +185,7 @@ version = "0.1.0"
         assert tmp_path.name in change.new_content or "partial-project" in change.new_content
         # Missing fields should use defaults
         # Use regex with word boundaries to avoid substring matching vulnerabilities
-        assert re.search(r'\bexample\.com\b', change.new_content)
+        assert re.search(r"\bexample\.com\b", change.new_content)
 
     def test_security_md_customization_with_license(
         self,
@@ -239,7 +239,7 @@ authors = [
 
         # Verify content was generated (uses defaults since not processing pyproject.toml)
         # Use regex with word boundaries to avoid substring matching vulnerabilities
-        assert re.search(r'\bexample\.com\b', change.new_content)
+        assert re.search(r"\bexample\.com\b", change.new_content)
         # Second author should not be in content
         assert "second@example.com" not in change.new_content
 
@@ -321,7 +321,7 @@ Repository = "https://github.com/user/url-project"
 
         # Verify default URLs are used (since not processing pyproject.toml)
         # Use regex with word boundaries to avoid substring matching vulnerabilities
-        assert re.search(r'\bgithub\.com\b', change.new_content) or re.search(r'\bexample\.com\b', change.new_content)
+        assert re.search(r"\bgithub\.com\b", change.new_content) or re.search(r"\bexample\.com\b", change.new_content)
 
     def test_security_md_error_handling_invalid_toml(
         self,
@@ -342,4 +342,6 @@ Repository = "https://github.com/user/url-project"
         # Verify defaults are used
         # Use pattern matching to avoid substring matching vulnerabilities
         # Match email with proper boundaries (not part of a longer string)
-        assert re.search(r'(?<![a-zA-Z0-9.-])security@example\.com(?![a-zA-Z0-9.-])', change.new_content) or re.search(r'\bexample\.com\b', change.new_content)
+        assert re.search(r"(?<![a-zA-Z0-9.-])security@example\.com(?![a-zA-Z0-9.-])", change.new_content) or re.search(
+            r"\bexample\.com\b", change.new_content
+        )
