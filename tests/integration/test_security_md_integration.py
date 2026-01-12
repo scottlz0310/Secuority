@@ -1,5 +1,6 @@
 """Integration tests for SECURITY.md generation with real templates."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -168,7 +169,8 @@ We would like to thank the following individuals for responsibly disclosing secu
         assert change.change_type == ChangeType.CREATE
         assert "Security Policy" in change.new_content
         assert "Reporting a Vulnerability" in change.new_content
-        assert "example.com" in change.new_content
+        # Use regex with word boundaries to avoid substring matching vulnerabilities
+        assert re.search(r"\bexample\.com\b", change.new_content)
 
     def test_generate_security_md_with_project_info(
         self,
@@ -207,7 +209,8 @@ Issues = "https://github.com/secteam/my-secure-project/issues"
         change = applier.merge_file_configurations(security_md_path, template_content)
 
         # Verify content was generated (uses defaults since not processing pyproject.toml)
-        assert "example.com" in change.new_content
+        # Use regex with word boundaries to avoid substring matching vulnerabilities
+        assert re.search(r"\bexample\.com\b", change.new_content)
         assert "Security Policy" in change.new_content
 
     def test_apply_security_md_change(
@@ -388,7 +391,8 @@ name = "minimal"
         change = applier.merge_file_configurations(security_md_path, template_content)
 
         # Should use defaults for missing fields
-        assert "example.com" in change.new_content
+        # Use regex with word boundaries to avoid substring matching vulnerabilities
+        assert re.search(r"\bexample\.com\b", change.new_content)
         # Content should be generated
         assert "Security Policy" in change.new_content
 

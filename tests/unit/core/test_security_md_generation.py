@@ -1,5 +1,6 @@
 """Unit tests for SECURITY.md generation functionality."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -104,7 +105,8 @@ Repository = "https://github.com/testuser/test-project"
         change = applier.merge_file_configurations(security_md_path, security_template)
 
         # Verify default values were used (your.email@example.com is the default)
-        assert "example.com" in change.new_content
+        # Use regex with word boundaries to avoid substring matching vulnerabilities
+        assert re.search(r"\bexample\.com\b", change.new_content)
         # Project name should be derived from directory name
         assert tmp_path.name in change.new_content or "my-project" in change.new_content
 
@@ -182,7 +184,8 @@ version = "0.1.0"
         # Verify content was generated (uses directory name as fallback)
         assert tmp_path.name in change.new_content or "partial-project" in change.new_content
         # Missing fields should use defaults
-        assert "example.com" in change.new_content
+        # Use regex with word boundaries to avoid substring matching vulnerabilities
+        assert re.search(r"\bexample\.com\b", change.new_content)
 
     def test_security_md_customization_with_license(
         self,
@@ -235,7 +238,8 @@ authors = [
         change = applier.merge_file_configurations(security_md_path, security_template)
 
         # Verify content was generated (uses defaults since not processing pyproject.toml)
-        assert "example.com" in change.new_content
+        # Use regex with word boundaries to avoid substring matching vulnerabilities
+        assert re.search(r"\bexample\.com\b", change.new_content)
         # Second author should not be in content
         assert "second@example.com" not in change.new_content
 
@@ -316,7 +320,8 @@ Repository = "https://github.com/user/url-project"
         change = applier.merge_file_configurations(security_md_path, security_template)
 
         # Verify default URLs are used (since not processing pyproject.toml)
-        assert "github.com" in change.new_content or "example.com" in change.new_content
+        # Use regex with word boundaries to avoid substring matching vulnerabilities
+        assert re.search(r"\bgithub\.com\b", change.new_content) or re.search(r"\bexample\.com\b", change.new_content)
 
     def test_security_md_error_handling_invalid_toml(
         self,
@@ -335,4 +340,8 @@ Repository = "https://github.com/user/url-project"
         change = applier.merge_file_configurations(security_md_path, security_template)
 
         # Verify defaults are used
-        assert "security@example.com" in change.new_content or "example.com" in change.new_content
+        # Use pattern matching to avoid substring matching vulnerabilities
+        # Match email with proper boundaries (not part of a longer string)
+        assert re.search(r"(?<![a-zA-Z0-9.-])security@example\.com(?![a-zA-Z0-9.-])", change.new_content) or re.search(
+            r"\bexample\.com\b", change.new_content
+        )
