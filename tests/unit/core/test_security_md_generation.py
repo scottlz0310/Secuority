@@ -340,6 +340,6 @@ Repository = "https://github.com/user/url-project"
         change = applier.merge_file_configurations(security_md_path, security_template)
 
         # Verify defaults are used
-        # Use regex with word boundaries to avoid substring matching vulnerabilities
-        # For email, check domain part separately as @ breaks word boundaries
-        assert re.search(r'security@example\.com', change.new_content) or re.search(r'\bexample\.com\b', change.new_content)
+        # Use pattern matching to avoid substring matching vulnerabilities
+        # Match email with proper boundaries (not part of a longer string)
+        assert re.search(r'(?<![a-zA-Z0-9.-])security@example\.com(?![a-zA-Z0-9.-])', change.new_content) or re.search(r'\bexample\.com\b', change.new_content)
