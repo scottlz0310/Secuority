@@ -95,7 +95,7 @@ class GitHubIntegration:
     def _get_api_status(self) -> GitHubApiStatus:
         """Get GitHub API status with error handling."""
         fallback_status: GitHubApiStatus = {
-            "has_token": False,
+            "has_token": False,  # nosec B105
             "authenticated": False,
             "api_accessible": False,
             "user": "unknown",
