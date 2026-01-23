@@ -4,7 +4,25 @@
 
 ## 📦 インストール
 
-### 推奨: uv tool (グローバルインストール)
+### 推奨: uvx (インストール不要で実行)
+
+プロジェクトの初期設定にだけ使う場合は、グローバル環境を汚染せずに実行できる `uvx` の使用をお勧めします：
+
+```bash
+# GitHub Releasesから直接実行
+uvx --from "https://github.com/scottlz0310/Secuority/releases/download/v0.5.0/secuority-0.5.0-py3-none-any.whl" secuority check
+uvx --from "https://github.com/scottlz0310/Secuority/releases/download/v0.5.0/secuority-0.5.0-py3-none-any.whl" secuority apply
+
+# または、PyPIからの実行（公開後）
+uvx secuority check
+uvx secuority apply
+```
+
+`uvx` は一時的な仮想環境でツールを実行するため、グローバル環境を汚染せず、プロジェクトの初期セットアップに最適です。
+
+### uv tool (グローバルインストール)
+
+頻繁に使用する場合や、複数のプロジェクトで継続的に利用する場合は、グローバルインストールが便利です：
 
 ```bash
 # GitHub Releasesから
