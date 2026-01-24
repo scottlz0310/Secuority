@@ -14,10 +14,34 @@ Secuority は、Pythonプロジェクトのセキュリティと品質設定を�
 
 ## 📦 インストール
 
-### 通常のプロジェクトでの使用
+### 推奨: uvx（インストール不要で実行）
+
+プロジェクトの初期設定にだけ使う場合は、グローバル環境を汚染せずに実行できる `uvx` の使用をお勧めします：
 
 ```bash
-# uvを使用してGitHubから直接インストール（推奨）
+# GitHub Releasesから直接実行
+uvx --from "https://github.com/scottlz0310/Secuority/releases/download/v0.5.0/secuority-0.5.0-py3-none-any.whl" secuority check
+uvx --from "https://github.com/scottlz0310/Secuority/releases/download/v0.5.0/secuority-0.5.0-py3-none-any.whl" secuority apply
+
+# GitHubリポジトリから直接実行（最新のmainブランチ）
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority check
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority apply
+
+# 特定のブランチやタグを指定
+uvx --from git+https://github.com/scottlz0310/Secuority.git@main secuority check
+uvx --from git+https://github.com/scottlz0310/Secuority.git@v1.0.0 secuority check
+
+# PyPIからの実行（公開後）
+uvx secuority check
+uvx secuority apply
+```
+
+`uvx` は一時的な仮想環境でツールを実行するため、グローバル環境を汚染せず、プロジェクトの初期セットアップに最適です。
+
+### 通常のプロジェクトでの使用（プロジェクト依存としてインストール）
+
+```bash
+# uvを使用してGitHubから直接インストール
 uv add git+https://github.com/scottlz0310/Secuority.git
 
 # pipを使用してGitHubから直接インストール
@@ -27,7 +51,19 @@ pip install git+https://github.com/scottlz0310/Secuority.git
 uv add git+https://github.com/scottlz0310/Secuority.git@main
 uv add git+https://github.com/scottlz0310/Secuority.git@v1.0.0
 
-# グローバルにインストール（システム全体で使用、pipxが必要）
+# 実行
+uv run secuority check
+```
+
+### グローバルインストール
+
+頻繁に使用する場合や、複数のプロジェクトで継続的に利用する場合は、グローバルインストールが便利です：
+
+```bash
+# uv toolを使用（推奨）
+uv tool install git+https://github.com/scottlz0310/Secuority.git
+
+# pipxを使用
 pipx install git+https://github.com/scottlz0310/Secuority.git
 
 # pipxがない場合は先にインストール
@@ -58,8 +94,14 @@ uv run pytest
 まず、Secuorityを初期化してテンプレートファイルをセットアップします：
 
 ```bash
-# インストール済みの場合
+# uvxで実行（インストール不要）
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority init
+
+# グローバルインストール済みの場合
 secuority init
+
+# プロジェクト依存として追加している場合
+uv run secuority init
 
 # 開発環境の場合
 uv run python -m secuority.cli.main init
@@ -93,8 +135,14 @@ uv run python -m secuority.cli.main init
 現在のプロジェクトの設定状況を分析します：
 
 ```bash
-# 基本分析（インストール済み）
+# uvxで実行（インストール不要）
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority check
+
+# グローバルインストール済みの場合
 secuority check
+
+# プロジェクト依存として追加している場合
+uv run secuority check
 
 # 開発環境での実行
 uv run python -m secuority.cli.main check
@@ -111,8 +159,15 @@ secuority check --project-path /path/to/project
 分析結果に基づいて推奨設定を適用します：
 
 ```bash
-# 変更内容をプレビュー（実際には変更しない）
+# uvxで実行（インストール不要）
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority apply --dry-run
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority apply
+
+# 変更内容をプレビュー（グローバルインストール済み）
 secuority apply --dry-run
+
+# プロジェクト依存として追加している場合
+uv run secuority apply --dry-run
 
 # 開発環境での実行
 uv run python -m secuority.cli.main apply --dry-run
@@ -304,13 +359,14 @@ secuority template list --verbose
 mkdir my-new-project
 cd my-new-project
 
-# Secuorityで分析
+# uvxでインストールせずに実行（推奨）
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority check
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority apply
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority check --verbose
+
+# または、グローバルインストール済みの場合
 secuority check
-
-# 推奨設定を適用
 secuority apply
-
-# 結果を確認
 secuority check --verbose
 ```
 
@@ -320,20 +376,37 @@ secuority check --verbose
 # 既存プロジェクトに移動
 cd /path/to/existing-project
 
-# 現在の状況を分析
+# uvxでインストールせずに実行（推奨）
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority check --verbose
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority apply --dry-run
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority apply --security-only
+uvx --from git+https://github.com/scottlz0310/Secuority.git secuority apply
+
+# または、グローバルインストール済みの場合
 secuority check --verbose
-
-# 変更内容をプレビュー
 secuority apply --dry-run
-
-# セキュリティ設定のみ適用
 secuority apply --security-only
-
-# 残りの設定を適用
 secuority apply
 ```
 
 ### CI/CDパイプラインでの使用
+
+```yaml
+# .github/workflows/secuority-check.yml
+name: Secuority Check
+on: [push, pull_request]
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Run Secuority Check with uvx (no installation)
+        run: uvx --from git+https://github.com/scottlz0310/Secuority.git secuority check --structured
+```
+
+**または、プロジェクト依存として追加する場合：**
 
 ```yaml
 # .github/workflows/secuority-check.yml
