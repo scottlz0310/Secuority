@@ -115,9 +115,10 @@ jobs:
         run: |
           if [ -f "trivy-full-results.json" ]; then
             echo "=== Trivy Full Scan Summary ==="
-            cat trivy-full-results.json | python3 -c "
-          import json, sys
-          data = json.load(sys.stdin)
+            python3 - <<'PY'
+          import json
+          with open("trivy-full-results.json") as f:
+              data = json.load(f)
           results = data.get('Results', [])
           total_vulns = sum(len(r.get('Vulnerabilities', [])) for r in results)
           total_secrets = sum(len(r.get('Secrets', [])) for r in results)
@@ -125,7 +126,7 @@ jobs:
           print(f'Vulnerabilities: {total_vulns}')
           print(f'Secrets: {total_secrets}')
           print(f'Misconfigurations: {total_misconfig}')
-          "
+          PY
           fi
 
       - name: Upload Trivy full scan report
