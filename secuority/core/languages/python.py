@@ -173,7 +173,8 @@ class PythonAnalyzer(LanguageAnalyzer):
             # Security tools
             "bandit": False,
             "safety": False,
-            "semgrep": False,
+            "pip-audit": False,
+            "trivy": False,
             # Testing tools
             "pytest": False,
             "tox": False,
@@ -314,7 +315,7 @@ class PythonAnalyzer(LanguageAnalyzer):
 
     def get_security_tools(self) -> list[str]:
         """Get list of security-focused tools for Python."""
-        return ["bandit", "safety", "semgrep"]
+        return ["bandit", "safety", "pip-audit", "trivy"]
 
     def get_quality_tools(self) -> list[str]:
         """Get list of code quality tools for Python."""

@@ -29,8 +29,9 @@
 ### Python
 - [ ] Lint/Format: Ruff
 - [ ] Type check: basedpyright
-- [ ] SAST: Bandit（必要に応じて Semgrep はオプション化）
-- [ ] SCA: pip-audit or Safety
+- [x] SAST: Bandit + CodeQL（Semgrepは廃止済み）
+- [x] SCA: pip-audit + Safety（比較検証のため併用）
+- [x] 横断スキャン: Trivy（FS/secrets/config）
 
 ### TypeScript / Node.js
 - [ ] Lint/Format: ESLint + Prettier or Biome
@@ -71,12 +72,13 @@
 - [ ] Phase 3: ルール/設定の集約（単一設定ソース）
 - [ ] Phase 4: テスト拡充（テンプレートの期待値固定）
 
-## TODO: Semgrep 運用方針（要決定）
-- [ ] ライセンス変更の影響を避けるため、Semgrepはデフォルト無効にする
-- [ ] 有効化時はバージョン固定とライセンス許可の明示が必要
-- [ ] 代替ルールは CodeQL / 言語固有SASTへ委譲する
+## Semgrep 運用方針（決定済み）
+- [x] Semgrepはリポジトリから完全に削除（LGPL-2.1ライセンス問題、間接依存による運用コスト増加のため）
+- [x] 静的解析はCodeQL + Banditに移行
+- [x] 依存脆弱性スキャンはpip-audit + Safetyで対応
+- [x] 横断スキャンはTrivyで対応
 
 ## 未決事項
 - [ ] 「許容ライセンス一覧」の最終合意（LGPL/MPLの扱い）
-- [ ] SCAを Safety / pip-audit / osv-scanner のどれに統一するか
-- [ ] CodeQL と言語固有SASTの役割分担
+- [x] SCAを Safety / pip-audit / osv-scanner のどれに統一するか → pip-audit + Safetyを併用（比較検証期間後に判断）
+- [x] CodeQL と言語固有SASTの役割分担 → CodeQLが主軸、Banditは軽量な即時検知用として継続

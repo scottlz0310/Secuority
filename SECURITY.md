@@ -69,12 +69,26 @@ When using this project, we recommend:
 
 This project includes the following security measures:
 
-- Automated dependency vulnerability scanning with Safety
-- Automated dependency updates with Dependabot
-- Static code analysis with Bandit
-- Secret scanning with gitleaks
+### Static Analysis (SAST)
+- **CodeQL**: GitHub-integrated static analysis for Python (primary)
+- **Bandit**: Python-specific security linter for rapid detection
+
+### Dependency Vulnerability Scanning (SCA)
+- **pip-audit**: Python dependency vulnerability scanner
+- **Safety**: Dependency vulnerability scanner (parallel validation)
+
+### Cross-cutting Scans
+- **Trivy**: Filesystem, secrets, and configuration scanning
+- **Gitleaks**: Secret scanning in commits
+
+### Other Measures
+- Automated dependency updates with Renovate
 - Regular security audits
 - Secure coding practices enforcement
+
+### Scan Schedule
+- **PR checks**: Bandit, pip-audit, CodeQL, Trivy (fs + light config)
+- **Daily scheduled scans (02:00 UTC)**: CodeQL (deep), Trivy (full: fs/config/secret), Safety (via `.github/workflows/security-check.yml`)
 
 ## Contact
 

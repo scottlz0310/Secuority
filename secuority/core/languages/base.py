@@ -129,7 +129,7 @@ class LanguageAnalyzer(ABC):
         """Get list of security-focused tools for this language.
 
         Returns:
-            List of tool names (e.g., ["bandit", "safety", "semgrep"])
+            List of tool names (e.g., ["bandit", "safety", "pip-audit", "trivy"])
         """
 
     @abstractmethod

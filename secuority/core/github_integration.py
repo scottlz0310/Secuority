@@ -225,12 +225,13 @@ class GitHubIntegration:
             "bandit",
             "safety",
             "gitleaks",
-            "semgrep",
             "snyk",
             "codeql",
             "dependabot",
             "vulnerability",
             "audit",
+            "trivy",
+            "pip-audit",
         ]
         return any(keyword in name or keyword in path for keyword in security_keywords)
 

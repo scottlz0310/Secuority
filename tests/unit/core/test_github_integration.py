@@ -155,6 +155,8 @@ class TestGitHubIntegration:
         assert integration._is_security_workflow("Security Check", ".github/workflows/security.yml") is True
         assert integration._is_security_workflow("Bandit Scan", ".github/workflows/bandit.yml") is True
         assert integration._is_security_workflow("CodeQL", ".github/workflows/codeql.yml") is True
+        assert integration._is_security_workflow("Trivy Scan", ".github/workflows/trivy.yml") is True
+        assert integration._is_security_workflow("pip-audit", ".github/workflows/pip-audit.yml") is True
         assert integration._is_security_workflow("Build", ".github/workflows/build.yml") is False
 
     def test_is_quality_workflow(self, integration: GitHubIntegration) -> None:

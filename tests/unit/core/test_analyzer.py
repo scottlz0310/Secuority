@@ -722,6 +722,42 @@ class TestProjectAnalyzer:
         assert "safety" in workflow_content
         assert "gitleaks" in workflow_content
 
+    def test_workflow_has_security_checks_with_trivy_and_pip_audit(
+        self,
+        analyzer: ProjectAnalyzer,
+        tmp_path: Path,
+    ) -> None:
+        """Test detecting trivy and pip-audit in workflow content."""
+        workflows_dir = tmp_path / ".github" / "workflows"
+        workflows_dir.mkdir(parents=True)
+
+        workflow_path = workflows_dir / "modern-security.yml"
+        workflow_path.write_text(
+            "name: Modern Security Checks\n"
+            "on: [push]\n"
+            "jobs:\n"
+            "  security:\n"
+            "    runs-on: ubuntu-latest\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4\n"
+            "      - name: Run CodeQL\n"
+            "        uses: github/codeql-action/analyze@v3\n"
+            "      - name: Run Trivy\n"
+            "        uses: aquasecurity/trivy-action@0.28.0\n"
+            "      - name: Run pip-audit\n"
+            "        run: pip-audit -r requirements.txt\n",
+        )
+
+        workflows = analyzer._detect_ci_workflows(tmp_path)
+
+        assert len(workflows) == 1
+        assert workflows[0].has_security_checks
+        # Verify modern security tools are detected
+        workflow_content = workflow_path.read_text().lower()
+        assert "codeql" in workflow_content
+        assert "trivy" in workflow_content
+        assert "pip-audit" in workflow_content
+
     def test_workflow_has_quality_checks_detection(
         self,
         analyzer: ProjectAnalyzer,
@@ -1052,6 +1088,8 @@ class TestProjectAnalyzer:
         assert not security_tools[SecurityTool.BANDIT]
         assert not security_tools[SecurityTool.SAFETY]
         assert not security_tools[SecurityTool.GITLEAKS]
+        assert not security_tools[SecurityTool.PIP_AUDIT]
+        assert not security_tools[SecurityTool.TRIVY]
 
         # These missing tools should trigger recommendations
         # (actual recommendation generation is tested in integration tests)
@@ -1073,6 +1111,8 @@ class TestProjectAnalyzer:
         assert security_tools[SecurityTool.BANDIT]
         assert not security_tools[SecurityTool.SAFETY]
         assert not security_tools[SecurityTool.GITLEAKS]
+        assert not security_tools[SecurityTool.PIP_AUDIT]
+        assert not security_tools[SecurityTool.TRIVY]
 
         # Missing tools should trigger recommendations
 

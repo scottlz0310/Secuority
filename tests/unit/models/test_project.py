@@ -143,13 +143,17 @@ class TestProjectState:
                 SecurityTool.BANDIT: True,
                 SecurityTool.SAFETY: False,
                 SecurityTool.GITLEAKS: False,
+                SecurityTool.PIP_AUDIT: True,
+                SecurityTool.TRIVY: False,
             },
         )
 
         missing = state.get_missing_security_tools()
         assert SecurityTool.SAFETY in missing
         assert SecurityTool.GITLEAKS in missing
+        assert SecurityTool.TRIVY in missing
         assert SecurityTool.BANDIT not in missing
+        assert SecurityTool.PIP_AUDIT not in missing
 
     def test_get_missing_quality_tools(self, tmp_path: Path) -> None:
         """Test getting list of missing quality tools."""

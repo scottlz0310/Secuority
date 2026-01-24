@@ -60,7 +60,7 @@ jobs:
             uv venv
             source .venv/bin/activate
           fi
-          uv pip install bandit[toml] safety
+          uv pip install bandit[toml] safety pip-audit
 
       - name: Run Bandit security linter
         run: |
@@ -71,6 +71,16 @@ jobs:
         run: |
           uv run safety check --json --output safety-report.json || true
           uv run safety check
+
+      - name: Run pip-audit dependency vulnerability scanner
+        run: |
+          uv export --no-hashes -o requirements-audit.txt
+          if [ -f "requirements-audit.txt" ]; then
+            uv run pip-audit -r requirements-audit.txt --format json --output pip-audit-report.json
+            uv run pip-audit -r requirements-audit.txt --desc
+          else
+            echo "No requirements file generated, skipping pip-audit"
+          fi
 
       - name: Upload security reports to SARIF
         if: always()
@@ -132,6 +142,7 @@ jobs:
           path: |
             bandit-report.json
             safety-report.json
+            pip-audit-report.json
             bandit.sarif
 
       - name: Comment PR with security results
@@ -171,6 +182,19 @@ jobs:
               }
             } catch (e) {
               comment += '### 🔍 Safety Dependency Scanner\n❓ Report not available\n\n';
+            }
+
+            try {
+              const pipAuditReport = JSON.parse(fs.readFileSync('pip-audit-report.json', 'utf8'));
+              const vulnCount = pipAuditReport.dependencies?.filter(d => d.vulns && d.vulns.length > 0).length || 0;
+              comment += `### 📦 pip-audit Dependency Scanner\n`;
+              comment += `- **Packages with vulnerabilities**: ${vulnCount} ${vulnCount > 0 ? '❌' : '✅'}\n\n`;
+
+              if (vulnCount > 0) {
+                comment += `⚠️ **Action Required**: Please update vulnerable dependencies before merging.\n\n`;
+              }
+            } catch (e) {
+              comment += '### 📦 pip-audit Dependency Scanner\n❓ Report not available\n\n';
             }
 
             comment += `---\n*Security scan completed for Python ${{ matrix.python-version }}*`;
