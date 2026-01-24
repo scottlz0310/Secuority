@@ -74,10 +74,10 @@ jobs:
 
       - name: Run pip-audit dependency vulnerability scanner
         run: |
-          uv export --no-hashes -o requirements-audit.txt || true
+          uv export --no-hashes -o requirements-audit.txt
           if [ -f "requirements-audit.txt" ]; then
-            uv run pip-audit -r requirements-audit.txt --format json --output pip-audit-report.json || true
-            uv run pip-audit -r requirements-audit.txt --desc || true
+            uv run pip-audit -r requirements-audit.txt --format json --output pip-audit-report.json
+            uv run pip-audit -r requirements-audit.txt --desc
           else
             echo "No requirements file generated, skipping pip-audit"
           fi
