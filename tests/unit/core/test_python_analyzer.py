@@ -128,3 +128,32 @@ class TestPythonAnalyzer:
         assert config_map["bandit.yaml"].file_type == "yaml" and config_map["bandit.yaml"].exists
         assert config_map["setup.py"].file_type == "python" and config_map["setup.py"].exists
         assert config_map["requirements.txt"].file_type == "text" and config_map["requirements.txt"].exists
+
+    def test_get_security_tools_returns_expected_tools(self) -> None:
+        """Test that get_security_tools returns the expected security tools."""
+        analyzer = PythonAnalyzer()
+        tools = analyzer.get_security_tools()
+
+        assert "bandit" in tools
+        assert "safety" in tools
+        assert "pip-audit" in tools
+        assert "trivy" in tools
+        assert len(tools) == 4
+
+    def test_get_quality_tools_returns_expected_tools(self) -> None:
+        """Test that get_quality_tools returns the expected quality tools."""
+        analyzer = PythonAnalyzer()
+        tools = analyzer.get_quality_tools()
+
+        assert "ruff" in tools
+        assert "basedpyright" in tools
+        assert "mypy" in tools
+        assert "pylint" in tools
+
+    def test_get_formatting_tools_returns_expected_tools(self) -> None:
+        """Test that get_formatting_tools returns the expected formatting tools."""
+        analyzer = PythonAnalyzer()
+        tools = analyzer.get_formatting_tools()
+
+        assert "ruff format" in tools
+        assert "black" in tools

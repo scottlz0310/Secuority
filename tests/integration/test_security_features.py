@@ -543,6 +543,8 @@ class TestRecommendationAccuracy:
         assert state.security_tools[SecurityTool.BANDIT]
         assert not state.security_tools[SecurityTool.SAFETY]
         assert not state.security_tools[SecurityTool.GITLEAKS]
+        assert not state.security_tools[SecurityTool.PIP_AUDIT]
+        assert not state.security_tools[SecurityTool.TRIVY]
 
         # Should recommend missing security tools
         # (actual recommendation text is implementation-specific)

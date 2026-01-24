@@ -1052,6 +1052,8 @@ class TestProjectAnalyzer:
         assert not security_tools[SecurityTool.BANDIT]
         assert not security_tools[SecurityTool.SAFETY]
         assert not security_tools[SecurityTool.GITLEAKS]
+        assert not security_tools[SecurityTool.PIP_AUDIT]
+        assert not security_tools[SecurityTool.TRIVY]
 
         # These missing tools should trigger recommendations
         # (actual recommendation generation is tested in integration tests)
@@ -1073,6 +1075,8 @@ class TestProjectAnalyzer:
         assert security_tools[SecurityTool.BANDIT]
         assert not security_tools[SecurityTool.SAFETY]
         assert not security_tools[SecurityTool.GITLEAKS]
+        assert not security_tools[SecurityTool.PIP_AUDIT]
+        assert not security_tools[SecurityTool.TRIVY]
 
         # Missing tools should trigger recommendations
 
