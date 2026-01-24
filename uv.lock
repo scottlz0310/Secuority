@@ -1610,6 +1610,7 @@ name = "secuority"
 version = "0.5.0"
 source = { editable = "." }
 dependencies = [
+    { name = "protobuf" },
     { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
@@ -1647,6 +1648,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "protobuf", specifier = ">=5.29.2" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "rich", specifier = ">=13.0.1,<14" },
