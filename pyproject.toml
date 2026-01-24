@@ -162,10 +162,10 @@ continue_on_error = false
 [tool.uv]
 # UV-specific configuration
 constraint-dependencies = []
-# Override protobuf to use the latest available version despite gh-advisory-database warnings
+# Override protobuf to use the latest known-safe 5.x version, avoiding 6.x due to advisory noise
 # Note: As of 2026-01-24, gh-advisory-database reports all versions <= 6.33.4 as vulnerable
 # with "no patch available". However, official CVE-2025-4565 advisory confirms 6.31.1+ is safe.
-# We pin to the highest 5.x version as a precaution until clarification is available.
+# We therefore pin to the highest 5.x version currently considered safe until guidance stabilizes.
 override-dependencies = [
     "protobuf==5.29.5",  # Latest 5.x version confirmed safe by CVE-2025-4565
 ]
