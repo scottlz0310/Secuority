@@ -88,7 +88,7 @@ This project includes the following security measures:
 
 ### Scan Schedule
 - **PR checks**: Bandit, pip-audit, CodeQL, Trivy (fs + light config)
-- **Weekly scans**: CodeQL (deep), Trivy (full: fs/config/secret), Safety
+- **Daily scheduled scans (02:00 UTC)**: CodeQL (deep), Trivy (full: fs/config/secret), Safety (via `.github/workflows/security-check.yml`)
 
 ## Contact
 
