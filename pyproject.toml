@@ -16,7 +16,7 @@ dependencies = [
     "rich>=13.0.1,<14",  # <14 due to semgrep requiring rich~=13.5.2
     "pyyaml>=6.0.3",
     "requests>=2.32.5",
-    "protobuf>=5.29.5",  # >=5.29.5 to fix CVE-2025-4565 DoS vulnerability
+    "protobuf>=6.31.1",  # >=6.31.1 (v33.1) to fix CVE-2025-4565; addresses Dependabot alert #6
 ]
 [[project.authors]]
 name = "Secuority Team"
