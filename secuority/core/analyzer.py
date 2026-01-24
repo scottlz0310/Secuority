@@ -844,7 +844,9 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
         raw_content: str,
     ) -> Workflow:
         workflow_content = raw_content.lower()
-        has_security_checks = any(tool in workflow_content for tool in ["bandit", "safety", "gitleaks", "codeql", "trivy", "pip-audit"])
+        has_security_checks = any(
+            tool in workflow_content for tool in ["bandit", "safety", "gitleaks", "codeql", "trivy", "pip-audit"]
+        )
         has_quality_checks = any(
             tool in workflow_content for tool in ["ruff", "mypy", "black", "flake8", "pylint", "pytest"]
         )
