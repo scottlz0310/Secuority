@@ -214,9 +214,9 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
-          deny-licenses: GPL-2.0, LGPL-2.0, LGPL-2.1
+          deny-licenses: GPL-2.0,LGPL-2.0,LGPL-2.1
           # Allow permissive licenses commonly used in Python ecosystem
-          allow-licenses: Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, Python-2.0, PSF-2.0, 0BSD
+          allow-licenses: Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause,ISC,Python-2.0,PSF-2.0,0BSD
 
   codeql:
     name: CodeQL Analysis
