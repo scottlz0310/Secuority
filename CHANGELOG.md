@@ -10,15 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - テンプレートディレクトリが未初期化でも `secuority apply` や `check` が自動的に内蔵テンプレートを展開するようにし、各言語でテンプレート適用が機能するよう改善。
+- pip-auditをセキュリティ依存グループに追加（依存脆弱性スキャン）
+- GitHub Actions ワークフローにpip-auditを統合
+- Trivy導入（FS/secrets/config横断スキャン）
+
+### Changed
+
+- セキュリティツールのリストを更新: Semgrepを削除し、pip-audit、Trivyを追加
+- analyzer.pyとgithub_integration.pyのセキュリティワークフロー検出キーワードを更新
 
 ### Fixed
 
 - RuffのIルールが有効なだけの場合でもisortが「構成済み」と誤表示されないようにし、`secuority check`のQuality Tools表では「Ruffでカバー済み」と表示されるよう改善。
-- Semgrep 1.147.0がLGPL-2.1に変更されたため、依存制約を<1.147.0に固定。
 
 ### Removed
 
 - Renovateの統合機能とテンプレートを削除し、依存関係更新は外部のrenovate-configへ移管。
+- Semgrepを依存関係から削除（LGPL-2.1ライセンス問題および間接依存による運用コスト増加のため）
+- renovate.jsonからSemgrep関連のpackageRulesを削除
 
 ## [0.5.0] - 2025-11-03
 

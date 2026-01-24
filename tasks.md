@@ -17,7 +17,13 @@
 - `docs/security_quality_baseline_todo.md`: セキュリティ/品質基盤のTODOと実装方針の整理
 - `docs/template_language_optimization.md`: 言語別テンプレートの課題と最適化方針
 
+## 決定済み事項
+- [x] Semgrepは完全削除（LGPL-2.1ライセンス問題、間接依存による運用コスト増加のため）
+- [x] SASTはCodeQL + Banditで対応（CodeQLが主軸、Banditは軽量即時検知用）
+- [x] SCAはpip-audit + Safetyを併用（比較検証期間後に判断）
+- [x] 横断スキャンはTrivyで対応（FS/secrets/config）
+
 ## 実装前の確認事項
-- [ ] Semgrep運用方針（デフォルト無効/オプション化/バージョン固定）
-- [ ] SCA統一ツール（Safety/pip-audit/osv-scanner）
-- [ ] CodeQLと言語固有SASTの役割分担
+- [ ] 他言語向けテンプレートの横展開
+- [ ] pip-audit vs Safetyの最終評価
+- [ ] Trivyのスキャン範囲の微調整

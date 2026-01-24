@@ -39,7 +39,8 @@ class SecurityTool(Enum):
     BANDIT = "bandit"
     SAFETY = "safety"
     GITLEAKS = "gitleaks"
-    SEMGREP = "semgrep"
+    PIP_AUDIT = "pip-audit"
+    TRIVY = "trivy"
 
 
 class QualityTool(Enum):

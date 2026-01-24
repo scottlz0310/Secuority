@@ -482,7 +482,7 @@ register_language(CSharpAnalyzer(), priority=30)
 **追加/更新内容**:
 - `pyproject.toml.template`: basedpyright, dependency-groups 追加
 - `.pre-commit-config.yaml.template`: osv-scanner 統合
-- `workflows/security-check.yml`: osv-scanner, Semgrep 統合
+- `workflows/security-check.yml`: CodeQL, pip-audit, Trivy 統合
 
 **pyproject.toml モダン化**:
 ```toml
