@@ -13,7 +13,7 @@ keywords = [ "security", "quality", "python", "automation", "configuration", "li
 classifiers = [ "Development Status :: 3 - Alpha", "Intended Audience :: Developers", "Operating System :: OS Independent", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Programming Language :: Python :: 3.14", "Topic :: Software Development :: Quality Assurance", "Topic :: Security", "Topic :: Software Development :: Libraries :: Python Modules", "Environment :: Console", "Typing :: Typed",]
 dependencies = [
     "typer>=0.21.1",
-    "rich>=14.3.1,<15",
+    "rich>=14.3.2,<15",
     "pyyaml>=6.0.3",
     "requests>=2.32.5",
 ]
@@ -31,7 +31,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-xdist>=3.8.0",
     "ruff>=0.14.14",
-    "basedpyright>=1.37.2",
+    "basedpyright>=1.37.3",
     "pre-commit>=4.5.1",
     "safety>=3.7.0",
     "types-PyYAML>=6.0.12.20250915",
