@@ -314,7 +314,7 @@ class ProjectAnalyzer(ProjectAnalyzerInterface):
     def _parse_package_spec(self, spec: str) -> Package | None:
         """Parse a package specification string into a Package object."""
         # Remove inline comments
-        spec = spec.split("#")[0].strip()
+        spec = spec.split("#", maxsplit=1)[0].strip()
         if not spec:
             return None
 
