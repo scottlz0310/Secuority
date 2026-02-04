@@ -1138,10 +1138,14 @@ def _perform_initialization(
     def verify_installation() -> None:
         core_engine.template_manager.load_templates()
 
+    def noop() -> None:
+        """No-op function for steps that don't require action."""
+        pass
+
     steps: list[tuple[str, Callable[[], None]]] = [
-        ("Creating template directory", lambda: None),
-        ("Installing default templates", lambda: core_engine.template_manager.initialize_templates()),
-        ("Setting up configuration", lambda: None),
+        ("Creating template directory", noop),
+        ("Installing default templates", core_engine.template_manager.initialize_templates),
+        ("Setting up configuration", noop),
         ("Verifying installation", verify_installation),
     ]
 
