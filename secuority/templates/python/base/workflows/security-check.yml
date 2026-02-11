@@ -92,13 +92,8 @@ jobs:
           if [ -f "bandit-report.json" ]; then
             uv run python << 'PYTHON_SCRIPT'
           import json
-          import os
 
           try:
-              if not os.path.exists("bandit-report.json"):
-                  print("Bandit report file not found")
-                  exit(0)
-
               with open("bandit-report.json", "r") as f:
                   bandit_data = json.load(f)
 
