@@ -69,7 +69,7 @@ jobs:
 
       - name: Run Safety dependency vulnerability scanner
         run: |
-          uv run safety check --json --output safety-report.json || true
+          uv run safety check --output json > safety-report.json || true
           uv run safety check
 
       - name: Run OSV-Scanner for vulnerability detection
@@ -108,8 +108,16 @@ jobs:
                               "informationUri": "https://bandit.readthedocs.io/"
                           }
                       },
-                      "results": [
-                          {
+                      "results": []
+                  }]
+              }
+
+              # Only add results if they exist
+              if "results" in bandit_data and isinstance(bandit_data["results"], list):
+                  for result in bandit_data["results"]:
+                      # Check if all required keys exist
+                      if all(key in result for key in ["test_id", "issue_text", "issue_severity", "filename", "line_number"]):
+                          sarif["runs"][0]["results"].append({
                               "ruleId": result["test_id"],
                               "message": {"text": result["issue_text"]},
                               "level": "error" if result["issue_severity"] == "HIGH" else "warning",
@@ -119,13 +127,11 @@ jobs:
                                       "region": {"startLine": result["line_number"]}
                                   }
                               }]
-                          } for result in bandit_data.get("results", [])
-                      ]
-                  }]
-              }
+                          })
 
               with open("bandit.sarif", "w") as f:
                   json.dump(sarif, f, indent=2)
+              print(f"Successfully converted Bandit report to SARIF with {len(sarif['runs'][0]['results'])} results")
           except Exception as e:
               print(f"Failed to convert Bandit report to SARIF: {e}")
           PYTHON_SCRIPT
