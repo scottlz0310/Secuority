@@ -205,7 +205,7 @@ def with_github_error_handling(
 
 
 # Convenience functions for common GitHub operations
-def safe_github_call(
+def safe_github_call[T](
     func: Callable[..., T],
     *args: Any,
     fallback_value: T | None = None,
