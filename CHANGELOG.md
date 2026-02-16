@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - RuffのIルールが有効なだけの場合でもisortが「構成済み」と誤表示されないようにし、`secuority check`のQuality Tools表では「Ruffでカバー済み」と表示されるよう改善。
+- Code QualityワークフローのDependency Reviewを許可リスト方式から拒否リスト方式に変更し、依存更新PRでのライセンス誤検知によるCI失敗を抑制。
 
 ### Removed
 
