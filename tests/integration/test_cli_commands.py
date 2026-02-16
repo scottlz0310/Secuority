@@ -57,7 +57,7 @@ class TestCLICommands:
         result = runner.invoke(app, ["check", "--project-path", "/nonexistent/path"])
 
         # Should handle error gracefully
-        assert result.exit_code != 0 or "error" in result.stdout.lower()
+        assert result.exit_code != 0 or "error" in result.output.lower()
 
     def test_apply_command_dry_run(
         self,
@@ -71,7 +71,7 @@ class TestCLICommands:
         )
 
         # Dry run should not fail
-        assert result.exit_code == 0 or "dry" in result.stdout.lower()
+        assert result.exit_code == 0 or "dry" in result.output.lower()
 
     def test_apply_command_with_force(
         self,
@@ -86,7 +86,7 @@ class TestCLICommands:
         )
 
         # Should execute without prompts
-        assert result.exit_code == 0 or "apply" in result.stdout.lower()
+        assert result.exit_code == 0 or "apply" in result.output.lower()
 
     def test_init_command_basic(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test basic init command execution."""
@@ -95,7 +95,7 @@ class TestCLICommands:
             result = runner.invoke(app, ["init"])
 
         # Init should succeed or provide helpful message
-        assert result.exit_code == 0 or "initialized" in result.stdout.lower()
+        assert result.exit_code == 0 or "initialized" in result.output.lower()
 
     def test_init_command_verbose(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test init command with verbose flag."""
@@ -116,7 +116,7 @@ class TestCLICommands:
             result = runner.invoke(app, ["template", "list"])
 
         # Should list templates or handle gracefully
-        assert result.exit_code == 0 or "template" in result.stdout.lower()
+        assert result.exit_code == 0 or "template" in result.output.lower()
 
     def test_template_update_command(self, runner: CliRunner) -> None:
         """Test template update command."""
@@ -127,7 +127,7 @@ class TestCLICommands:
             result = runner.invoke(app, ["template", "update"])
 
         # Should attempt update or handle gracefully
-        assert result.exit_code == 0 or "update" in result.stdout.lower()
+        assert result.exit_code == 0 or "update" in result.output.lower()
 
     def test_check_command_with_github_integration(
         self,
@@ -167,7 +167,7 @@ class TestCLICommands:
         )
 
         # Command should execute
-        assert result.exit_code == 0 or "apply" in result.stdout.lower()
+        assert result.exit_code == 0 or "apply" in result.output.lower()
 
     def test_check_command_detects_missing_files(
         self,
@@ -213,7 +213,7 @@ class TestCLICommands:
         )
 
         # Should handle conflicts gracefully
-        assert result.exit_code == 0 or "apply" in result.stdout.lower()
+        assert result.exit_code == 0 or "apply" in result.output.lower()
 
     def test_init_command_creates_config(
         self,
@@ -225,7 +225,7 @@ class TestCLICommands:
             result = runner.invoke(app, ["init"])
 
         # Init should succeed or provide helpful message
-        assert result.exit_code == 0 or "init" in result.stdout.lower()
+        assert result.exit_code == 0 or "init" in result.output.lower()
 
     def test_check_command_with_security_tools(
         self,
@@ -286,4 +286,5 @@ class TestCLICommands:
         result = runner.invoke(app, ["--version"])
 
         # Should display version or handle gracefully
-        assert result.exit_code == 0 or "version" in result.stdout.lower()
+        command_output = result.output.lower()
+        assert result.exit_code == 0 or "version" in command_output
