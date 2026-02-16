@@ -286,4 +286,5 @@ class TestCLICommands:
         result = runner.invoke(app, ["--version"])
 
         # Should display version or handle gracefully
-        assert result.exit_code == 0 or "version" in result.stdout.lower()
+        command_output = result.output.lower()
+        assert result.exit_code == 0 or "version" in command_output
