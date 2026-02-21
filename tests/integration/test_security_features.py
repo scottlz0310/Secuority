@@ -250,7 +250,7 @@ class TestWorkflowGeneration:
         assert change is not None
         assert change.file_path.name == "security-check.yml"
         assert "bandit" in change.new_content.lower()
-        assert "safety" in change.new_content.lower()
+        assert "pip-audit" in change.new_content.lower()
         assert "gitleaks" in change.new_content.lower()
 
     def test_generate_quality_workflow(
@@ -437,7 +437,7 @@ class TestWorkflowGeneration:
         )
         assert security_workflow is not None
         assert "bandit" in security_workflow.new_content.lower()
-        assert "safety" in security_workflow.new_content.lower()
+        assert "pip-audit" in security_workflow.new_content.lower()
 
 
 class TestRecommendationAccuracy:

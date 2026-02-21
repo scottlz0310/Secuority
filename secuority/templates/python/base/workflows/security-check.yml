@@ -60,17 +60,22 @@ jobs:
             uv venv
             source .venv/bin/activate
           fi
-          uv pip install bandit[toml] safety
+          uv pip install bandit[toml] pip-audit
 
       - name: Run Bandit security linter
         run: |
           uv run bandit -c pyproject.toml -r . -f json -o bandit-report.json || true
           uv run bandit -c pyproject.toml -r . -f txt
 
-      - name: Run Safety dependency vulnerability scanner
+      - name: Run pip-audit dependency vulnerability scanner
         run: |
-          uv run safety check --output json > safety-report.json || true
-          uv run safety check
+          uv export --no-hashes -o requirements-audit.txt
+          if [ -f "requirements-audit.txt" ]; then
+            uv run pip-audit -r requirements-audit.txt --format json --output pip-audit-report.json || true
+            uv run pip-audit -r requirements-audit.txt --desc
+          else
+            echo "No requirements file generated, skipping pip-audit"
+          fi
 
       - name: Run OSV-Scanner for vulnerability detection
         run: |
@@ -151,7 +156,7 @@ jobs:
           name: security-reports-${{ matrix.python-version }}
           path: |
             bandit-report.json
-            safety-report.json
+            pip-audit-report.json
             osv-report.json
             bandit.sarif
 
@@ -182,16 +187,16 @@ jobs:
             }
 
             try {
-              const safetyReport = JSON.parse(fs.readFileSync('safety-report.json', 'utf8'));
-              const vulnCount = safetyReport.vulnerabilities?.length || 0;
-              comment += `### 🔍 Safety Dependency Scanner\n`;
-              comment += `- **Vulnerabilities found**: ${vulnCount} ${vulnCount > 0 ? '❌' : '✅'}\n\n`;
+              const pipAuditReport = JSON.parse(fs.readFileSync('pip-audit-report.json', 'utf8'));
+              const vulnCount = pipAuditReport.dependencies?.filter(d => d.vulns && d.vulns.length > 0).length || 0;
+              comment += `### 📦 pip-audit Dependency Scanner\n`;
+              comment += `- **Packages with vulnerabilities**: ${vulnCount} ${vulnCount > 0 ? '❌' : '✅'}\n\n`;
 
               if (vulnCount > 0) {
                 comment += `⚠️ **Action Required**: Please update vulnerable dependencies before merging.\n\n`;
               }
             } catch (e) {
-              comment += '### 🔍 Safety Dependency Scanner\n❓ Report not available\n\n';
+              comment += '### 📦 pip-audit Dependency Scanner\n❓ Report not available\n\n';
             }
 
             try {
