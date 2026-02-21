@@ -74,7 +74,7 @@ uv run secuority check
 * **.gitignore**: Python標準テンプレートとの差分検出・追加
 
 ### Phase 2: セキュリティ
-* **セキュリティツール**: Bandit/Safety の設定追加
+* **セキュリティツール**: Bandit/pip-audit の設定追加
 * **機密漏洩防止**: pre-commit hooks (gitleaks) + CI検証 + GitHub Push Protection の3段構え
 
 ### Phase 3: CI/CD
@@ -144,7 +144,7 @@ secuority init
 Secuorityは以下の言語を自動検出します：
 
 - **Python**: pyproject.toml, requirements.txt, .py ファイルから検出
-  - ツール: ruff, basedpyright, pytest, bandit, osv-scanner
+  - ツール: ruff, basedpyright, pytest, bandit, pip-audit, osv-scanner
 - **Node.js**: package.json, .js/.ts ファイルから検出
   - ツール: biome, typescript, jest, npm audit, osv-scanner
 - **Rust**: Cargo.toml, Cargo.lock, .rs ファイルから検出
@@ -171,7 +171,7 @@ Secuorityは以下の言語を自動検出します：
 - [ ] pre-commit hooks (gitleaks) 設定
 - [ ] CI での機密情報検証ワークフロー
 - [ ] GitHub Push Protection 有効化確認
-- [ ] Bandit/Safety の pyproject.toml 統合
+- [ ] Bandit/pip-audit の pyproject.toml 統合
 
 ## 📋 実装マイルストーン
 

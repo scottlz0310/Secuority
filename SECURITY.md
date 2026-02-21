@@ -75,7 +75,6 @@ This project includes the following security measures:
 
 ### Dependency Vulnerability Scanning (SCA)
 - **pip-audit**: Python dependency vulnerability scanner
-- **Safety**: Dependency vulnerability scanner (parallel validation)
 
 ### Cross-cutting Scans
 - **Trivy**: Filesystem, secrets, and configuration scanning
@@ -88,7 +87,7 @@ This project includes the following security measures:
 
 ### Scan Schedule
 - **PR checks**: Bandit, pip-audit, CodeQL, Trivy (fs + light config)
-- **Daily scheduled scans (02:00 UTC)**: CodeQL (deep), Trivy (full: fs/config/secret), Safety (via `.github/workflows/security-check.yml`)
+- **Daily scheduled scans (02:00 UTC)**: CodeQL (deep), Trivy (full: fs/config/secret), pip-audit (via `.github/workflows/security-check.yml`)
 
 ## Contact
 

@@ -60,17 +60,12 @@ jobs:
             uv venv
             source .venv/bin/activate
           fi
-          uv pip install bandit[toml] safety pip-audit
+          uv pip install bandit[toml] pip-audit
 
       - name: Run Bandit security linter
         run: |
           uv run bandit -c pyproject.toml -r . -f json -o bandit-report.json || true
           uv run bandit -c pyproject.toml -r . -f txt
-
-      - name: Run Safety dependency vulnerability scanner
-        run: |
-          uv run safety check --output json > safety-report.json || true
-          uv run safety check
 
       - name: Run pip-audit dependency vulnerability scanner
         run: |
@@ -147,7 +142,6 @@ jobs:
           name: security-reports-${{ matrix.python-version }}
           path: |
             bandit-report.json
-            safety-report.json
             pip-audit-report.json
             bandit.sarif
 
@@ -175,19 +169,6 @@ jobs:
               }
             } catch (e) {
               comment += '### 🛡️ Bandit Security Linter\n❓ Report not available\n\n';
-            }
-
-            try {
-              const safetyReport = JSON.parse(fs.readFileSync('safety-report.json', 'utf8'));
-              const vulnCount = safetyReport.vulnerabilities?.length || 0;
-              comment += `### 🔍 Safety Dependency Scanner\n`;
-              comment += `- **Vulnerabilities found**: ${vulnCount} ${vulnCount > 0 ? '❌' : '✅'}\n\n`;
-
-              if (vulnCount > 0) {
-                comment += `⚠️ **Action Required**: Please update vulnerable dependencies before merging.\n\n`;
-              }
-            } catch (e) {
-              comment += '### 🔍 Safety Dependency Scanner\n❓ Report not available\n\n';
             }
 
             try {

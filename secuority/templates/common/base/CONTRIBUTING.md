@@ -237,7 +237,7 @@ uv run bandit -r .
 uv run detect-secrets scan --all-files
 
 # Check dependencies for vulnerabilities
-uv run safety check
+uv run pip-audit
 ```
 
 ## 🐛 Bug Reports
